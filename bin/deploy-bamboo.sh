@@ -6,6 +6,15 @@ set -eux
 # Deployment configuration/variables
 ####################################
 
+# Read in edsc portal configuration
+edscPortal=$(cat portals/edsc/config.json)
+
+# Update key for edsc portal
+edscPortal=$(jq --arg newValue "$bamboo_NASA_ATTRIBUTION_TEXT" '.footer.attributionText = $newValue' <<< "$edscPortal")
+
+# Overwrite edsc portal with new values
+echo "$edscPortal" > portals/edsc/config.json
+
 # Read in static.config.json
 config="`cat static.config.json`"
 
@@ -21,12 +30,32 @@ config="`jq '.application.disableDatabaseComponents = $newValue' --arg newValue 
 config="`jq '.application.disableEddDownload = $newValue' --arg newValue $bamboo_DISABLE_EDD_DOWNLOAD <<< $config`"
 config="`jq '.application.disableOrdering = $newValue' --arg newValue $bamboo_DISABLE_ORDERING <<< $config`"
 config="`jq '.application.disableSwodlr = $newValue' --arg newValue $bamboo_DISABLE_SWODLR <<< $config`"
-config="`jq '.application.macOSEddDownloadSize = $newValue' --arg newValue $bamboo_MACOS_EDD_DOWNLOAD_SIZE <<< $config`"
-config="`jq '.application.windowsEddDownloadSize = $newValue' --arg newValue $bamboo_WINDOWS_EDD_DOWNLOAD_SIZE <<< $config`"
-config="`jq '.application.linuxEddDownloadSize = $newValue' --arg newValue $bamboo_LINUX_EDD_DOWNLOAD_SIZE <<< $config`"
+config="`jq '.application.showInactiveCollections = $newValue' --arg newValue $bamboo_SHOW_INACTIVE_COLLECTIONS <<< $config`"
+config="`jq '.application.orderStatusRefreshTime = $newValue' --arg newValue $bamboo_ORDER_STATUS_REFRESH_TIME <<< $config`"
+config="`jq '.application.orderStatusRefreshTimeCreating = $newValue' --arg newValue $bamboo_ORDER_STATUS_REFRESH_TIME_CREATING <<< $config`"
+config="`jq '.application.collectionSearchResultsSortKey = $newValue' --arg newValue $bamboo_COLLECTION_SEARCH_RESULTS_SORT_KEY <<< $config`"
+config="`jq '.application.mapPointsSimplifyThreshold = $newValue' --arg newValue $bamboo_MAP_POINTS_SIMPLIFY_THRESHOLD <<< $config`"
+config="`jq '.application.nlpSearch = $newValue' --arg newValue $bamboo_NLP_SEARCH <<< $config`"
+config="`jq '.application.numberOfGranules = $newValue' --arg newValue "$bamboo_NUMBER_OF_GRANULES" <<< $config`"
+config="`jq '.application.placeLabelsStyleUrl = $newValue' --arg newValue $bamboo_PLACE_LABELS_STYLE_URL <<< $config`"
+config="`jq '.application.growthbookEnabled = $newValue' --arg newValue $bamboo_GROWTHBOOK_ENABLED <<< $config`"
+
 config="`jq '.environment.production.apiHost = $newValue' --arg newValue $bamboo_API_HOST <<< $config`"
 config="`jq '.environment.production.edscHost = $newValue' --arg newValue $bamboo_EDSC_HOST <<< $config`"
-config="`jq '.environment.collectionSearchResultsSortKey = $newValue' --arg newValue $bamboo_COLLECTION_SEARCH_RESULTS_SORT_KEY <<< $config`"
+config="`jq '.environment.production.growthbookFirehoseStreamName = $newValue' --arg newValue $bamboo_GROWTHBOOK_FIREHOSE_STREAM_NAME <<< $config`"
+config="`jq '.environment.production.growthbookApiHost = $newValue' --arg newValue $bamboo_GROWTHBOOK_API_HOST <<< $config`"
+config="`jq '.environment.production.growthbookClientKey = $newValue' --arg newValue $bamboo_GROWTHBOOK_CLIENT_KEY <<< $config`"
+
+# Wrap the bamboo variable in quotes for a string value that could contain spaces
+config="`jq '.application.emergencyNotification = $newValue' --arg newValue "$bamboo_EMERGENCY_NOTIFICATION" <<< $config`"
+config="`jq '.application.emergencyNotificationType = $newValue' --arg newValue $bamboo_EMERGENCY_NOTIFICATION_TYPE <<< $config`"
+
+config="`jq '.earthdata.sit.edlJwk = $newValue' --arg newValue $bamboo_EDL_SIT_JWK <<< $config`"
+config="`jq '.earthdata.sit.edlJwkId = $newValue' --arg newValue $bamboo_EDL_SIT_JWK_ID <<< $config`"
+config="`jq '.earthdata.uat.edlJwk = $newValue' --arg newValue $bamboo_EDL_UAT_JWK <<< $config`"
+config="`jq '.earthdata.uat.edlJwkId = $newValue' --arg newValue $bamboo_EDL_UAT_JWK_ID <<< $config`"
+config="`jq '.earthdata.prod.edlJwk = $newValue' --arg newValue $bamboo_EDL_PROD_JWK <<< $config`"
+config="`jq '.earthdata.prod.edlJwkId = $newValue' --arg newValue $bamboo_EDL_PROD_JWK_ID <<< $config`"
 
 # Overwrite static.config.json with new values
 echo $config > tmp.$$.json && mv tmp.$$.json static.config.json
@@ -55,24 +84,50 @@ EOF
 #####################
 
 cat <<EOF > .dockerignore
-node_modules
+**/node_modules
+**/cdk.out
 .DS_Store
+.env
 .git
 .github
-.serverless
+.esbuild
+.nyc_output
 .webpack
 coverage
-cypress
+test-results
+playwright-coverage
+playwright-report
 dist
-node_modules
 tmp
 EOF
 
 cat <<EOF > Dockerfile
-FROM node:18.19-bullseye
+# Pull the official Node image to use as a temporary reference stage
+# Use bookworm to ensure both images are based on the same OS
+FROM node:22-bookworm AS node_builder
+
+# Build your actual application image
+FROM python:3.13-bookworm
+
+# Copy Node.js binaries and NPM from the Node stage
+COPY --from=node_builder /usr/local/bin/node /usr/local/bin/
+COPY --from=node_builder /usr/local/lib/node_modules /usr/local/lib/node_modules
+
+# Re-link npm and npx to make them globally executable
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
 COPY . /build
 WORKDIR /build
-RUN npm ci --omit=dev && npm run build
+
+# Install node modules
+RUN npm ci --omit=dev
+
+# Build the application
+RUN NODE_ENV=production npm run build
+
+# Build the geocoder lambda
+RUN bin/build-python.sh
 EOF
 
 dockerTag=edsc-$bamboo_STAGE_NAME
@@ -80,45 +135,56 @@ docker build -t $dockerTag .
 
 # Convenience function to invoke `docker run` with appropriate env vars instead of baking them into image
 dockerRun() {
-    docker run \
-        -e "AWS_ACCESS_KEY_ID=$bamboo_AWS_ACCESS_KEY_ID" \
-        -e "AWS_SECRET_ACCESS_KEY=$bamboo_AWS_SECRET_ACCESS_KEY" \
-        -e "CLOUDFRONT_BUCKET_NAME=$bamboo_CLOUDFRONT_BUCKET_NAME" \
-        -e "COLORMAP_JOB_ENABLED=$bamboo_COLORMAP_JOB_ENABLED" \
-        -e "DB_ALLOCATED_STORAGE=$bamboo_DB_ALLOCATED_STORAGE" \
-        -e "DB_INSTANCE_CLASS=$bamboo_DB_INSTANCE_CLASS" \
-        -e "GIBS_JOB_ENABLED=$bamboo_GIBS_JOB_ENABLED" \
-        -e "LAMBDA_TIMEOUT=$bamboo_LAMBDA_TIMEOUT" \
-        -e "LOG_DESTINATION_ARN=$bamboo_LOG_DESTINATION_ARN" \
-        -e "NODE_ENV=production" \
-        -e "NODE_OPTIONS=--max_old_space_size=4096" \
-        -e "OBFUSCATION_SPIN_SHAPEFILES=$bamboo_OBFUSCATION_SPIN_SHAPEFILES" \
-        -e "OBFUSCATION_SPIN=$bamboo_OBFUSCATION_SPIN" \
-        -e "ORDER_DELAY_SECONDS=$bamboo_ORDER_DELAY_SECONDS" \
-        -e "SUBNET_ID_A=$bamboo_SUBNET_ID_A" \
-        -e "SUBNET_ID_B=$bamboo_SUBNET_ID_B" \
-        -e "USE_CACHE=$bamboo_USE_CACHE" \
-        -e "VPC_ID=$bamboo_VPC_ID" \
-        $dockerTag "$@"
+  docker run \
+    -e "AWS_ACCESS_KEY_ID=$bamboo_AWS_ACCESS_KEY_ID" \
+    -e "AWS_ACCOUNT=$bamboo_AWS_ACCOUNT" \
+    -e "AWS_SECRET_ACCESS_KEY=$bamboo_AWS_SECRET_ACCESS_KEY" \
+    -e "BEDROCK_MODEL_ID=$bamboo_BEDROCK_MODEL_ID" \
+    -e "CLOUDFRONT_BUCKET_NAME=$bamboo_CLOUDFRONT_BUCKET_NAME" \
+    -e "CLEANUP_RETRIEVALS_JOB_ENABLED=$bamboo_CLEANUP_RETRIEVALS_JOB_ENABLED" \
+    -e "COLORMAP_JOB_ENABLED=$bamboo_COLORMAP_JOB_ENABLED" \
+    -e "DB_ALLOCATED_STORAGE=$bamboo_DB_ALLOCATED_STORAGE" \
+    -e "DB_INSTANCE_CLASS=$bamboo_DB_INSTANCE_CLASS" \
+    -e "GEOCODE_CACHE_EXPIRE_SECONDS=$bamboo_GEOCODE_CACHE_EXPIRE_SECONDS" \
+    -e "GEOCODE_INDEX_CACHE_BUCKET=$bamboo_GEOCODE_INDEX_CACHE_BUCKET" \
+    -e "GEOCODE_INDEX_CACHE_DIR=$bamboo_GEOCODE_INDEX_CACHE_DIR" \
+    -e "GEOCODE_INDEX_HOST=$bamboo_GEOCODE_INDEX_HOST" \
+    -e "GEOCODE_INDEX_PORT=$bamboo_GEOCODE_INDEX_PORT" \
+    -e "GEOCODE_INDEX_REGION=$bamboo_GEOCODE_INDEX_REGION" \
+    -e "GIBS_JOB_ENABLED=$bamboo_GIBS_JOB_ENABLED" \
+    -e "INTERNET_SERVICE_EAST_VPC=$bamboo_INTERNET_SERVICE_EAST_VPC" \
+    -e "LAMBDA_TIMEOUT=$bamboo_LAMBDA_TIMEOUT" \
+    -e "LOG_DESTINATION_ARN=$bamboo_LOG_DESTINATION_ARN" \
+    -e "NODE_ENV=production" \
+    -e "NODE_OPTIONS=--max_old_space_size=4096" \
+    -e "OBFUSCATION_SPIN_SHAPEFILES=$bamboo_OBFUSCATION_SPIN_SHAPEFILES" \
+    -e "OBFUSCATION_SPIN=$bamboo_OBFUSCATION_SPIN" \
+    -e "ORDER_DELAY_SECONDS=$bamboo_ORDER_DELAY_SECONDS" \
+    -e "ORDER_STATUS_REFRESH_TIME=$bamboo_ORDER_STATUS_REFRESH_TIME" \
+    -e "SITE_BUCKET=$bamboo_SITE_BUCKET" \
+    -e "STAGE_NAME=$bamboo_STAGE_NAME" \
+    -e "SUBNET_ID_A=$bamboo_SUBNET_ID_A" \
+    -e "SUBNET_ID_B=$bamboo_SUBNET_ID_B" \
+    -e "SUBNET_ID_C=$bamboo_SUBNET_ID_C" \
+    -e "USE_CACHE=$bamboo_USE_CACHE" \
+    -e "USE_GEOCODER=$bamboo_USE_GEOCODER" \
+    -e "USE_NLP_SEARCH=$bamboo_USE_NLP_SEARCH" \
+    -e "VPC_ID=$bamboo_VPC_ID" \
+    -e "VPC_ENDPOINT_ID=$bamboo_VPC_ENDPOINT_ID" \
+    $dockerTag "$@"
 }
 
-# Execute serverless commands in Docker
+# Execute cdk commands in Docker
 #######################################
-
-stageOpts="--stage $bamboo_STAGE_NAME"
 
 # Deploy AWS Infrastructure Resources
 echo 'Deploying AWS Infrastructure Resources...'
-dockerRun npx serverless deploy $stageOpts --config serverless-infrastructure.yml
+dockerRun npm run deploy-infrastructure
 
 # Deploy AWS Application Resources
 echo 'Deploying AWS Application Resources...'
-dockerRun npx serverless deploy $stageOpts
-
-# Migrate the database
-echo 'Migrating the database...'
-dockerRun npx serverless invoke $stageOpts --function migrateDatabase
+dockerRun npm run deploy-application
 
 # Deploy static assets
 echo 'Deploying static assets to S3...'
-dockerRun npx serverless client deploy $stageOpts --no-confirm
+dockerRun npm run deploy-static

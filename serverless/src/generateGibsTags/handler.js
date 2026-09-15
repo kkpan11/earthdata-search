@@ -10,12 +10,15 @@ import { getSupportedGibsLayers } from './getSupportedGibsLayers'
 import { getSystemToken } from '../util/urs/getSystemToken'
 import { parseError } from '../../../sharedUtils/parseError'
 import { tagName } from '../../../sharedUtils/tags'
+import { getQueueUrl, QUEUE_NAMES } from '../util/getQueueUrl'
 
 // AWS SQS adapter
 let sqs
 
 /**
  * Handler to process product information from world view and tag CMR collections
+ * @param {Object} event EventBridge event (scheduled event)
+ * @param {Object} context Methods and properties that provide information about the invocation, function, and execution environment
  */
 const generateGibsTags = async (event, context) => {
   // https://stackoverflow.com/questions/49347210/why-aws-lambda-keeps-timing-out-when-using-knex-js
@@ -116,7 +119,7 @@ const generateGibsTags = async (event, context) => {
     const { [conceptId]: tagData } = conceptIdLayers
 
     await sqs.send(new SendMessageCommand({
-      QueueUrl: process.env.tagQueueUrl,
+      QueueUrl: getQueueUrl(QUEUE_NAMES.TagProcessingQueue),
       MessageBody: JSON.stringify({
         tagName: tagName('gibs'),
         action: 'ADD',
@@ -134,7 +137,7 @@ const generateGibsTags = async (event, context) => {
     // If conceptIdLayers contains values we want to ensure we delete tags
     // from only the collections that arent within it
     await sqs.send(new SendMessageCommand({
-      QueueUrl: process.env.tagQueueUrl,
+      QueueUrl: getQueueUrl(QUEUE_NAMES.TagProcessingQueue),
       MessageBody: JSON.stringify({
         tagName: tagName('gibs'),
         action: 'REMOVE',
@@ -159,7 +162,7 @@ const generateGibsTags = async (event, context) => {
   } else {
     // If no collections were found to match the gibs criteria, we'll just delete all the tags.
     await sqs.send(new SendMessageCommand({
-      QueueUrl: process.env.tagQueueUrl,
+      QueueUrl: getQueueUrl(QUEUE_NAMES.TagProcessingQueue),
       MessageBody: JSON.stringify({
         tagName: tagName('gibs'),
         action: 'REMOVE',

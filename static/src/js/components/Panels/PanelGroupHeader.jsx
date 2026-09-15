@@ -1,15 +1,21 @@
 import React, { Fragment } from 'react'
 import PropTypes from 'prop-types'
 import classNames from 'classnames'
+import { List } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 import {
   FaSortAmountDownAlt,
   FaSortAmountDown,
   FaTable,
-  FaList,
   FaFileExport
 } from 'react-icons/fa'
+import { upperFirst } from 'lodash-es'
+import { humanizeSortKey } from '../../util/humanizedQueryValueFormatters'
 
-import { headerMetaSkeleton, titleSkeleton } from './skeleton'
+import {
+  breadcrumbSkeleton,
+  headerMetaSkeleton,
+  titleSkeleton
+} from './skeleton'
 
 import Button from '../Button/Button'
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
@@ -32,7 +38,7 @@ import './PanelGroupHeader.scss'
  * @param {Boolean} props.headerMetaPrimaryLoading - A flag designating the header primary loading state
  * @param {String} props.headerMetaPrimaryText - A string designating the header primary loading text
  * @param {Boolean} props.isActive -  A flag to designate the PanelGroup as active. Active PanelGroups are lifted to the highest index
- * @param {Boolean} props.isOpen - A flag to desingate the PanelGroup as open
+ * @param {Boolean} props.isOpen - A flag to designate the PanelGroup as open
  * @param {Array} props.moreActionsDropdownItems - An array of objects used to configure the more actions dropdown items
  * @param {String} props.panelGroupId - The element to be used as the header
  * @param {String} props.primaryHeading - The text to be used as the primary heading
@@ -41,22 +47,24 @@ import './PanelGroupHeader.scss'
  * @param {Array} props.viewsArray - The text to be used as the secondary heading
 */
 export const PanelGroupHeader = ({
-  activeSort,
-  activeView,
-  breadcrumbs,
-  handoffLinks,
-  headerMessage,
-  headerMetaPrimaryLoading,
-  headerMetaPrimaryText,
-  panelGroupId,
-  primaryHeading,
-  headerLoading,
-  moreActionsDropdownItems,
-  exportsArray,
-  secondaryHeading,
-  sortsArray,
-  viewsArray
+  activeSort = '',
+  activeView = '',
+  breadcrumbs = [],
+  exportsArray = [],
+  handoffLinks = [],
+  headerLoading = false,
+  headerMessage = null,
+  headerMetaPrimaryLoading = false,
+  headerMetaPrimaryText = null,
+  moreActionsDropdownItems = [],
+  panelGroupId = null,
+  primaryHeading = null,
+  secondaryHeading = null,
+  sortsArray = [],
+  viewsArray = []
 }) => {
+  const sortLabel = `Sort: ${humanizeSortKey(activeSort, sortsArray)}`
+  const viewLabel = `View: ${upperFirst(activeView)}`
   const panelGroupHeaderClasses = classNames([
     'panel-group-header',
     {
@@ -77,7 +85,7 @@ export const PanelGroupHeader = ({
   if (activeView === 'table') {
     ActiveViewIcon = FaTable
   } else {
-    ActiveViewIcon = FaList
+    ActiveViewIcon = List
   }
 
   return (
@@ -89,14 +97,15 @@ export const PanelGroupHeader = ({
             data-testid="panel-group-header__breadcrumbs"
           >
             {
-              breadcrumbs.map((crumb, i) => {
-                const key = `breadcrumb__${i}`
+              breadcrumbs.map((crumb, index) => {
+                const key = `breadcrumb__${index}`
                 const {
                   icon = '',
                   title = '',
                   link = {},
                   onClick = null,
-                  options = {}
+                  options = {},
+                  isLoading = false
                 } = crumb
 
                 const {
@@ -114,6 +123,22 @@ export const PanelGroupHeader = ({
                     'panel-group-header__breadcrumb--shrink': shrink
                   }
                 ])
+
+                if (isLoading) {
+                  return (
+                    <Skeleton
+                      className="panel-group-header__breadcrumbs-skeleton"
+                      containerStyle={
+                        {
+                          height: '1.5rem',
+                          width: '100%'
+                        }
+                      }
+                      key={`${title}_breadcrumb-skeleton`}
+                      shapes={breadcrumbSkeleton}
+                    />
+                  )
+                }
 
                 if (!link || !pathname) {
                   return (
@@ -152,7 +177,7 @@ export const PanelGroupHeader = ({
                       {title}
                     </PortalLinkContainer>
                     {
-                      i < breadcrumbs.length - 1 && (
+                      index < breadcrumbs.length - 1 && (
                         <span className="panel-group-header__breadcrumb-divider">/</span>
                       )
                     }
@@ -182,7 +207,7 @@ export const PanelGroupHeader = ({
             : (
               <span className="panel-group-header__heading">
                 <h2
-                  className="panel-group-header__heading-primary"
+                  className="panel-group-header__heading-primary h5"
                   data-testid="panel-group-header__heading-primary"
                 >
                   {primaryHeading}
@@ -201,13 +226,14 @@ export const PanelGroupHeader = ({
               handoffLinks={handoffLinks}
             >
               {
-                moreActionsDropdownItems.map((moreActionsDropdownItem, i) => {
-                  const key = JSON.stringify(moreActionsDropdownItem) + i
+                moreActionsDropdownItems.map((moreActionsDropdownItem, index) => {
+                  const key = JSON.stringify(moreActionsDropdownItem) + index
                   const {
                     title = '',
                     icon = '',
                     link = {},
-                    onClick = null
+                    onClick = null,
+                    inProgress
                   } = moreActionsDropdownItem
 
                   const {
@@ -219,6 +245,10 @@ export const PanelGroupHeader = ({
 
                   if (typeof onClick === 'function') {
                     onClickProps.onClick = onClick
+                  }
+
+                  if (inProgress) {
+                    onClickProps.inProgress = inProgress
                   }
 
                   let item = (
@@ -311,9 +341,8 @@ export const PanelGroupHeader = ({
                       <RadioSettingDropdown
                         id={`panel-group-header-dropdown__sort__${panelGroupId}`}
                         className="panel-group-header__setting-dropdown"
-                        activeSortOrder={activeSort}
                         activeIcon={ActiveSortIcon}
-                        label="Sort"
+                        label={sortLabel}
                         settings={sortsArray}
                       />
                     )
@@ -324,7 +353,7 @@ export const PanelGroupHeader = ({
                         id={`panel-group-header-dropdown__view__${panelGroupId}`}
                         className="panel-group-header__setting-dropdown"
                         activeIcon={ActiveViewIcon}
-                        label="View"
+                        label={viewLabel}
                         settings={viewsArray}
                       />
                     )
@@ -337,25 +366,6 @@ export const PanelGroupHeader = ({
       }
     </header>
   )
-}
-
-PanelGroupHeader.defaultProps = {
-  activeView: '',
-  activeSort: '',
-  breadcrumbs: [],
-  handoffLinks: [],
-  headingLink: null,
-  headerMessage: null,
-  headerMetaPrimaryLoading: false,
-  headerMetaPrimaryText: null,
-  moreActionsDropdownItems: [],
-  panelGroupId: null,
-  primaryHeading: null,
-  headerLoading: false,
-  exportsArray: [],
-  viewsArray: [],
-  secondaryHeading: null,
-  sortsArray: []
 }
 
 PanelGroupHeader.propTypes = {

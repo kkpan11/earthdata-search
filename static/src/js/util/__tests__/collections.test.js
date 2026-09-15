@@ -1,15 +1,18 @@
 import { buildCollectionSearchParams, prepareCollectionParams } from '../collections'
+import useEdscStore from '../../zustand/useEdscStore'
 
 describe('#prepareCollectionParams', () => {
   describe('when the customize facet is selected', () => {
     test('includes the correct serviceType', () => {
-      const params = prepareCollectionParams({
-        facetsParams: {
-          feature: {
+      useEdscStore.setState({
+        facetParams: {
+          featureFacets: {
             customizable: true
           }
         }
       })
+
+      const params = prepareCollectionParams({})
 
       expect(params).toEqual(
         expect.objectContaining({

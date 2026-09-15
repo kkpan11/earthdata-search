@@ -1,18 +1,18 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import classNames from 'classnames'
-import { Alert } from 'react-bootstrap'
+import Alert from 'react-bootstrap/Alert'
 
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
 
 import './EDSCAlert.scss'
 
-export const EDSCAlert = ({
+const EDSCAlert = ({
   bootstrapVariant,
-  children,
-  className,
-  icon,
-  variant
+  children = null,
+  className = '',
+  icon = null,
+  variant = false
 }) => {
   const alertClassName = classNames([
     'edsc-alert',
@@ -38,13 +38,6 @@ export const EDSCAlert = ({
       </div>
     </Alert>
   )
-}
-
-EDSCAlert.defaultProps = {
-  className: '',
-  children: null,
-  icon: null,
-  variant: false
 }
 
 EDSCAlert.propTypes = {

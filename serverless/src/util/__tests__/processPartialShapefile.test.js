@@ -1,7 +1,6 @@
 import knex from 'knex'
 import mockKnex from 'mock-knex'
 
-import * as getEarthdataConfig from '../../../../sharedUtils/config'
 import * as createLimitedShapefile from '../createLimitedShapefile'
 
 import { processPartialShapefile } from '../processPartialShapefile'
@@ -9,13 +8,6 @@ import { processPartialShapefile } from '../processPartialShapefile'
 let dbTracker
 
 beforeEach(() => {
-  jest.clearAllMocks()
-
-  jest.spyOn(getEarthdataConfig, 'getSecretEarthdataConfig').mockImplementation(() => ({
-    clientId: 'clientId',
-    secret: 'jwt-secret'
-  }))
-
   dbTracker = mockKnex.getTracker()
   dbTracker.install()
 })
@@ -61,7 +53,7 @@ describe('processPartialShapefile', () => {
   describe('with selected features', () => {
     describe('when existing shapefile is found in the database', () => {
       test('returns the existing records instead of inserting another', async () => {
-        const createLimitedShapefileMock = jest.spyOn(createLimitedShapefile, 'createLimitedShapefile')
+        const createLimitedShapefileMock = vi.spyOn(createLimitedShapefile, 'createLimitedShapefile')
           .mockImplementation(() => ('limited mock shapefile'))
 
         const dbCon = knex({
@@ -105,7 +97,7 @@ describe('processPartialShapefile', () => {
 
     describe('when no existing shapefile found in the database', () => {
       test('stores the limited shapefile in the database', async () => {
-        const createLimitedShapefileMock = jest.spyOn(createLimitedShapefile, 'createLimitedShapefile')
+        const createLimitedShapefileMock = vi.spyOn(createLimitedShapefile, 'createLimitedShapefile')
           .mockImplementation(() => ('limited mock shapefile'))
 
         const dbCon = knex({
@@ -141,7 +133,7 @@ describe('processPartialShapefile', () => {
           '959220857ddbb3b2398ac31a58765df6', // File_hash
           'Limited-MockFile.geojson', // Filename
           1084815579, // Parent_shapefile_id
-          ['1'], // SelectedFeatures
+          '["1"]', // SelectedFeatures
           1 // User_id
         ])
 

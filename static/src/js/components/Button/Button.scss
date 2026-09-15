@@ -1,3 +1,6 @@
+@use '../../../css/vendor/bootstrap/configuration' as bootstrap;
+@use '../../../css/utils';
+
 .button {
   display: flex;
   align-items: center;
@@ -6,9 +9,12 @@
 
   &:disabled {
     cursor: not-allowed;
+    border: none;
   }
 
   &--naked {
+    --bs-btn-hover-color: #{utils.$color__carbon-black};
+
     padding: 0;
   }
 
@@ -24,12 +30,35 @@
     line-height: 1em;
   }
 
+  &--hds-primary {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    font-weight: 700;
+    align-items: center;
+    padding: 0.125rem 0.25rem;
+    border: 0;
+    outline: 1px solid transparent;
+
+    &.button--dark {
+      color: utils.$color__spacesuit-white;
+
+      &:active,
+      &:focus {
+        outline: 1px dashed utils.$color__spacesuit-white;
+        color: utils.$color__spacesuit-white;
+      }
+    }
+  }
+
   &__contents {
     vertical-align: initial;
     display: inherit;
     line-height: 1.5em;
     display: inline-flex;
     align-items: center;
+    text-decoration: inherit;
 
     .button--link & {
       vertical-align: baseline;
@@ -39,6 +68,10 @@
     .button--svg & {
       vertical-align: top;
       line-height: 1em;
+    }
+
+    .button--icon-only & {
+      display: none;
     }
   }
 
@@ -53,7 +86,7 @@
     }
 
     .button--icon-right & {
-      margin-left: calc($spacer / 2);
+      margin-left: calc(bootstrap.$spacer / 2);
       margin-right: 0;
     }
 
@@ -65,7 +98,7 @@
       display: inline;
       vertical-align: bottom;
       line-height: 1em;
-      margin-right: calc($spacer / 4);
+      margin-right: calc(bootstrap.$spacer / 4);
     }
 
     .button--svg & {
@@ -74,9 +107,27 @@
   }
 
   &__badge {
-    margin-left:   calc($spacer / 3);
-    background-color: rgba($color__black, 0.5);
+    margin-left: calc(bootstrap.$spacer / 3);
+    background-color: rgba(utils.$color__carbon-black, 0.5);
     border-radius: 1em;
     vertical-align: middle;
+  }
+
+
+  &__hds-primary-icon {
+    height: 1em;
+    width: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.25em;
+    aspect-ratio: 1;
+    color: utils.$color__spacesuit-white;
+    background-color: utils.$color__nasa-red;
+    border-radius: 50%;
+
+    .button:hover & {
+      background-color: utils.$color__nasa-red--shade;
+    }
   }
 }

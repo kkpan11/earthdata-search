@@ -2,21 +2,30 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { LinkContainer } from 'react-router-bootstrap'
 import {
-  FaPlus,
-  FaMinus,
-  FaInfoCircle,
-  FaTimesCircle
-} from 'react-icons/fa'
+  Plus,
+  Minus,
+  XCircled
+} from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 
+import { AlertInformation } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
+
+import { metricsAddGranuleToProject } from '../../util/metrics/metricsAddGranuleToProject'
 import murmurhash3 from '../../util/murmurhash3'
+import { getValueForTag } from '../../../../../sharedUtils/tags'
 
 import GranuleResultsDataLinksButton from './GranuleResultsDataLinksButton'
 import Button from '../Button/Button'
 import MoreActionsDropdown from '../MoreActionsDropdown/MoreActionsDropdown'
 import MoreActionsDropdownItem from '../MoreActionsDropdown/MoreActionsDropdownItem'
 import PortalFeatureContainer from '../../containers/PortalFeatureContainer/PortalFeatureContainer'
+import GranuleResultsDownloadNotebookButton from './GranuleResultsDownloadNotebookButton'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { routes } from '../../constants/routes'
 
 const GranuleResultsTableHeaderCell = (props) => {
+  const setGranuleId = useEdscStore((state) => state.granule.setGranuleId)
+
   const { column, cell, row } = props
   const { customProps } = column
   const { original: rowProps } = row
@@ -29,16 +38,18 @@ const GranuleResultsTableHeaderCell = (props) => {
   } = rowProps
 
   const {
+    addGranuleToProjectCollection,
     collectionId,
+    collectionQuerySpatial,
+    collectionTags,
     directDistributionInformation,
     isGranuleInProject,
     location,
-    onAddGranuleToProjectCollection,
     onExcludeGranule,
-    onFocusedGranuleChange,
-    onMetricsDataAccess,
-    onRemoveGranuleFromProjectCollection
+    removeGranuleFromProjectCollection
   } = customProps
+
+  const generateNotebookTag = getValueForTag('notebook_generation', collectionTags)
 
   const isInProject = isGranuleInProject(id)
 
@@ -71,15 +82,23 @@ const GranuleResultsTableHeaderCell = (props) => {
                 <Button
                   className="button granule-results-table__granule-action granule-results-table__granule-action--add"
                   type="button"
-                  label="Add granule"
-                  title="Add granule"
-                  icon={FaPlus}
-                  iconSize="0.75rem"
+                  ariaLabel="Add granule to project"
+                  tooltip="Add granule to project"
+                  tooltipId={`add-granule-table-tooltip-${id}`}
+                  icon={Plus}
+                  iconSize="12"
                   onClick={
                     (event) => {
-                      onAddGranuleToProjectCollection({
+                      addGranuleToProjectCollection({
                         collectionId,
                         granuleId: id
+                      })
+
+                      metricsAddGranuleToProject({
+                        collectionConceptId: collectionId,
+                        granuleConceptId: id,
+                        page: 'granules',
+                        view: 'table'
                       })
 
                       // Prevent event bubbling up to the granule focus event.
@@ -92,13 +111,14 @@ const GranuleResultsTableHeaderCell = (props) => {
                 <Button
                   className="button granule-results-table__granule-action granule-results-table__granule-action--remove"
                   type="button"
-                  label="Remove granule"
-                  title="Remove granule"
-                  icon={FaMinus}
-                  iconSize="0.75rem"
+                  ariaLabel="Remove granule from project"
+                  tooltip="Remove granule from project"
+                  tooltipId={`remove-granule-table-tooltip-${id}`}
+                  icon={Minus}
+                  iconSize="12"
                   onClick={
                     (event) => {
-                      onRemoveGranuleFromProjectCollection({
+                      removeGranuleFromProjectCollection({
                         collectionId,
                         granuleId: id
                       })
@@ -114,12 +134,21 @@ const GranuleResultsTableHeaderCell = (props) => {
         {
           onlineAccessFlag && (
             <GranuleResultsDataLinksButton
+              buttonVariant="naked"
               collectionId={collectionId}
               directDistributionInformation={directDistributionInformation}
               dataLinks={dataLinks}
+              id={id}
               s3Links={s3Links}
-              onMetricsDataAccess={onMetricsDataAccess}
-              buttonVariant="naked"
+            />
+          )
+        }
+        {
+          generateNotebookTag && (
+            <GranuleResultsDownloadNotebookButton
+              collectionQuerySpatial={collectionQuerySpatial}
+              granuleId={id}
+              generateNotebookTag={generateNotebookTag}
             />
           )
         }
@@ -129,24 +158,24 @@ const GranuleResultsTableHeaderCell = (props) => {
           <LinkContainer
             onClick={
               () => {
-                onFocusedGranuleChange(id)
+                setGranuleId(id)
               }
             }
             to={
               {
-                pathname: '/search/granules/granule-details',
+                pathname: routes.GRANULE_DETAILS,
                 search: location.search
               }
             }
           >
             <MoreActionsDropdownItem
               title="View details"
-              icon={FaInfoCircle}
+              icon={AlertInformation}
             />
           </LinkContainer>
           <MoreActionsDropdownItem
             title="Filter granule"
-            icon={FaTimesCircle}
+            icon={XCircled}
             onClick={
               (event) => {
                 handleFilterClick(id)
@@ -166,17 +195,17 @@ GranuleResultsTableHeaderCell.propTypes = {
   }).isRequired,
   column: PropTypes.shape({
     customProps: PropTypes.shape({
+      addGranuleToProjectCollection: PropTypes.func,
       collectionId: PropTypes.string,
+      collectionQuerySpatial: PropTypes.shape({}).isRequired,
+      collectionTags: PropTypes.shape({}).isRequired,
       directDistributionInformation: PropTypes.shape({}),
       isGranuleInProject: PropTypes.func,
       location: PropTypes.shape({
         search: PropTypes.string
       }),
-      onAddGranuleToProjectCollection: PropTypes.func,
       onExcludeGranule: PropTypes.func,
-      onFocusedGranuleChange: PropTypes.func,
-      onMetricsDataAccess: PropTypes.func,
-      onRemoveGranuleFromProjectCollection: PropTypes.func
+      removeGranuleFromProjectCollection: PropTypes.func
     })
   }).isRequired,
   row: PropTypes.shape({

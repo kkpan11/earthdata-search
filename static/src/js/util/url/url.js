@@ -11,15 +11,16 @@ import { decodeScienceKeywords, encodeScienceKeywords } from './scienceKeywordEn
 import { decodeString, encodeString } from './stringEncoders'
 import { decodeTemporal, encodeTemporal } from './temporalEncoders'
 import { decodeTimeline, encodeTimeline } from './timelineEncoders'
-import { encodeAdvancedSearch, decodeAdvancedSearch } from './advancedSearchEncoders'
+import { decodeselectedRegion, encodeselectedRegion } from './selectedRegionEncoders'
 import { encodeArray, decodeArray } from './arrayEncoders'
-import { encodeAutocomplete, decodeAutocomplete } from './autocompleteEncoders'
 import { encodeEarthdataEnvironment, decodeEarthdataEnvironment } from './environmentEncoders'
 import { decodeBoolean, encodeBoolean } from './booleanEncoders'
 
 import { isPath } from '../isPath'
 import { deprecatedURLParameters } from '../../constants/deprecatedURLParameters'
 import { decodePortal, encodePortal } from './portalEncoders'
+import { decodeCollectionSortKey, encodeCollectionSortKey } from './collectionSortKeyEncoders'
+import { routes } from '../../constants/routes'
 
 /**
  * Takes a URL containing a path and query string and returns only the query string
@@ -44,7 +45,7 @@ export const stringify = (params) => qs.stringify(
 )
 
 /**
- * Mapping of URL Shortened Keys to their redux store keys
+ * Mapping of URL Shortened Keys to their store keys
  */
 const urlDefs = {
   earthdataEnvironment: {
@@ -162,13 +163,13 @@ const urlDefs = {
     encode: encodeHasGranulesOrCwic,
     decode: decodeHasGranulesOrCwic
   },
-  autocompleteSelected: {
-    shortKey: 'as',
-    encode: encodeAutocomplete,
-    decode: decodeAutocomplete
-  },
   onlyEosdisCollections: {
     shortKey: 'oe',
+    encode: encodeBoolean,
+    decode: decodeBoolean
+  },
+  includeInactiveCollections: {
+    shortKey: 'ic',
     encode: encodeBoolean,
     decode: decodeBoolean
   }
@@ -186,9 +187,9 @@ const decodeHelp = (params, paramName) => {
 }
 
 /**
- * Given a URL param string, returns an object that matches the redux store
+ * Given a URL param string, returns an object that matches the store
  * @param {String} paramString a URL encoded parameter string
- * @return {Object} An object of values that match the redux store
+ * @return {Object} An object of values that match the store
  */
 export const decodeUrlParams = (paramString) => {
   // Decode the paramString
@@ -197,7 +198,7 @@ export const decodeUrlParams = (paramString) => {
     parseArrays: false
   })
 
-  // Create an array of any deprectated parameters that appear in the params
+  // Create an array of any deprecated parameters that appear in the params
   const deprecatedUrlParams = Object.entries(params)
     .filter(([key]) => deprecatedURLParameters.includes(key))
     .map(([key]) => key)
@@ -209,18 +210,25 @@ export const decodeUrlParams = (paramString) => {
     query = {}
   } = decodeCollections(params)
 
-  // Build the param object based on the structure in the redux store
+  // Build the param object based on the structure in the store
   // e.g. map is store separately from query
   const focusedGranule = decodeHelp(params, 'focusedGranule')
 
-  const map = decodeMap(params)
+  const mapView = decodeMap(params)
 
   const spatial = {}
-  spatial.point = decodeHelp(params, 'pointSearch')
-  spatial.boundingBox = decodeHelp(params, 'boundingBoxSearch')
-  spatial.polygon = decodeHelp(params, 'polygonSearch')
-  spatial.line = decodeHelp(params, 'lineSearch')
-  spatial.circle = decodeHelp(params, 'circleSearch')
+
+  // If the decode values don't exist, don't add `undefined` to the spatial object.
+  const decodedBoundingBox = decodeHelp(params, 'boundingBoxSearch')
+  if (decodedBoundingBox) spatial.boundingBox = decodedBoundingBox
+  const decodedCircle = decodeHelp(params, 'circleSearch')
+  if (decodedCircle) spatial.circle = decodedCircle
+  const decodedLine = decodeHelp(params, 'lineSearch')
+  if (decodedLine) spatial.line = decodedLine
+  const decodedPoint = decodeHelp(params, 'pointSearch')
+  if (decodedPoint) spatial.point = decodedPoint
+  const decodedPolygon = decodeHelp(params, 'polygonSearch')
+  if (decodedPolygon) spatial.polygon = decodedPolygon
 
   // Initialize the collection query
   const { collection = {} } = query
@@ -233,6 +241,8 @@ export const decodeUrlParams = (paramString) => {
   collectionQuery.keyword = decodeHelp(params, 'keywordSearch')
   collectionQuery.onlyEosdisCollections = decodeHelp(params, 'onlyEosdisCollections')
   collectionQuery.overrideTemporal = decodeHelp(params, 'overrideTemporalSearch')
+  collectionQuery.includeInactiveCollections = decodeHelp(params, 'includeInactiveCollections')
+  collectionQuery.sortKey = decodeCollectionSortKey(params)
   collectionQuery.spatial = spatial
   collectionQuery.tagKey = decodeHelp(params, 'tagKey')
   collectionQuery.temporal = decodeHelp(params, 'temporalSearch')
@@ -291,30 +301,27 @@ export const decodeUrlParams = (paramString) => {
     selectedFeatures: decodeHelp(params, 'selectedFeatures')
   }
 
-  const advancedSearch = decodeAdvancedSearch(params)
-
-  const autocompleteSelected = decodeHelp(params, 'autocompleteSelected')
+  const selectedRegion = decodeselectedRegion(params)
 
   const earthdataEnvironment = decodeHelp(params, 'earthdataEnvironment')
   const portalId = decodePortal(params)
 
   return {
-    advancedSearch,
     earthdataEnvironment,
-    autocompleteSelected,
     cmrFacets,
     metadata,
     featureFacets,
     focusedCollection,
     focusedGranule,
     deprecatedUrlParams,
-    map,
+    mapView,
     portalId,
     project,
     query: {
       ...query,
       collection: collectionQuery
     },
+    selectedRegion,
     shapefile,
     timeline
   }
@@ -326,22 +333,66 @@ export const decodeUrlParams = (paramString) => {
  * @return {String} URL encoded parameter string
  */
 export const encodeUrlQuery = (props) => {
+  // All of the collections query props are contained within collectionsQuery, but the logic for encoding
+  // the URL params is based on the individual props. So, pull those out and build the 'allProps' object
+  // to encode the URL
+  const { collectionsQuery: collectionsQueryProps = {} } = props
+  const {
+    spatial = {},
+    hasGranulesOrCwic,
+    keyword: keywordSearch,
+    onlyEosdisCollections,
+    overrideTemporal: overrideTemporalSearch,
+    includeInactiveCollections,
+    sortKey,
+    tagKey,
+    temporal: temporalSearch
+  } = collectionsQueryProps
+  const {
+    boundingBox: boundingBoxSearch,
+    circle: circleSearch,
+    line: lineSearch,
+    point: pointSearch,
+    polygon: polygonSearch
+  } = spatial
+
+  const allProps = {
+    ...props,
+    boundingBoxSearch,
+    circleSearch,
+    collectionSortKey: sortKey,
+    hasGranulesOrCwic,
+    keywordSearch,
+    lineSearch,
+    onlyEosdisCollections,
+    overrideTemporalSearch,
+    pointSearch,
+    polygonSearch,
+    includeInactiveCollections,
+    tagKey,
+    temporalSearch
+  }
+
   const query = {}
 
   Object.keys(urlDefs).forEach((longKey) => {
     const { shortKey } = urlDefs[longKey]
-    const value = urlDefs[longKey].encode(props[longKey])
+    const value = urlDefs[longKey].encode(allProps[longKey])
 
     query[shortKey] = value
   })
 
-  const mapParams = encodeMap(props.map, props.mapPreferences)
-  const scienceKeywordQuery = encodeScienceKeywords(props.scienceKeywordFacets)
-  const platformQuery = encodePlatforms(props.platformFacets)
-  const collectionsQuery = encodeCollections(props)
-  const timelineQuery = encodeTimeline(props.timelineQuery, props.pathname)
-  const advancedQuery = encodeAdvancedSearch(props.advancedSearch)
-  const portalQuery = encodePortal(props.portalId)
+  const mapParams = encodeMap(allProps.mapView, allProps.mapPreferences)
+  const scienceKeywordQuery = encodeScienceKeywords(allProps.scienceKeywordFacets)
+  const platformQuery = encodePlatforms(allProps.platformFacets)
+  const collectionsQuery = encodeCollections(allProps)
+  const timelineQuery = encodeTimeline(allProps.timelineQuery, allProps.pathname)
+  const selectedRegion = encodeselectedRegion(allProps.selectedRegion)
+  const portalQuery = encodePortal(allProps.portalId)
+  const collectionSortKey = encodeCollectionSortKey(
+    allProps.collectionSortKey,
+    allProps.collectionSortPreference
+  )
 
   const encodedQuery = {
     ...portalQuery,
@@ -350,14 +401,15 @@ export const encodeUrlQuery = (props) => {
     ...timelineQuery,
     ...scienceKeywordQuery,
     ...platformQuery,
-    ...advancedQuery,
-    ...mapParams
+    ...selectedRegion,
+    ...mapParams,
+    ...collectionSortKey
   }
 
   const paramString = stringify(encodedQuery)
 
   // Return the full pathname + paramString
-  const { pathname } = props
+  const { pathname } = allProps
   const fullPath = pathname + paramString
 
   return fullPath
@@ -367,21 +419,26 @@ export const encodeUrlQuery = (props) => {
  * URLs that don't use URL params
  * The saved projects page needs to be handled a little differently
  * because it shares the base url with the projects page.
+ *
+ * `/projects` is not here because it is possible to have parameters on that path
+ * that trigger the redirect to `/project`
  */
 export const urlPathsWithoutUrlParams = [
-  /^\/admin/,
-  /^\/auth_callback/,
-  /^\/contact_info/,
-  /^\/downloads/,
-  /^\/subscriptions/
+  new RegExp(`^${routes.ADMIN}`),
+  new RegExp(`^${routes.AUTH_CALLBACK}`),
+  new RegExp(`^${routes.CONTACT_INFO}`),
+  new RegExp(`^${routes.DOWNLOADS}`),
+  new RegExp(`^${routes.PREFERENCES}`),
+  new RegExp(`^${routes.SUBSCRIPTIONS}`),
+  new RegExp(`^${routes.PROJECTS}`)
 ]
 
 /**
  * Is the given location the Saved Projects page
- * @param {Object} location Redux store location
+ * @param {Object} location Page location
  */
 export const isSavedProjectsPage = (location) => {
   const { pathname, search } = location
 
-  return isPath(pathname, '/projects') && search === ''
+  return isPath(pathname, [routes.PROJECTS]) && search === ''
 }

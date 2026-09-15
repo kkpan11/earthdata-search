@@ -1,6 +1,7 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { Modal } from 'react-bootstrap'
+import Modal from 'react-bootstrap/Modal'
+
 import classNames from 'classnames'
 
 import Button from '../Button/Button'
@@ -13,7 +14,6 @@ import './EDSCModal.scss'
  * Renders EDSCModal
  * @param {Element} activeModalOverlay
  * @param {Element} bodyEl Body element
- * @param {String} dataTestId Test ID to be added to the element.
  * @param {Element} footer The footer content.
  * @param {Element} footerMeta The footer meta content.
  * @param {String} identifier A unique id for the modal.
@@ -34,30 +34,29 @@ import './EDSCModal.scss'
  * @param {Boolean} spinner Shows a loading spinner.
  * @param {String} title The modal title.
  */
-export const EDSCModal = ({
-  activeModalOverlay,
+const EDSCModal = ({
+  activeModalOverlay = null,
   bodyEl,
-  dataTestId,
-  footer,
-  footerMeta,
+  footer = null,
+  footerMeta = null,
   identifier,
-  innerHeaderEl,
+  innerHeaderEl = null,
   isOpen,
   modalClassNames,
   modalInner,
-  modalOverlayEl,
-  onModalExit,
-  onModalHide,
-  onPrimaryAction,
-  onSecondaryAction,
-  primaryAction,
-  primaryActionDisabled,
-  primaryActionLoading,
-  secondaryAction,
-  size,
-  spinner,
-  subtitle,
-  title
+  modalOverlayEl = null,
+  onModalExit = null,
+  onModalHide = null,
+  onPrimaryAction = null,
+  onSecondaryAction = null,
+  primaryAction = null,
+  primaryActionDisabled = false,
+  primaryActionLoading = false,
+  secondaryAction = null,
+  size = 'sm',
+  spinner = false,
+  subtitle = '',
+  title = null
 }) => {
   const headerClassNames = classNames([
     'edsc-modal__header',
@@ -70,13 +69,12 @@ export const EDSCModal = ({
     <Modal
       dialogClassName={modalClassNames}
       show={isOpen}
-      animation={false}
+      animation
       onHide={onModalHide}
       onExit={onModalExit}
       centered
       size={size}
       aria-labelledby={identifier}
-      data-testid={dataTestId}
     >
       <Modal.Header
         className={headerClassNames}
@@ -117,10 +115,13 @@ export const EDSCModal = ({
       </Modal.Body>
       {
         ((footer || primaryAction || footerMeta) && !activeModalOverlay) && (
-          <Modal.Footer className="edsc-modal__footer">
+          <Modal.Footer
+            className="edsc-modal__footer"
+            data-testid="edsc-modal__footer"
+          >
             {
               footer
-                ? { footer }
+                ? <div>{ footer }</div>
                 : (
                   <>
                     {
@@ -173,32 +174,9 @@ export const EDSCModal = ({
   )
 }
 
-EDSCModal.defaultProps = {
-  activeModalOverlay: null,
-  dataTestId: null,
-  footer: null,
-  footerMeta: null,
-  innerHeaderEl: null,
-  modalOverlayEl: null,
-  modalOverlays: {},
-  onModalExit: null,
-  onModalHide: null,
-  onPrimaryAction: null,
-  onSecondaryAction: null,
-  primaryAction: null,
-  primaryActionDisabled: false,
-  primaryActionLoading: false,
-  secondaryAction: null,
-  size: 'sm',
-  spinner: false,
-  subtitle: '',
-  title: null
-}
-
 EDSCModal.propTypes = {
   activeModalOverlay: PropTypes.node,
   bodyEl: PropTypes.node.isRequired,
-  dataTestId: PropTypes.string,
   footer: PropTypes.node,
   footerMeta: PropTypes.node,
   identifier: PropTypes.string.isRequired,

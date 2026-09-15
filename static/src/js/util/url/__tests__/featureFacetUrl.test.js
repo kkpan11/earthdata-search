@@ -6,8 +6,8 @@ import * as deployedEnvironment from '../../../../../../sharedUtils/deployedEnvi
 import * as getApplicationConfig from '../../../../../../sharedUtils/config'
 
 beforeEach(() => {
-  jest.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
-  jest.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
+  vi.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
+  vi.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
     defaultPortal: 'default'
   }))
 })
@@ -19,18 +19,19 @@ describe('url#decodeUrlParams', () => {
       featureFacets: {
         availableInEarthdataCloud: true,
         customizable: true,
-        mapImagery: true,
-        nearRealTime: true
+        mapImagery: true
       }
     }
-    expect(decodeUrlParams('?ff=Available%20in%20Earthdata%20Cloud!Customizable!Map%20Imagery!Near%20Real%20Time')).toEqual(expectedResult)
+    expect(decodeUrlParams('?ff=Available%20in%20Earthdata%20Cloud!Customizable!Map%20Imagery')).toEqual(expectedResult)
   })
 })
 
 describe('url#encodeUrlQuery', () => {
   test('does not encode the value if there are no applied feature facets', () => {
     const props = {
-      hasGranulesOrCwic: true,
+      collectionsQuery: {
+        hasGranulesOrCwic: true
+      },
       pathname: '/path/here',
       featureFacets: {
         availableInEarthdataCloud: false,
@@ -44,15 +45,16 @@ describe('url#encodeUrlQuery', () => {
 
   test('encodes featureFacets correctly', () => {
     const props = {
-      hasGranulesOrCwic: true,
+      collectionsQuery: {
+        hasGranulesOrCwic: true
+      },
       pathname: '/path/here',
       featureFacets: {
         availableInEarthdataCloud: true,
         customizable: true,
-        mapImagery: true,
-        nearRealTime: true
+        mapImagery: true
       }
     }
-    expect(encodeUrlQuery(props)).toEqual('/path/here?ff=Available%20in%20Earthdata%20Cloud!Customizable!Map%20Imagery!Near%20Real%20Time')
+    expect(encodeUrlQuery(props)).toEqual('/path/here?ff=Available%20in%20Earthdata%20Cloud!Customizable!Map%20Imagery')
   })
 })

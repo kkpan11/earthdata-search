@@ -3,14 +3,41 @@
   "env": {
     "browser": true,
     "node": true,
-    "jest": true,
-    "cypress/globals": true
+    "jest": true
   },
+  // Use AirBnb settings as a base
+  "extends": [
+    "plugin:@typescript-eslint/recommended",
+    "@edsc"
+  ],
+  "plugins": ["@typescript-eslint"],
+  "parser": "@typescript-eslint/parser",
   "rules": {
-    // Allowing cyclic dependancies
-    "import/no-cycle": "off"
-  },
+    // https://github.com/import-js/eslint-plugin-import/blob/main/docs/rules/no-unresolved.md
+    // If you're using a module bundler other than Node or Webpack, you may end up with a lot of false positive reports of missing dependencies.
+    // We are using Vite, and it is giving incorrect results for .ts files
+    "import/no-unresolved": "off",
 
+    // Enforce extension usage for certain types
+    "import/extensions": ["error", {
+        "svg": "always",
+        "json": "always",
+        "jpg": "always"
+    }],
+    // Allowing cyclic dependencies
+    "import/no-cycle": "off",
+
+    // https://stackoverflow.com/questions/57802057/eslint-configuring-no-unused-vars-for-typescript/61555310#61555310
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["error", {}],
+
+    "@typescript-eslint/no-empty-object-type": [
+      "error",
+      {
+        "allowInterfaces": "with-single-extends"
+      }
+    ]
+  },
   "overrides": [
     {
       "files": [
@@ -27,19 +54,85 @@
       "rules": {
         "import/prefer-default-export": 0
       }
+    },
+    // Don't run testing-library rules in non-testing library test files
+    {
+      "files": [
+        "tests/**/*", // Playwright tests
+        "serverless/**/*" // Serverless tests
+      ],
+      "rules": {
+        "testing-library/await-async-events": "off",
+        "testing-library/await-async-queries": "off",
+        "testing-library/await-async-utils": "off",
+        "testing-library/consistent-data-testid": "off",
+        "testing-library/no-await-sync-events": "off",
+        "testing-library/no-await-sync-queries": "off",
+        "testing-library/no-container": "off",
+        "testing-library/no-debugging-utils": "off",
+        "testing-library/no-dom-import": "off",
+        "testing-library/no-global-regexp-flag-in-query": "off",
+        "testing-library/no-manual-cleanup": "off",
+        "testing-library/no-node-access": "off",
+        "testing-library/no-promise-in-fire-event": "off",
+        "testing-library/no-render-in-lifecycle": "off",
+        "testing-library/no-unnecessary-act": "off",
+        "testing-library/no-wait-for-multiple-assertions": "off",
+        "testing-library/no-wait-for-side-effects": "off",
+        "testing-library/no-wait-for-snapshot": "off",
+        "testing-library/prefer-explicit-assert": "off",
+        "testing-library/prefer-find-by": "off",
+        "testing-library/prefer-implicit-assert": "off",
+        "testing-library/prefer-presence-queries": "off",
+        "testing-library/prefer-query-by-disappearance": "off",
+        "testing-library/prefer-query-matchers": "off",
+        "testing-library/prefer-screen-queries": "off",
+        "testing-library/prefer-user-event": "off",
+        "testing-library/render-result-naming-convention": "off"
+      }
+    },
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "react/require-default-props": "off"
+      }
+    },
+    {
+      "files": ["*.js", "*.jsx"],
+      "rules": {
+        "react/require-default-props": [2, {
+          "functions": "defaultArguments"
+        }]
+      }
+    },
+    {
+      // Allow param reassignment in the zustand files (this is handled correctly by immer)
+      "files": [
+        "static/src/js/zustand/**/*.ts"
+      ],
+      "rules": {
+        "no-param-reassign": [
+          "error",
+          {
+            "props": true, // This is provided in the airbnb config
+            "ignorePropertyModificationsFor": [
+              "state" // Allow the state param to be reassigned
+            ]
+          }
+        ]
+      }
     }
   ],
-
-  // Use AirBnb settings as a base
-  "extends": [
-    "@edsc"
-  ],
-
   // Define version settings
   "settings": {
     "react": {
       "pragma": "React",
       "version": "16.12.0"
     }
+  },
+
+  // Define any global variables to avoid no-undef errors
+  "globals": {
+    "vi": "readonly"
   }
 }

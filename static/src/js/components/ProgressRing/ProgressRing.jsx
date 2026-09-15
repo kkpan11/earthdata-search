@@ -10,11 +10,11 @@ import './ProgressRing.scss'
  * @param {Number} strokeWidth - The stroke width.
  * @param {Number} width - The prop passed into the component.
  */
-export const ProgressRing = ({
-  className,
-  progress,
-  strokeWidth,
-  width
+const ProgressRing = ({
+  className = '',
+  progress = 0,
+  strokeWidth = 3,
+  width = 16
 }) => {
   // Calculate the radius for the current width and stroke width
   const radius = (width / 2) - strokeWidth
@@ -38,6 +38,7 @@ export const ProgressRing = ({
         className="progress-ring__ring"
         height={width}
         width={width}
+        role="graphics-symbol"
       >
         <circle
           className="progress-ring__circle-back"
@@ -59,13 +60,6 @@ export const ProgressRing = ({
       </svg>
     </span>
   )
-}
-
-ProgressRing.defaultProps = {
-  className: '',
-  progress: 0,
-  width: 16,
-  strokeWidth: 3
 }
 
 ProgressRing.propTypes = {

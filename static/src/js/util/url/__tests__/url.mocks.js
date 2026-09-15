@@ -1,10 +1,10 @@
 export const emptyDecodedResult = {
-  advancedSearch: undefined,
-  autocompleteSelected: undefined,
   cmrFacets: {
     data_center_h: undefined,
     granule_data_format_h: undefined,
+    horizontal_data_resolution_range: undefined,
     instrument_h: undefined,
+    latency: undefined,
     platforms_h: undefined,
     processing_level_id_h: undefined,
     project_h: undefined,
@@ -16,12 +16,11 @@ export const emptyDecodedResult = {
   featureFacets: {
     availableInEarthdataCloud: false,
     customizable: false,
-    mapImagery: false,
-    nearRealTime: false
+    mapImagery: false
   },
   focusedCollection: undefined,
   focusedGranule: undefined,
-  map: {},
+  mapView: {},
   metadata: undefined,
   portalId: 'default',
   project: {},
@@ -32,18 +31,15 @@ export const emptyDecodedResult = {
       keyword: undefined,
       onlyEosdisCollections: undefined,
       overrideTemporal: {},
-      spatial: {
-        boundingBox: undefined,
-        circle: undefined,
-        line: undefined,
-        point: undefined,
-        polygon: undefined
-      },
+      includeInactiveCollections: undefined,
+      sortKey: undefined,
+      spatial: {},
       tagKey: undefined,
       temporal: {},
       hasGranulesOrCwic: true
     }
   },
+  selectedRegion: undefined,
   shapefile: {
     selectedFeatures: undefined,
     shapefileId: ''

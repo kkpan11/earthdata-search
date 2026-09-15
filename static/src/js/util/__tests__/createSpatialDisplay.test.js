@@ -4,18 +4,9 @@ import createSpatialDisplay, {
   transformSingleCoordinate
 } from '../createSpatialDisplay'
 
-beforeEach(() => {
-  jest.clearAllMocks()
-})
-
 describe('createSpatialDisplay', () => {
-  const spatial = {
-    boundingBox: undefined,
-    circle: undefined,
-    line: undefined,
-    point: undefined,
-    polygon: undefined
-  }
+  const spatial = {}
+
   describe('boundingBox', () => {
     test('returns the correct values', () => {
       const newSpatial = {

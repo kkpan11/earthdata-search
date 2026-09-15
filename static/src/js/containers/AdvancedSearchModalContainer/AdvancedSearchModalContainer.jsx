@@ -1,63 +1,43 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { connect } from 'react-redux'
 import { withFormik } from 'formik'
+import { splitListOfPoints } from '@edsc/geo-utils'
+import { LineString, Polygon } from 'ol/geom'
 
-import actions from '../../actions'
 import { getValidationSchema } from '../../util/forms'
 
 import AdvancedSearchModal from '../../components/AdvancedSearchModal/AdvancedSearchModal'
 
-export const mapStateToProps = (state) => ({
-  advancedSearch: state.advancedSearch,
-  isOpen: state.ui.advancedSearchModal.isOpen,
-  regionSearchResults: state.searchResults.regions
-})
+import { eventEmitter } from '../../events/events'
+import { mapEventTypes } from '../../constants/eventTypes'
 
-export const mapDispatchToProps = (dispatch) => ({
-  onToggleAdvancedSearchModal:
-    (state) => dispatch(actions.toggleAdvancedSearchModal(state)),
-  onChangeRegionQuery:
-    (query) => dispatch(actions.changeRegionQuery(query)),
-  onChangeQuery:
-    (query) => dispatch(actions.changeQuery(query))
-})
+import useEdscStore from '../../zustand/useEdscStore'
+import { getSelectedRegionQuery } from '../../zustand/selectors/query'
 
 /**
  * Renders AdvancedSearchModalContainer.
  * @param {Object} props - The props passed into the component.
- * @param {Object} props.advancedSearch - The collections.
- * @param {Boolean} props.isOpen - The modal state.
  * @param {Object} props.fields - The advanced search fields.
  * @param {Object} props.errors - Form errors provided by Formik.
  * @param {Function} props.handleBlur - Callback function provided by Formik.
  * @param {Function} props.handleChange - Callback function provided by Formik.
  * @param {Function} props.handleSubmit - Callback function provided by Formik.
  * @param {Boolean} props.isValid - Flag provided from Formik.
- * @param {Function} props.onToggleAdvancedSearchModal - Callback function close the modal.
- * @param {Function} props.onChangeRegionQuery - Callback function to update the region search results.
- * @param {Function} props.onChangeQuery - Callback function to update the search results.
  * @param {Function} props.resetForm - Callback function provided by Formik.
- * @param {Object} props.regionSearchResults - The current region search results.
  * @param {Function} props.setFieldValue - Callback function provided by Formik.
  * @param {Function} props.setFieldTouched - Callback function provided by Formik.
  * @param {Object} props.touched - Form state provided by Formik.
  * @param {Object} props.values - Form values provided by Formik.
+ * @param {Function} props.validateForm - Callback function provided by Formik.
  */
 export const AdvancedSearchModalContainer = ({
-  advancedSearch,
-  isOpen,
   fields,
   errors,
   handleBlur,
   handleChange,
   handleSubmit,
   isValid,
-  onChangeRegionQuery,
-  onChangeQuery,
-  onToggleAdvancedSearchModal,
   resetForm,
-  regionSearchResults,
   setFieldValue,
   setFieldTouched,
   touched,
@@ -65,19 +45,13 @@ export const AdvancedSearchModalContainer = ({
   validateForm
 }) => (
   <AdvancedSearchModal
-    advancedSearch={advancedSearch}
-    isOpen={isOpen}
     fields={fields}
-    onChangeRegionQuery={onChangeRegionQuery}
-    onChangeQuery={onChangeQuery}
-    onToggleAdvancedSearchModal={onToggleAdvancedSearchModal}
     errors={errors}
     handleBlur={handleBlur}
     handleChange={handleChange}
     handleSubmit={handleSubmit}
     isValid={isValid}
     resetForm={resetForm}
-    regionSearchResults={regionSearchResults}
     setFieldValue={setFieldValue}
     setFieldTouched={setFieldTouched}
     touched={touched}
@@ -95,29 +69,85 @@ const EnhancedAdvancedSearchModalContainer = withFormik({
   },
   mapPropsToValues: (props) => {
     const {
-      advancedSearch
+      selectedRegion
     } = props
 
-    return advancedSearch
+    return selectedRegion
   },
-  handleSubmit: (values, { props }) => {
+  handleSubmit: (values) => {
+    // Move the map to the extent of the new search
+    const { regionSearch = {} } = values
+    const { selectedRegion = {} } = regionSearch
     const {
-      onUpdateAdvancedSearch,
-      onChangeQuery
-    } = props
+      spatial: regionSpatial,
+      type
+    } = selectedRegion
+    const points = splitListOfPoints(regionSpatial)
 
-    onUpdateAdvancedSearch(values)
-    onChangeQuery({
+    let shape
+    let coordinates
+    if (type === 'reach') {
+      const lineCoordinates = points.map((point) => {
+        const [lng, lat] = point.split(',')
+
+        return [parseFloat(lng), parseFloat(lat)]
+      })
+
+      shape = new LineString(lineCoordinates)
+
+      // CMR has a limit of 500 points in a line spatial query.
+      // If there are more than 500 points, simplify the shape
+      if (lineCoordinates.length > 500) {
+        shape = shape.simplify(0.001)
+      }
+
+      // Get the coordinates of the shape to save to the store
+      coordinates = shape.getFlatCoordinates().join(',')
+    } else {
+      const polygonCoordinates = points.map((point) => {
+        const [lng, lat] = point.split(',')
+
+        return [parseFloat(lng), parseFloat(lat)]
+      })
+
+      shape = new Polygon([polygonCoordinates])
+
+      // Get the coordinates of the shape to save to the store
+      coordinates = shape.getFlatCoordinates().join(',')
+    }
+
+    const { changeQuery } = useEdscStore.getState().query
+    changeQuery({
       collection: {
         spatial: {}
+      },
+      selectedRegion: {
+        ...values.regionSearch.selectedRegion,
+        spatial: coordinates
       }
     })
+
+    // Move the map
+    eventEmitter.emit(mapEventTypes.MOVEMAP, { shape })
   }
 })(AdvancedSearchModalContainer)
 
+// `withFormik` uses props passed in to it in order to populate data in `handleFormSubmit`.
+// `handleFormSubmit` needs access to selectedRegion from Zustand, which is not available
+// in props after removing it from `mapStateToProps`. This wrapper component uses the `useEdscStore`
+// hook to fetch the collection metadata, then pass it into the `EnhancedAdvancedSearchModalContainer`.
+const AdvancedSearchModalContainerWrapper = (props) => {
+  const selectedRegion = useEdscStore(getSelectedRegionQuery)
+
+  return (
+    <EnhancedAdvancedSearchModalContainer
+      {...props}
+      selectedRegion={selectedRegion}
+    />
+  )
+}
+
 AdvancedSearchModalContainer.propTypes = {
-  advancedSearch: PropTypes.shape({}).isRequired,
-  isOpen: PropTypes.bool.isRequired,
   fields: PropTypes.arrayOf(
     PropTypes.shape({})
   ).isRequired,
@@ -127,15 +157,11 @@ AdvancedSearchModalContainer.propTypes = {
   handleSubmit: PropTypes.func.isRequired,
   isValid: PropTypes.bool.isRequired,
   resetForm: PropTypes.func.isRequired,
-  regionSearchResults: PropTypes.shape({}).isRequired,
   setFieldValue: PropTypes.func.isRequired,
   setFieldTouched: PropTypes.func.isRequired,
   touched: PropTypes.shape({}).isRequired,
   values: PropTypes.shape({}).isRequired,
-  validateForm: PropTypes.func.isRequired,
-  onChangeRegionQuery: PropTypes.func.isRequired,
-  onChangeQuery: PropTypes.func.isRequired,
-  onToggleAdvancedSearchModal: PropTypes.func.isRequired
+  validateForm: PropTypes.func.isRequired
 }
 
-export default connect(mapStateToProps, mapDispatchToProps)(EnhancedAdvancedSearchModalContainer)
+export default AdvancedSearchModalContainerWrapper

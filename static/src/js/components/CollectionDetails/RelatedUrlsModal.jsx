@@ -1,19 +1,25 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 
 import EDSCModalContainer from '../../containers/EDSCModalContainer/EDSCModalContainer'
 import ArrowTags from '../ArrowTags/ArrowTags'
 
 import { pluralize } from '../../util/pluralize'
 
+import useEdscStore from '../../zustand/useEdscStore'
+import { getFocusedCollectionMetadata } from '../../zustand/selectors/collection'
+
+import { isModalOpen, setOpenModalFunction } from '../../zustand/selectors/ui'
+import { MODAL_NAMES } from '../../constants/modalNames'
+
 import './RelatedUrlsModal.scss'
 
-export const RelatedUrlsModal = ({
-  collectionMetadata,
-  isOpen,
-  onToggleRelatedUrlsModal
-}) => {
+const RelatedUrlsModal = () => {
+  const isOpen = useEdscStore((state) => isModalOpen(state, MODAL_NAMES.RELATED_URLS))
+  const setOpenModal = useEdscStore(setOpenModalFunction)
+  const collectionMetadata = useEdscStore(getFocusedCollectionMetadata)
   const { relatedUrls = [] } = collectionMetadata
+
+  if (!isOpen) return null
 
   const body = (
     // eslint-disable-next-line react/jsx-no-useless-fragment
@@ -33,8 +39,15 @@ export const RelatedUrlsModal = ({
                     return (
                       <ul key={urlKey} className="related-urls-modal__url">
                         <ArrowTags tags={[url.type, url.subtype]} />
-                        {/* eslint-disable-next-line react/jsx-no-target-blank */}
-                        <a className="related-urls-modal__link" href={url.url} target="_blank">{url.url}</a>
+
+                        <a
+                          className="related-urls-modal__link"
+                          href={url.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {url.url}
+                        </a>
                       </ul>
                     )
                   })
@@ -56,22 +69,10 @@ export const RelatedUrlsModal = ({
       isOpen={isOpen}
       id="related-urls"
       size="lg"
-      onClose={
-        () => {
-          onToggleRelatedUrlsModal(false)
-        }
-      }
+      onClose={() => setOpenModal(null)}
       body={body}
     />
   )
-}
-
-RelatedUrlsModal.propTypes = {
-  collectionMetadata: PropTypes.shape({
-    relatedUrls: PropTypes.arrayOf(PropTypes.shape({}))
-  }).isRequired,
-  isOpen: PropTypes.bool.isRequired,
-  onToggleRelatedUrlsModal: PropTypes.func.isRequired
 }
 
 export default RelatedUrlsModal

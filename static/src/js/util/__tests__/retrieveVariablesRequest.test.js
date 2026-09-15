@@ -1,19 +1,10 @@
 import nock from 'nock'
-import configureMockStore from 'redux-mock-store'
-import thunk from 'redux-thunk'
 
 import GraphQlRequest from '../request/graphQlRequest'
 
 import * as getEarthdataConfig from '../../../../../sharedUtils/config'
 
 import { retrieveVariablesRequest } from '../retrieveVariablesRequest'
-
-const mockStore = configureMockStore([thunk])
-
-beforeEach(() => {
-  jest.restoreAllMocks()
-  jest.clearAllMocks()
-})
 
 const initParams = {
   variables: {
@@ -52,29 +43,11 @@ describe('retrieveVariablesRequest', () => {
         }
       })
 
-    jest.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementationOnce(() => ({
+    vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementationOnce(() => ({
       cmrHost: 'https://cmr.example.com',
       graphQlHost: 'https://graphql.example.com',
       opensearchRoot: 'https://cmr.example.com'
     }))
-
-    const store = mockStore({
-      authToken: '',
-      focusedCollection: 'C10000000000-EDSC',
-      metadata: {
-        collections: {
-          'C10000000000-EDSC': {
-            hasAllMetadata: true
-          }
-        }
-      },
-      query: {
-        collection: {
-          spatial: {}
-        }
-      },
-      searchResults: {}
-    })
 
     const earthdataEnvironment = {
       cmrHost: 'https://cmr.example.com',
@@ -82,7 +55,7 @@ describe('retrieveVariablesRequest', () => {
       opensearchRoot: 'https://cmr.example.com'
     }
 
-    const graphQlRequest = new GraphQlRequest(store.auth, earthdataEnvironment)
+    const graphQlRequest = new GraphQlRequest('mock-token', earthdataEnvironment)
 
     const resultVars = await retrieveVariablesRequest(
       initParams.variables,
@@ -143,29 +116,11 @@ describe('retrieveVariablesRequest', () => {
         }
       })
 
-    jest.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementationOnce(() => ({
+    vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementationOnce(() => ({
       cmrHost: 'https://cmr.example.com',
       graphQlHost: 'https://graphql.example.com',
       opensearchRoot: 'https://cmr.example.com'
     }))
-
-    const store = mockStore({
-      authToken: '',
-      focusedCollection: 'C10000000000-EDSC',
-      metadata: {
-        collections: {
-          'C10000000000-EDSC': {
-            hasAllMetadata: true
-          }
-        }
-      },
-      query: {
-        collection: {
-          spatial: {}
-        }
-      },
-      searchResults: {}
-    })
 
     const earthdataEnvironment = {
       cmrHost: 'https://cmr.example.com',
@@ -173,7 +128,7 @@ describe('retrieveVariablesRequest', () => {
       opensearchRoot: 'https://cmr.example.com'
     }
 
-    const graphQlRequest = new GraphQlRequest(store.auth, earthdataEnvironment)
+    const graphQlRequest = new GraphQlRequest('mock-token', earthdataEnvironment)
 
     const resultVars = await retrieveVariablesRequest(
       initParams.variables,
@@ -240,29 +195,11 @@ describe('retrieveVariablesRequest', () => {
         }
       })
 
-    jest.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementationOnce(() => ({
+    vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementationOnce(() => ({
       cmrHost: 'https://cmr.example.com',
       graphQlHost: 'https://graphql.example.com',
       opensearchRoot: 'https://cmr.example.com'
     }))
-
-    const store = mockStore({
-      authToken: '',
-      focusedCollection: 'C10000000000-EDSC',
-      metadata: {
-        collections: {
-          'C10000000000-EDSC': {
-            hasAllMetadata: true
-          }
-        }
-      },
-      query: {
-        collection: {
-          spatial: {}
-        }
-      },
-      searchResults: {}
-    })
 
     const earthdataEnvironment = {
       cmrHost: 'https://cmr.example.com',
@@ -270,7 +207,7 @@ describe('retrieveVariablesRequest', () => {
       opensearchRoot: 'https://cmr.example.com'
     }
 
-    const graphQlRequest = new GraphQlRequest(store.auth, earthdataEnvironment)
+    const graphQlRequest = new GraphQlRequest('mock-token', earthdataEnvironment)
 
     const resultVars = await retrieveVariablesRequest(
       initParams.variables,

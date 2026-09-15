@@ -26,7 +26,10 @@
   "parentConfig": "edsc",
   "portalBrowser": true,
   "query": {
-    "dataCenter": "NASA/GSFC/SED/ESD/GCDC/OB.DAAC"
+    "dataCenter": "NASA/GSFC/SED/ESD/GCDC/OB.DAAC",
+    "provider": ["OB_DAAC", "OB_CLOUD"],
+    "hasGranulesOrCwic": null,
+    "includeHasGranules": null
   },
   "title": {
     "primary": "OBDAAC",
@@ -34,6 +37,7 @@
   },
   "ui": {
     "showNonEosdisCheckbox": true,
-    "showOnlyGranulesCheckbox": true
+    "showOnlyGranulesCheckbox": true,
+    "includeInactiveCollectionsCheckbox": true
   }
 }

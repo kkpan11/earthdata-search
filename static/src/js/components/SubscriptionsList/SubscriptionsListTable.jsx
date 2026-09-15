@@ -1,16 +1,11 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import { parse } from 'qs'
-import {
-  Table,
-  OverlayTrigger,
-  Tooltip
-} from 'react-bootstrap'
-import {
-  FaEdit,
-  FaInfoCircle,
-  FaTimesCircle
-} from 'react-icons/fa'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
+import Table from 'react-bootstrap/Table'
+import { AlertInformation } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
+import { Close } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+import { FaEdit } from 'react-icons/fa'
 import camelcaseKeys from 'camelcase-keys'
 import moment from 'moment'
 
@@ -20,23 +15,42 @@ import { SubscriptionsQueryList } from './SubscriptionsQueryList'
 
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
 
+import useEdscStore from '../../zustand/useEdscStore'
+
+import renderTooltip from '../../util/renderTooltip'
+
+import { routes } from '../../constants/routes'
+
+import { useDeleteSubscription } from '../../hooks/useDeleteSubscription'
+
 import './SubscriptionsListTable.scss'
 
 /**
  * Renders the logged in users' subscription list
  */
-export const SubscriptionsListTable = ({
-  subscriptionsMetadata = {},
-  subscriptionType,
-  onDeleteSubscription,
-  onFocusedCollectionChange
+const SubscriptionsListTable = ({
+  subscriptionsMetadata,
+  subscriptionType
 }) => {
-  const onHandleRemove = (conceptId, nativeId, collectionId) => {
+  const setCollectionId = useEdscStore(
+    (state) => state.collection.setCollectionId
+  )
+
+  const { deleteSubscription, loading } = useDeleteSubscription()
+
+  const onHandleRemove = (conceptId, nativeId) => {
     // eslint-disable-next-line no-alert
     const confirmDeletion = window.confirm('Are you sure you want to remove this subscription? This action cannot be undone.')
 
     if (confirmDeletion) {
-      onDeleteSubscription(conceptId, nativeId, collectionId)
+      deleteSubscription({
+        variables: {
+          params: {
+            conceptId,
+            nativeId
+          }
+        }
+      })
     }
   }
 
@@ -97,52 +111,56 @@ export const SubscriptionsListTable = ({
                     {moment.utc(revisionDate).format('YYYY-MM-DD HH:mm:ss')}
                   </td>
                   <td className="subscriptions-list-table__actions">
-                    <OverlayTrigger
-                      placement="top"
-                      overlay={
-                        (
-                          <Tooltip
-                            id={`tooltip__subscription-info__${conceptId}`}
-                            className="subscriptions-list-table__tooltip tooltip--wide tooltip--ta-left"
-                          >
-                            <>
-                              <h5 className="tooltip__tooltip-heading">Filters</h5>
-                              <SubscriptionsQueryList
-                                query={parsedQuery}
-                                subscriptionType={subscriptionType}
-                              />
-                            </>
-                          </Tooltip>
-                        )
-                      }
-                    >
-                      <EDSCIcon icon={FaInfoCircle} className="subscriptions-list__button" />
-                    </OverlayTrigger>
-                    <PortalLinkContainer
-                      className="subscriptions-list__button subscriptions-list__button--edit"
-                      type="button"
-                      to={
-                        {
-                          pathname: subscriptionType === 'granule' ? '/search/granules/subscriptions' : '/search/subscriptions',
-                          search: subscriptionType === 'granule' ? `?p=${collectionConceptId}` : ''
+                    <div className="actions-container">
+                      <OverlayTrigger
+                        placement="top"
+                        overlay={
+                          (tooltipProps) => renderTooltip({
+                            children: (
+                              <>
+                                <h5 className="tooltip__tooltip-heading">Filters</h5>
+                                <SubscriptionsQueryList
+                                  query={parsedQuery}
+                                  subscriptionType={subscriptionType}
+                                />
+                              </>
+                            ),
+                            className: 'subscriptions-list-table__tooltip tooltip--wide tooltip--ta-left',
+                            id: `tooltip__subscription-info__${conceptId}`,
+                            ...tooltipProps
+                          })
                         }
-                      }
-                      onClick={
-                        () => {
-                          if (subscriptionType === 'granule') onFocusedCollectionChange(collectionConceptId)
+                      >
+                        <EDSCIcon icon={AlertInformation} className="subscriptions-list__button" />
+                      </OverlayTrigger>
+                      <PortalLinkContainer
+                        className="subscriptions-list__button"
+                        type="button"
+                        to={
+                          {
+                            pathname: subscriptionType === 'granule' ? routes.GRANULE_SUBSCRIPTIONS : routes.COLLECTION_SUBSCRIPTIONS,
+                            search: subscriptionType === 'granule' ? `?p=${collectionConceptId}` : ''
+                          }
                         }
-                      }
-                      variant="naked"
-                      icon={FaEdit}
-                      label="Edit Subscription"
-                    />
-                    <Button
-                      className="subscriptions-list__button subscriptions-list__button--remove"
-                      onClick={() => onHandleRemove(conceptId, nativeId, collectionConceptId)}
-                      variant="naked"
-                      icon={FaTimesCircle}
-                      label="Delete Subscription"
-                    />
+                        onClick={
+                          () => {
+                            if (subscriptionType === 'granule') setCollectionId(collectionConceptId)
+                          }
+                        }
+                        variant="naked"
+                        icon={FaEdit}
+                        label="Edit Subscription"
+                      />
+                      <Button
+                        className="subscriptions-list__button"
+                        onClick={() => onHandleRemove(conceptId, nativeId, collectionConceptId)}
+                        variant="naked"
+                        icon={Close}
+                        label="Delete Subscription"
+                        spinner={loading}
+                        spinnerColor="black"
+                      />
+                    </div>
                   </td>
                 </tr>
               )
@@ -160,9 +178,7 @@ export const SubscriptionsListTable = ({
 
 SubscriptionsListTable.propTypes = {
   subscriptionsMetadata: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
-  subscriptionType: PropTypes.string.isRequired,
-  onDeleteSubscription: PropTypes.func.isRequired,
-  onFocusedCollectionChange: PropTypes.func.isRequired
+  subscriptionType: PropTypes.string.isRequired
 }
 
 export default SubscriptionsListTable

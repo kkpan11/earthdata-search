@@ -11,28 +11,25 @@ import { createDataLinks } from './granules'
 /**
  * Formats granule results
  * @param {String} focusedGranuleId - The focused granule.
- * @param {Object} granules - The granules from the redux store.
- * @param {Array} granuleIds - Granule IDs to return in the list.
+ * @param {Object} granules - The granules from the store.
  * @param {Function} isGranuleInProject - Returns a boolean to designate if a granule is in the project.
  * @param {Boolean} isCollectionInProject - Boolean to designate if a collection is in the project.
  * @returns {GranuleListInfo} - The return object
  */
 export const formatGranulesList = ({
-  granuleIds,
-  granulesMetadata,
-  hoveredGranuleId,
   focusedGranuleId,
+  granules,
+  hoveredGranuleId,
+  isCollectionInProject,
   isGranuleInProject,
-  isCollectionInProject
+  setGranuleId
 }) => {
   let hasBrowseImagery = false
 
-  const granulesList = granuleIds.map((granuleId) => {
-    const granule = granulesMetadata[granuleId]
-
+  const granulesList = granules.map((granule) => {
     const original = granule
 
-    const isFocused = focusedGranuleId === granuleId
+    const isFocused = focusedGranuleId === granule.id
 
     const {
       browseFlag,
@@ -62,17 +59,18 @@ export const formatGranulesList = ({
     const isInProject = isGranuleInProject(id)
 
     const handleClick = () => {
-      let stickyGranule = original
-      if (id === focusedGranuleId) stickyGranule = null
-      eventEmitter.emit(`map.layer.${collectionConceptId}.stickygranule`, { granule: stickyGranule })
+      let focusedGranule = original
+      if (id === focusedGranuleId) focusedGranule = null
+      setGranuleId(focusedGranule ? focusedGranule.id : null)
+      eventEmitter.emit(`map.layer.${collectionConceptId}.focusGranule`, { granule: focusedGranule })
     }
 
     const handleMouseEnter = () => {
-      eventEmitter.emit(`map.layer.${collectionConceptId}.focusgranule`, { granule: original })
+      eventEmitter.emit(`map.layer.${collectionConceptId}.hoverGranule`, { granule: original })
     }
 
     const handleMouseLeave = () => {
-      eventEmitter.emit(`map.layer.${collectionConceptId}.focusgranule`, { granule: null })
+      eventEmitter.emit(`map.layer.${collectionConceptId}.hoverGranule`, { granule: null })
     }
 
     return {

@@ -151,12 +151,12 @@ const buildHumanizedQueryDisplay = (key, value) => {
  * @param {String} params.subscriptionType Subscription type, collection or granule
  */
 export const SubscriptionsQueryList = ({
-  displayEmptyMessage,
-  disabledFields,
-  showCheckboxes,
+  displayEmptyMessage = true,
+  disabledFields = null,
+  showCheckboxes = false,
   query,
   subscriptionType,
-  onUpdateSubscriptionDisabledFields
+  setDisabledFields = null
 }) => {
   const humanReadableQueryList = queryToHumanizedList(query, subscriptionType)
 
@@ -164,11 +164,12 @@ export const SubscriptionsQueryList = ({
     const { id } = event.target
 
     const [, idWithoutType] = id.split(`${subscriptionType}-`)
-    onUpdateSubscriptionDisabledFields({
-      [subscriptionType]: {
+    if (setDisabledFields) {
+      setDisabledFields((state) => ({
+        ...state,
         [idWithoutType]: !event.target.checked
-      }
-    })
+      }))
+    }
   }
 
   // If showCheckboxes is true, wrap the query list item in a label
@@ -239,20 +240,13 @@ export const SubscriptionsQueryList = ({
   )
 }
 
-SubscriptionsQueryList.defaultProps = {
-  displayEmptyMessage: true,
-  showCheckboxes: false,
-  disabledFields: null,
-  onUpdateSubscriptionDisabledFields: null
-}
-
 SubscriptionsQueryList.propTypes = {
   displayEmptyMessage: PropTypes.bool,
   disabledFields: PropTypes.shape({}),
   showCheckboxes: PropTypes.bool,
   query: PropTypes.shape({}).isRequired,
   subscriptionType: PropTypes.string.isRequired,
-  onUpdateSubscriptionDisabledFields: PropTypes.func
+  setDisabledFields: PropTypes.func
 }
 
 export default SubscriptionsQueryList

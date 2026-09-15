@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
 import { CSSTransition } from 'react-transition-group'
 import { FaDoorOpen } from 'react-icons/fa'
+import { useLocation } from 'react-router-dom'
 
 import { formatCollectionList } from '../../util/formatCollectionList'
 import { isDefaultPortal } from '../../util/portals'
@@ -10,54 +11,57 @@ import CollectionResultsList from './CollectionResultsList'
 import CollectionResultsTable from './CollectionResultsTable'
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
 
+import useEdscStore from '../../zustand/useEdscStore'
+import { getProjectCollectionsIds } from '../../zustand/selectors/project'
+import { getCollections } from '../../zustand/selectors/collections'
+import { getCollectionsQuery } from '../../zustand/selectors/query'
+
 import './CollectionResultsBody.scss'
 
 /**
  * Renders CollectionResultsBody.
  * @param {Object} props - The props passed into the component.
- * @param {Object} props.browser - Browser information.
- * @param {Array} props.collections - Collections passed from redux store.
- * @param {Function} props.loadNextPage - Callback to load the next page of results.
- * @param {Function} props.onAddProjectCollection - Callback to add a collection to a project.
- * @param {Function} props.onRemoveCollectionFromProject - Callback to remove a collection to a project.
- * @param {Function} props.onViewCollectionGranules - Callback to show collection granules route.
- * @param {Function} props.onViewCollectionDetails - Callback to show collection details route.
  * @param {String} props.panelView - The current active view.
  */
 const CollectionResultsBody = ({
-  browser,
-  collectionsSearch,
-  collectionsMetadata,
-  projectCollectionsIds,
-  loadNextPage,
-  location,
-  onAddProjectCollection,
-  onRemoveCollectionFromProject,
-  onViewCollectionGranules,
-  onViewCollectionDetails,
-  panelView,
-  portal
+  panelView
 }) => {
+  const collectionQuery = useEdscStore(getCollectionsQuery)
+  const changeQuery = useEdscStore((state) => state.query.changeQuery)
+
+  const loadNextPage = () => {
+    const { pageNum } = collectionQuery
+
+    changeQuery({
+      collection: {
+        pageNum: pageNum + 1
+      }
+    })
+  }
+
+  const collectionsMetadata = useEdscStore(getCollections)
   const {
-    allIds: collectionIds,
-    hits: collectionHits,
+    count: collectionHits,
     isLoading,
-    isLoaded
-  } = collectionsSearch
+    isLoaded,
+    items
+  } = collectionsMetadata
+
+  const projectCollectionIds = useEdscStore(getProjectCollectionsIds)
 
   const collectionList = useMemo(() => formatCollectionList(
-    collectionsSearch,
-    collectionsMetadata,
-    projectCollectionsIds,
-    browser
+    items,
+    projectCollectionIds
   ), [
     isLoading,
-    collectionsMetadata,
-    collectionIds,
-    projectCollectionsIds
+    items,
+    projectCollectionIds
   ])
 
   const [visibleMiddleIndex, setVisibleMiddleIndex] = useState(null)
+
+  const portal = useEdscStore((state) => state.portal)
+  const location = useLocation()
 
   // Determine if another page is available by checking if there are more collections to load,
   // or if we have no collections and collections are loading. This controls whether or not the
@@ -88,7 +92,7 @@ const CollectionResultsBody = ({
 
   const {
     portalId,
-    title = portalId
+    title = {}
   } = portal
 
   const { primary: primaryPortalTitle = portalId } = title
@@ -103,12 +107,7 @@ const CollectionResultsBody = ({
       >
         <CollectionResultsList
           visibleMiddleIndex={visibleMiddleIndex}
-          browser={browser}
           collectionsMetadata={collectionList}
-          onAddProjectCollection={onAddProjectCollection}
-          onRemoveCollectionFromProject={onRemoveCollectionFromProject}
-          onViewCollectionGranules={onViewCollectionGranules}
-          onViewCollectionDetails={onViewCollectionDetails}
           setVisibleMiddleIndex={setVisibleMiddleIndex}
           itemCount={itemCount}
           loadMoreItems={loadMoreItems}
@@ -126,10 +125,6 @@ const CollectionResultsBody = ({
           isItemLoaded={isItemLoaded}
           itemCount={itemCount}
           loadMoreItems={loadMoreItems}
-          onAddProjectCollection={onAddProjectCollection}
-          onRemoveCollectionFromProject={onRemoveCollectionFromProject}
-          onViewCollectionDetails={onViewCollectionDetails}
-          onViewCollectionGranules={onViewCollectionGranules}
           setVisibleMiddleIndex={setVisibleMiddleIndex}
           visibleMiddleIndex={visibleMiddleIndex}
         />
@@ -165,31 +160,7 @@ const CollectionResultsBody = ({
 }
 
 CollectionResultsBody.propTypes = {
-  browser: PropTypes.shape({}).isRequired,
-  collectionsMetadata: PropTypes.shape({}).isRequired,
-  collectionsSearch: PropTypes.shape({
-    allIds: PropTypes.arrayOf(PropTypes.string),
-    hits: PropTypes.number,
-    isLoading: PropTypes.bool,
-    isLoaded: PropTypes.bool
-  }).isRequired,
-  loadNextPage: PropTypes.func.isRequired,
-  location: PropTypes.shape({
-    search: PropTypes.string
-  }).isRequired,
-  onAddProjectCollection: PropTypes.func.isRequired,
-  onRemoveCollectionFromProject: PropTypes.func.isRequired,
-  onViewCollectionDetails: PropTypes.func.isRequired,
-  onViewCollectionGranules: PropTypes.func.isRequired,
-  panelView: PropTypes.string.isRequired,
-  portal: PropTypes.shape({
-    portalId: PropTypes.string,
-    title: PropTypes.shape({
-      primary: PropTypes.string
-    }),
-    pageTitle: PropTypes.string
-  }).isRequired,
-  projectCollectionsIds: PropTypes.arrayOf(PropTypes.string).isRequired
+  panelView: PropTypes.string.isRequired
 }
 
 export default CollectionResultsBody

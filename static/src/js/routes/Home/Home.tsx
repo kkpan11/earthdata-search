@@ -1,0 +1,699 @@
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
+import { useNavigate } from 'react-router-dom'
+import { sortBy } from 'lodash-es'
+import Badge from 'react-bootstrap/Badge'
+import Col from 'react-bootstrap/Col'
+import Collapse from 'react-bootstrap/Collapse'
+import Container from 'react-bootstrap/Container'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
+import Popover from 'react-bootstrap/Popover'
+import Row from 'react-bootstrap/Row'
+import {
+  ArrowCircleDown,
+  ArrowCircleUp,
+  Search
+  // @ts-expect-error: Types do not exist for this file
+} from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+
+import Button from '../../components/Button/Button'
+import EDSCIcon from '../../components/EDSCIcon/EDSCIcon'
+import NlpSearchStatus from '../../components/NlpSearchStatus/NlpSearchStatus'
+
+// @ts-expect-error: Types do not exist for this file
+import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
+// @ts-expect-error: Types do not exist for this file
+import TemporalSelectionDropdown from '../../components/TemporalDisplay/TemporalSelectionDropdown'
+import SpatialSelectionDropdown from '../../components/SpatialDisplay/SpatialSelectionDropdown'
+import HomeTopicCard from './HomeTopicCard'
+import HomePortalCard from './HomePortalCard'
+
+import availablePortals from '../../../../../portals/availablePortals.json'
+
+import topicIconAtmosphere from '~Images/homepage-topic-icons/atmosphere-icon.svg'
+import topicIconBiosphere from '~Images/homepage-topic-icons/biosphere-icon.svg'
+import topicIconClimateIndicators from '~Images/homepage-topic-icons/climate-indicators-icon.svg'
+import topicIconCryosphere from '~Images/homepage-topic-icons/cryosphere-icon.svg'
+import topicIconHumanDimensions from '~Images/homepage-topic-icons/human-dimensions-icon.svg'
+import topicIconLandSurface from '~Images/homepage-topic-icons/land-surface-icon.svg'
+import topicIconOcean from '~Images/homepage-topic-icons/ocean-icon.svg'
+import topicIconSolidEarth from '~Images/homepage-topic-icons/solid-earth-icon.svg'
+import topicIconSunEarthInteractions from '~Images/homepage-topic-icons/sun-earth-interactions-icon.svg'
+import topicIconTerrestrialHydrosphere from '~Images/homepage-topic-icons/terrestrial-hydrosphere-icon.svg'
+
+// @ts-expect-error: Types do not exist for this file
+import heroImgSourcesSmall from '~Images/homepage-hero/MODIS-Terra-Swirling-Clouds-In-Atlantic-800x600@2x.jpg?format=webp&w=800;1600'
+// @ts-expect-error: Types do not exist for this file
+import heroImgSources from '~Images/homepage-hero/MODIS-Terra-Swirling-Clouds-In-Atlantic-2560x1440@2x.jpg?format=webp&w=1280;1920;2560;3840;5120'
+
+// @ts-expect-error: Types do not exist for this file
+import { getApplicationConfig } from '../../../../../sharedUtils/config'
+
+import getHeroImageSrcSet from '../../../../../vite_plugins/getHeroImageSrcSet'
+
+import { routes } from '../../constants/routes'
+import renderTooltip from '../../util/renderTooltip'
+
+import routerHelper from '../../router/router'
+
+import type{ PortalConfig } from '../../types/sharedTypes'
+import type { HomeSearchMode } from '../../zustand/types'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getCollectionsPageInfo } from '../../zustand/selectors/collections'
+import { getSitePreferences } from '../../zustand/selectors/user'
+
+import './Home.scss'
+// TODO: Clean up css so preloading this file is not necessary
+import '../../components/SearchForm/SearchForm.scss'
+import { getCollectionsQuery } from '../../zustand/selectors/query'
+import { localStorageKeys } from '../../constants/localStorageKeys'
+
+const { preloadSrcSet, preloadSizes } = getHeroImageSrcSet(
+  [...heroImgSourcesSmall, ...heroImgSources]
+)
+
+let preloaded = false
+
+type PreferredHomeSearchMode = HomeSearchMode | null
+
+const nlpSearchMode: HomeSearchMode = 'nlp'
+const traditionalSearchMode: HomeSearchMode = 'traditional'
+
+const getPreferredHomeSearchMode = (
+  isNlpEnabled: boolean,
+  savedSearchMode?: HomeSearchMode
+): PreferredHomeSearchMode => {
+  if (!isNlpEnabled) return traditionalSearchMode
+
+  const storedSearchMode = localStorage.getItem(localStorageKeys.homeSearchMode)
+
+  if (
+    storedSearchMode === nlpSearchMode
+    || storedSearchMode === traditionalSearchMode
+  ) return storedSearchMode
+
+  if (savedSearchMode) return savedSearchMode
+
+  return null
+}
+
+const preloadRoutes = () => {
+  const { NODE_ENV } = process.env
+  // Don't preload routes if the app is preloaded or in test mode
+  if (preloaded || NODE_ENV === 'test') return
+  preloaded = true
+
+  // @ts-expect-error: Types are not defined in this file
+  import('../Search/Search')
+  // @ts-expect-error: Types are not defined in this file
+  import('../../components/SearchTour/SearchTour')
+  import('../../containers/MapContainer/MapContainer')
+}
+
+export interface HomeTopic {
+  /** The title of the topic */
+  title: string
+  /** The image URL for the topic icon */
+  image: string
+  /** The URL to navigate to when the topic is clicked */
+  url: string
+}
+
+const topics: HomeTopic[] = [
+  {
+    title: 'Atmosphere',
+    image: topicIconAtmosphere,
+    url: '/search?fst0=Atmosphere'
+  },
+  {
+    title: 'Biosphere',
+    image: topicIconBiosphere,
+    url: '/search?fst0=Biosphere'
+  },
+  {
+    title: 'Climate Indicators',
+    image: topicIconClimateIndicators,
+    url: '/search?fst0=Climate+Indicators'
+  },
+  {
+    title: 'Cryosphere',
+    image: topicIconCryosphere,
+    url: '/search?fst0=Cryosphere'
+  },
+  {
+    title: 'Human Dimensions',
+    image: topicIconHumanDimensions,
+    url: '/search?fst0=Human+Dimensions'
+  },
+  {
+    title: 'Land Surface',
+    image: topicIconLandSurface,
+    url: '/search?fst0=Land+Surface'
+  },
+  {
+    title: 'Oceans',
+    image: topicIconOcean,
+    url: '/search?fst0=Oceans'
+  },
+  {
+    title: 'Solid Earth',
+    image: topicIconSolidEarth,
+    url: '/search?fst0=Solid+Earth'
+  },
+  {
+    title: 'Sun-Earth Interactions',
+    image: topicIconSunEarthInteractions,
+    url: '/search?fst0=Sun-Earth+Interactions'
+  },
+  {
+    title: 'Terrestrial Hydrosphere',
+    image: topicIconTerrestrialHydrosphere,
+    url: '/search?fst0=Terrestrial+Hydrosphere'
+  }
+]
+
+/**
+ * The Home route component
+*/
+export const Home: React.FC = () => {
+  const navigate = useNavigate()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const isNlpActiveRef = useRef(false)
+  const [showAllPortals, setShowAllPortals] = useState(false)
+  const [activeNlpPrompt, setActiveNlpPrompt] = useState('')
+  const [nlpRequestId, setNlpRequestId] = useState(0)
+  const [hasSubmittedNlpSearch, setHasSubmittedNlpSearch] = useState(false)
+  const [isNlpStreaming, setIsNlpStreaming] = useState(false)
+  const [isNlpNavigationPending, setIsNlpNavigationPending] = useState(false)
+
+  const { isLoading } = useEdscStore(getCollectionsPageInfo)
+  const featureFlags = useEdscStore((state) => state.growthbook.featureFlags)
+  const { nlpSearch: isNlpFeatureFlagEnabled } = featureFlags
+  const { homeSearchMode } = useEdscStore(getSitePreferences)
+
+  const {
+    numberOfGranules,
+    nlpSearch: nlpSearchEnabled
+  } = getApplicationConfig()
+
+  // Check if NLP search is enabled. If so, utlize the nlp endpoint and alert users of the change through UI elements.
+  const isNlpEnabled = nlpSearchEnabled === 'true'
+  const [preferredHomeSearchMode, setPreferredHomeSearchMode] = useState<PreferredHomeSearchMode>(
+    () => getPreferredHomeSearchMode(isNlpEnabled, homeSearchMode)
+  )
+
+  // If preferredHomeSearchMode is not set, default to the isNlpFeatureFlagEnabled value.
+  useEffect(() => {
+    if (preferredHomeSearchMode === null) {
+      setPreferredHomeSearchMode(isNlpFeatureFlagEnabled ? 'nlp' : 'traditional')
+    }
+  }, [preferredHomeSearchMode, isNlpFeatureFlagEnabled])
+
+  const isNlpSearchActive = isNlpEnabled && preferredHomeSearchMode === nlpSearchMode
+
+  useEffect(() => {
+    // Local storage take priority over saved user preference, so don't
+    // let homeSearchMode in preferences override existing local storage value
+    const storedSearchMode = localStorage.getItem(localStorageKeys.homeSearchMode)
+    if (storedSearchMode === nlpSearchMode || storedSearchMode === traditionalSearchMode) return
+
+    if (isNlpEnabled && homeSearchMode) setPreferredHomeSearchMode(homeSearchMode)
+  }, [homeSearchMode, isNlpEnabled])
+
+  useEffect(() => {
+    // Focus the search input when the component mounts
+    if (inputRef.current) {
+      inputRef.current?.focus()
+    }
+
+    // This event listener is used to load the Search and Map components
+    // when the DOM is ready which helps prevent a flash of white when the
+    // page loads.
+    document.addEventListener('mouseover', preloadRoutes)
+    document.addEventListener('keydown', preloadRoutes)
+
+    return () => {
+      document.removeEventListener('mouseover', preloadRoutes)
+      document.removeEventListener('keydown', preloadRoutes)
+    }
+  }, [])
+
+  const onShowAllPortalsClick = (): void => {
+    setShowAllPortals(!showAllPortals)
+  }
+
+  const sortedPortals: PortalConfig[] = sortBy(
+    availablePortals as unknown as PortalConfig[],
+    (portal: PortalConfig) => portal.title.primary
+  ).filter((portal: PortalConfig) => portal.portalBrowser)
+
+  const visiblePortals = sortedPortals.slice(0, 10)
+  const hiddenPortals = sortedPortals.slice(10)
+
+  const changeQuery = useEdscStore((state) => state.query.changeQuery)
+  const setNlpAutoCenterPending = useEdscStore((state) => state.map.setNlpAutoCenterPending)
+  const collectionQuery = useEdscStore(getCollectionsQuery)
+  const { keyword: collectionsQueryKeyword = '' } = collectionQuery
+  const [keyword, setKeyword] = useState(collectionsQueryKeyword)
+
+  const onChangeKeyword = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setKeyword(e.target.value)
+  }
+
+  const searchParams = {
+    q: keyword
+  }
+
+  const onNlpSearchComplete = useCallback(({ hasSpatial }: { hasSpatial: boolean }) => {
+    // Use ref instead of state so check is synchronous. State
+    // would still see stale values when onFinish fires.
+
+    if (!isNlpActiveRef.current) return undefined
+
+    // Only center map when NLP returns a parsed spatial extent.
+    setNlpAutoCenterPending(hasSpatial)
+
+    // Queue navigation only while the current NLP request is still active.
+    return Promise.resolve(setIsNlpNavigationPending(true))
+  }, [setNlpAutoCenterPending])
+
+  const resetNlpSearchUi = useCallback(() => {
+    isNlpActiveRef.current = false
+    setIsNlpStreaming(false)
+    setHasSubmittedNlpSearch(false)
+    setActiveNlpPrompt('')
+    setNlpAutoCenterPending(false)
+    setIsNlpNavigationPending(false)
+
+    if (inputRef.current) inputRef.current.focus()
+  }, [setNlpAutoCenterPending])
+
+  const onNlpSearchFailed = useCallback(() => {
+    resetNlpSearchUi()
+  }, [resetNlpSearchUi])
+
+  const onSearchModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextSearchMode = event.target.value as HomeSearchMode
+
+    localStorage.setItem(localStorageKeys.homeSearchMode, nextSearchMode!)
+    setPreferredHomeSearchMode(nextSearchMode)
+
+    if (nextSearchMode === traditionalSearchMode) resetNlpSearchUi()
+  }
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const trimmedKeyword = keyword.trim()
+
+    if (isNlpSearchActive) {
+      if (isNlpStreaming) return
+
+      if (!trimmedKeyword) {
+        // If an NLP session has already started, treat empty submit as a no-op.
+        // This prevents cancel interactions from accidentally falling through
+        // to the empty-query redirect path.
+        if (hasSubmittedNlpSearch) return
+
+        changeQuery({
+          collection: {
+            keyword: trimmedKeyword
+          }
+        })
+
+        navigate(`${routes.SEARCH}${window.location.search}`)
+
+        return
+      }
+
+      isNlpActiveRef.current = true
+      setIsNlpStreaming(true)
+      setActiveNlpPrompt(trimmedKeyword)
+      setHasSubmittedNlpSearch(true)
+      setNlpRequestId((currentId) => currentId + 1)
+
+      return
+    }
+
+    // Manually update the query in the store
+    changeQuery({
+      collection: {
+        keyword: trimmedKeyword
+      }
+    })
+
+    // After collections are fetched, navigate to the Search route
+    navigate(`${routes.SEARCH}${window.location.search}`)
+  }
+
+  useEffect(() => {
+    if (!isNlpSearchActive) return
+    if (!hasSubmittedNlpSearch || !isNlpStreaming) return
+    if (!isNlpNavigationPending || isLoading) return
+    if (!isNlpActiveRef.current) return
+
+    Promise.resolve(routerHelper.router?.navigate(routes.SEARCH, {}))
+      .finally(() => {
+        setIsNlpStreaming(false)
+        setIsNlpNavigationPending(false)
+      })
+  }, [
+    hasSubmittedNlpSearch,
+    isLoading,
+    isNlpSearchActive,
+    isNlpNavigationPending,
+    isNlpStreaming
+  ])
+
+  const onCancelNlpSearch = (event?:React.SyntheticEvent) => {
+    // Synchronously mark NLP as inactive so any inflight onNlpSearchComplete
+    // sees the cancellation before React does state updates.
+    event?.preventDefault()
+    event?.stopPropagation()
+
+    resetNlpSearchUi()
+  }
+
+  const isSearchInputDisabled = isNlpSearchActive && isNlpStreaming
+  const shouldShowNlpStatus = isNlpSearchActive && hasSubmittedNlpSearch && !!activeNlpPrompt
+
+  return (
+    <main className="route-wrapper route-wrapper--content-page route-wrapper--home">
+      <div className="route-wrapper__content">
+        <section
+          className="home__hero position-relative w-100 d-flex px-5 flex-column flex-shrink-0"
+        >
+          <picture className="home__hero-image position-absolute">
+            {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
+            <img
+              srcSet={preloadSrcSet}
+              sizes={preloadSizes}
+              alt="Swirls of cloud are visible in the Atlantic Ocean near Cabo Verde in this true-color corrected reflectance image from the Moderate Resolution Imaging Spectroradiometer (MODIS) aboard the Terra platform on March 12, 2025"
+            />
+          </picture>
+          <div className="home__hero-main d-flex flex-shrink-1 flex-column z-1">
+            <div className="home__hero-main-content d-flex flex-shrink-1 flex-column justify-content-center">
+              <div className="home__hero-intro text-center d-flex gap-3 flex-column">
+                <h1 className="text-white display-7">
+                  Search NASA&apos;s
+                  {' '}
+                  {numberOfGranules}
+                  {' '}
+                  Earth observations
+                </h1>
+                {
+                  isNlpEnabled ? (
+                    <p className="home__hero-subtitle text-white mb-0 lead">
+                      Describe your search, or use keywords, time, and place
+                    </p>
+                  ) : (
+                    <p className="text-white mb-0 lead">
+                      Use keywords and filter by time and spatial area
+                      to search NASA&apos;s Earth science data
+                    </p>
+                  )
+                }
+              </div>
+              {
+                isNlpEnabled && (
+                  <div className="home__search-mode-control d-flex align-items-center">
+                    <Badge className="home__new-badge">
+                      NEW
+                    </Badge>
+                    <fieldset className="home__search-mode-toggle" aria-label="Search mode">
+                      <legend className="visually-hidden">Search mode</legend>
+                      <input
+                        className="btn-check"
+                        type="radio"
+                        name="home-search-mode"
+                        id="home-search-mode-nlp"
+                        value={nlpSearchMode}
+                        checked={preferredHomeSearchMode === nlpSearchMode}
+                        onChange={onSearchModeChange}
+                      />
+                      <OverlayTrigger
+                        placement="top"
+                        overlay={
+                          (tooltipProps) => renderTooltip({
+                            ...tooltipProps,
+                            className: 'tooltip--wide',
+                            children: 'Describe what you are looking for to start your search'
+                          })
+                        }
+                      >
+                        <label className="home__search-mode-toggle-label" htmlFor="home-search-mode-nlp">
+                          AI Enhanced Search
+                        </label>
+                      </OverlayTrigger>
+                      <input
+                        className="btn-check"
+                        type="radio"
+                        name="home-search-mode"
+                        id="home-search-mode-traditional"
+                        value={traditionalSearchMode}
+                        checked={preferredHomeSearchMode === traditionalSearchMode}
+                        onChange={onSearchModeChange}
+                      />
+                      <OverlayTrigger
+                        placement="top"
+                        overlay={
+                          (tooltipProps) => renderTooltip({
+                            ...tooltipProps,
+                            className: 'tooltip--wide',
+                            children: 'Use keywords and filter by time and spatial area to search NASA\'s Earth science data'
+                          })
+                        }
+                      >
+                        <label className="home__search-mode-toggle-label" htmlFor="home-search-mode-traditional">
+                          Traditional Search
+                        </label>
+                      </OverlayTrigger>
+                    </fieldset>
+                  </div>
+                )
+              }
+              <div className="home__hero-input-wrapper w-100 d-flex flex-shrink-1 justify-content-center align-items-center gap-3">
+                <form
+                  className="d-flex justify-content-center flex-grow-1 flex-shrink-1"
+                  onSubmit={handleSubmit}
+                >
+                  <div className="d-flex flex-grow-1 position-relative flex-shrink-1">
+                    <EDSCIcon
+                      className="home__hero-input-icon position-absolute"
+                      icon={Search}
+                      size="22px"
+                    />
+                    <input
+                      className={`home__hero-input flex-grow-1 flex-shrink-1 form-control form-control-lg border-end-0 ${isNlpSearchActive ? 'home__hero-input--nlp' : ''}`}
+                      onChange={onChangeKeyword}
+                      placeholder={isNlpSearchActive ? 'Wildfires in California during summer 2023' : 'Type to search for data'}
+                      ref={inputRef}
+                      type="text"
+                      value={keyword}
+                      disabled={isSearchInputDisabled}
+                      aria-busy={isSearchInputDisabled}
+                    />
+                  </div>
+                  {
+                    !isNlpSearchActive && (
+                      <div className="d-flex gap-2 align-items-center flex-shrink-0 ps-2 pe-2 bg-white border-top border-bottom">
+                        <TemporalSelectionDropdown searchParams={searchParams} />
+                        <SpatialSelectionDropdown searchParams={searchParams} />
+                      </div>
+                    )
+                  }
+                  <Button
+                    type={isNlpStreaming ? 'button' : 'submit'}
+                    className="home__hero-submit-button flex-shrink-0 btn btn-primary btn-lg focus-light"
+                    bootstrapVariant="primary"
+                    bootstrapSize="lg"
+                    spinner={!isNlpStreaming && isLoading}
+                    onClick={isNlpStreaming ? onCancelNlpSearch : undefined}
+                  >
+                    {isNlpStreaming ? 'Cancel' : 'Search'}
+                  </Button>
+                </form>
+                {
+                  isNlpEnabled && (
+                    <div
+                      className={`home__hero-status-region ${!shouldShowNlpStatus ? 'home__hero-status-region--inactive' : ''}`}
+                      data-testid="home-hero-status-region"
+                      aria-hidden={!shouldShowNlpStatus}
+                    >
+                      {
+                        shouldShowNlpStatus && (
+                          <div className="home__hero-status-inner">
+                            <div className="home__hero-status-stack">
+                              <div className="home__nlp-chat-wrapper">
+                                <NlpSearchStatus
+                                  activePrompt={activeNlpPrompt}
+                                  requestId={nlpRequestId}
+                                  onStreamingChange={setIsNlpStreaming}
+                                  onNlpSearchComplete={onNlpSearchComplete}
+                                  onNlpSearchFailed={onNlpSearchFailed}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+                    </div>
+                  )
+                }
+              </div>
+            </div>
+            <div className="home__hero-lower">
+              <div className="home__hero-browse d-flex justify-content-center">
+                <PortalLinkContainer className="focus-light" type="button" updatePath variant="hds-primary" bootstrapSize="lg" dark to="/search">Browse all Earth Science Data</PortalLinkContainer>
+              </div>
+            </div>
+          </div>
+          <OverlayTrigger
+            trigger="click"
+            placement="top"
+            rootClose
+            overlay={
+              (
+                <Popover
+                  id="hero-image-popover"
+                  className="home__hero-image-popover bg-black text-white"
+                  style={
+                    {
+                      minWidth: '19rem',
+                      maxWidth: '19rem'
+                    }
+                  }
+                >
+                  <Popover.Body className="bg-black text-white">
+                    <p>
+                      {/* eslint-disable-next-line max-len */}
+                      Swirls of cloud are visible in the Atlantic Ocean near Cabo Verde in this true-color corrected reflectance image from the
+                      {' '}
+                      <strong>Moderate Resolution Imaging Spectroradiometer (MODIS)</strong>
+                      {' '}
+                      aboard the
+                      {' '}
+                      <strong>Terra</strong>
+                      {' '}
+                      platform on March 12, 2025
+                    </p>
+                    <PortalLinkContainer
+                      className="focus-light"
+                      type="button"
+                      variant="hds-primary"
+                      dark
+                      to={`${routes.GRANULES}?p=C1378579425-LAADS&pg[0][v]=f&q=MOD02QKM&pg[0][gsk]=-start_date&sb[0]=-29.95172%2C11.43036%2C-16.57503%2C19.31775&qt=2025-03-12T00%3A00%3A00.000Z%2C2025-03-12T23%3A59%3A59.999Z&tl=1347419148.752!5!!&lat=15.27060660&long=-22.78519821&zoom=6`}
+                      updatePath
+                    >
+                      Explore this data on the map
+                    </PortalLinkContainer>
+                  </Popover.Body>
+                </Popover>
+              )
+            }
+          >
+            <div className="home__hero-image-link position-absolute">
+              <Button className="text-white focus-light" bootstrapVariant="link">What is this image?</Button>
+            </div>
+          </OverlayTrigger>
+        </section>
+        <section className="py-5">
+          <Container className="home__container">
+            <Row>
+              <Col>
+                <h2 className="h1">Browse Data by Topic</h2>
+                <p>Search for data within a research area</p>
+              </Col>
+            </Row>
+            <div
+              className="home__grid grid"
+            >
+              {
+                topics && topics.map((topic) => (
+                  <HomeTopicCard key={topic.title} {...topic} />
+                ))
+              }
+            </div>
+          </Container>
+        </section>
+        <section className="py-5 mb-5">
+          <Container className="home__container">
+            <Row>
+              <Col>
+                <h2 className="h1">Browse Data by Portal</h2>
+                {/* eslint-disable-next-line max-len */}
+                <p>Search for data using curated portals to limit results to an area of interest, project, or organization</p>
+              </Col>
+            </Row>
+            <div
+              className="home__grid grid"
+            >
+              {
+                visiblePortals && visiblePortals.map((portal) => (
+                  <HomePortalCard key={portal.portalId} {...portal} />
+                ))
+              }
+            </div>
+            <Collapse in={showAllPortals}>
+              <div
+                id="portal-cards-collapse"
+                aria-labelledby="portal-collapse-button"
+                aria-hidden={!showAllPortals}
+                style={{ display: showAllPortals ? '' : 'none' }}
+              >
+                <div className="home__grid grid mt-3">
+                  {
+                    hiddenPortals && hiddenPortals.map((portal) => (
+                      <HomePortalCard key={portal.portalId} {...portal} />
+                    ))
+                  }
+                </div>
+              </div>
+            </Collapse>
+            <div className="mt-3 d-flex justify-content-center align-items-center">
+              {
+                !showAllPortals && (
+                  <Button
+                    id="portal-collapse-button"
+                    variant="naked"
+                    icon={ArrowCircleDown}
+                    iconPosition="right"
+                    bootstrapVariant="naked"
+                    onClick={onShowAllPortalsClick}
+                    aria-expanded={showAllPortals}
+                    aria-controls="portal-cards-collapse"
+                  >
+                    Show all portals
+                  </Button>
+                )
+              }
+              {
+                showAllPortals && (
+                  <Button
+                    id="portal-collapse-button"
+                    variant="naked"
+                    icon={ArrowCircleUp}
+                    iconPosition="right"
+                    bootstrapVariant="naked"
+                    onClick={onShowAllPortalsClick}
+                    aria-expanded={showAllPortals}
+                    aria-controls="portal-cards-collapse"
+                  >
+                    Show fewer portals
+                  </Button>
+                )
+              }
+            </div>
+          </Container>
+        </section>
+      </div>
+    </main>
+  )
+}
+
+export default Home

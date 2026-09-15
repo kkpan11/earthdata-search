@@ -1,41 +1,25 @@
 import React, { useEffect } from 'react'
-import PropTypes from 'prop-types'
-import { withRouter } from 'react-router-dom'
-import { connect } from 'react-redux'
 import { Helmet } from 'react-helmet'
 import { startCase } from 'lodash-es'
 import { parse, stringify } from 'qs'
+import { useLocation, useParams } from 'react-router-dom'
 
-import actions from '../../actions/index'
+import { changePath } from '../../util/url/changePath'
+import { changeUrl } from '../../util/url/changeUrl'
 import { getApplicationConfig } from '../../../../../sharedUtils/config'
 import { isDefaultPortal, buildConfig } from '../../util/portals'
-import { locationPropType } from '../../util/propTypes/location'
 
 // eslint-disable-next-line import/no-unresolved
 import availablePortals from '../../../../../portals/availablePortals.json'
+import useEdscStore from '../../zustand/useEdscStore'
 
-export const mapDispatchToProps = (dispatch) => ({
-  onChangePath:
-    (portalId) => dispatch(actions.changePath(portalId)),
-  onChangeUrl:
-    (data) => dispatch(actions.changeUrl(data))
-})
-
-export const mapStateToProps = (state) => ({
-  portal: state.portal
-})
-
-export const PortalContainer = ({
-  match,
-  portal,
-  location,
-  onChangePath,
-  onChangeUrl
-}) => {
+const PortalContainer = () => {
   const defaultPortalId = getApplicationConfig().defaultPortal
+  const portal = useEdscStore((state) => state.portal)
+  const location = useLocation()
+  const params = useParams()
 
   useEffect(() => {
-    const { params } = match
     const { portalId } = params
 
     const { pathname, search } = location
@@ -64,14 +48,16 @@ export const PortalContainer = ({
     }
 
     if (newPathname !== pathname || newSearch !== search) {
-      // Update the URL with the new value
-      onChangeUrl({
-        pathname: newPathname,
-        search: newSearch
-      })
+      setTimeout(() => {
+        // Update the URL with the new value
+        changeUrl({
+          pathname: newPathname,
+          search: newSearch
+        })
 
-      // Reset the store based on the new URL
-      onChangePath(`${newPathname}${newSearch}`)
+        // Reset the store based on the new URL
+        changePath(`${newPathname}${newSearch}`)
+      }, 0)
     }
   }, [])
 
@@ -79,7 +65,7 @@ export const PortalContainer = ({
   const { primary: primaryTitle } = title
 
   let portalTitle = ''
-  if (!isDefaultPortal(portalId)) portalTitle = ` :: ${primaryTitle || startCase(portalId)} Portal`
+  if (!isDefaultPortal(portalId)) portalTitle = ` - ${primaryTitle || startCase(portalId)} Portal`
 
   const { [defaultPortalId]: defaultPortal } = availablePortals
 
@@ -101,23 +87,4 @@ export const PortalContainer = ({
   )
 }
 
-PortalContainer.propTypes = {
-  location: locationPropType.isRequired,
-  match: PropTypes.shape({
-    params: PropTypes.shape({
-      portalId: PropTypes.string
-    })
-  }).isRequired,
-  portal: PropTypes.shape({
-    title: PropTypes.shape({
-      primary: PropTypes.string
-    }),
-    portalId: PropTypes.string
-  }).isRequired,
-  onChangePath: PropTypes.func.isRequired,
-  onChangeUrl: PropTypes.func.isRequired
-}
-
-export default withRouter(
-  connect(mapStateToProps, mapDispatchToProps)(PortalContainer)
-)
+export default PortalContainer

@@ -1,17 +1,12 @@
 import { buildConfig, isDefaultPortal } from '../portals'
 import * as getApplicationConfig from '../../../../../sharedUtils/config'
 
-// eslint-disable-next-line import/no-unresolved
+// References portals/__mocks__/availablePortals.json in test
 import availablePortals from '../../../../../portals/availablePortals.json'
-
-beforeEach(() => {
-  jest.clearAllMocks()
-  jest.restoreAllMocks()
-})
 
 describe('isDefaultPortal', () => {
   beforeEach(() => {
-    jest.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
+    vi.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
       defaultPortal: 'edsc'
     }))
   })
@@ -27,7 +22,7 @@ describe('isDefaultPortal', () => {
 
 describe('buildConfig', () => {
   test('builds a portal config of portal > edsc portal > default portal', () => {
-    const config = buildConfig(availablePortals.idn)
+    const config = buildConfig(availablePortals.testPortal)
 
     expect(config).toEqual({
       features: {
@@ -41,7 +36,7 @@ describe('buildConfig', () => {
       },
       footer: {
         displayVersion: true,
-        attributionText: 'NASA Official: Stephen Berrick',
+        attributionText: 'NASA Official: Test Official',
         primaryLinks: [{
           title: 'FOIA',
           href: 'http://www.nasa.gov/FOIA/index.html'
@@ -59,18 +54,22 @@ describe('buildConfig', () => {
           href: 'https://access.earthdata.nasa.gov/'
         }]
       },
-      moreInfoUrl: 'https://ceos.org/ourwork/workinggroups/wgiss/access/international-directory-network/',
-      pageTitle: 'IDN',
+      moreInfoUrl: 'https://test.gov',
+      pageTitle: 'TEST',
       portalBrowser: true,
-      portalId: 'idn',
-      query: { hasGranulesOrCwic: null },
+      portalId: 'testPortal',
+      query: {
+        hasGranulesOrCwic: null,
+        project: 'testProject'
+      },
       title: {
-        primary: 'IDN',
-        secondary: 'CEOS International Directory Network'
+        primary: 'test',
+        secondary: 'test secondary title'
       },
       ui: {
         showOnlyGranulesCheckbox: false,
         showNonEosdisCheckbox: false,
+        includeInactiveCollectionsCheckbox: true,
         showTophat: true
       },
       parentConfig: 'edsc'

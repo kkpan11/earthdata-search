@@ -1,0 +1,43 @@
+/*
+ * EDSC Custom Variables
+*/
+
+@import 'custom-variables';
+@import 'typography-variables';
+
+
+/*
+ * Bootstrap Configuration
+*/
+
+@import 'configuration';
+
+/*
+ * Bootstrap Layout & components
+*/
+
+@import "components";
+
+/*
+  * Bootstrap Helpers
+*/
+
+@import "bootstrap/scss/helpers";
+
+/*
+  * Bootstrap Utilities API
+*/
+
+@import "bootstrap/scss/utilities/api";
+
+/*
+ * Bootstrap Overrides
+*/
+
+@import "typography";
+
+@import "overrides/alert";
+@import "overrides/buttons";
+@import "overrides/dropdown";
+@import "overrides/forms";
+@import "overrides/popover";

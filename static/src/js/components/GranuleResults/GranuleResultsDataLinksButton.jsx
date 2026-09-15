@@ -1,14 +1,17 @@
 import React, { useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { Dropdown, Tab } from 'react-bootstrap'
+import Dropdown from 'react-bootstrap/Dropdown'
+import Tab from 'react-bootstrap/Tab'
 import { PropTypes } from 'prop-types'
-import { FaDownload, FaCloud } from 'react-icons/fa'
+import { Download, CloudFill } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 
 import Button from '../Button/Button'
 import CopyableText from '../CopyableText/CopyableText'
 import EDSCTabs from '../EDSCTabs/EDSCTabs'
+import ExternalLink from '../ExternalLink/ExternalLink'
 
-import { addToast } from '../../util/addToast'
+import { metricsDataAccess } from '../../util/metrics/metricsDataAccess'
+import addToast from '../../util/addToast'
 import { getFilenameFromPath } from '../../util/getFilenameFromPath'
 
 import './GranuleResultsDataLinksButton.scss'
@@ -18,8 +21,8 @@ import './GranuleResultsDataLinksButton.scss'
  * @param {Object} props - The props passed into the component.
  * @param {Function} props.onClick - The click callback.null
  */
-// eslint-disable-next-line react/display-name
 export const CustomDataLinksToggle = React.forwardRef(({
+  id,
   onClick
 }, ref) => {
   const handleClick = (event) => {
@@ -33,17 +36,22 @@ export const CustomDataLinksToggle = React.forwardRef(({
     <Button
       className="button granule-results-data-links-button__button"
       type="button"
-      icon={FaDownload}
+      icon={Download}
       ref={ref}
-      label="Download single granule data"
+      ariaLabel="Download granule data"
+      tooltip="Download granule data"
+      tooltipId={`download-granule-tooltip-${id}`}
       onClick={handleClick}
     />
   )
 })
 
 CustomDataLinksToggle.propTypes = {
+  id: PropTypes.string.isRequired,
   onClick: PropTypes.func.isRequired
 }
+
+CustomDataLinksToggle.displayName = 'CustomDataLinksToggle'
 
 /**
  * Renders GranuleResultsDataLinksButton.
@@ -52,16 +60,16 @@ CustomDataLinksToggle.propTypes = {
  * @param {String} props.collectionId - The collection ID.
  * @param {Object} props.directDistributionInformation - The collection direct distribution information.
  * @param {Array} props.dataLinks - An array of data links.
+ * @param {String} props.id - The granule id.
  * @param {Array} props.s3Links - An array of AWS S3 links.
- * @param {Function} props.onMetricsDataAccess - The metrics callback.
  */
 export const GranuleResultsDataLinksButton = ({
   collectionId,
-  buttonVariant,
+  buttonVariant = '',
   dataLinks,
   directDistributionInformation,
-  s3Links,
-  onMetricsDataAccess
+  id,
+  s3Links
 }) => {
   const dropdownMenuRef = useRef(null)
 
@@ -82,7 +90,8 @@ export const GranuleResultsDataLinksButton = ({
           onClick={
             (event) => {
               event.stopPropagation()
-              onMetricsDataAccess({
+
+              metricsDataAccess({
                 type: 'single_granule_download',
                 collections: [{
                   collectionId
@@ -97,7 +106,7 @@ export const GranuleResultsDataLinksButton = ({
           }
         >
           {dataLinkTitle}
-          <FaDownload className="granule-results-data-links-button__icon granule-results-data-links-button__icon--download" />
+          <Download className="granule-results-data-links-button__icon granule-results-data-links-button__icon--download" />
         </Dropdown.Item>
       )
     })
@@ -122,7 +131,7 @@ export const GranuleResultsDataLinksButton = ({
                   <CopyableText
                     className="granule-results-data-links-button__menu-panel-value"
                     text={region}
-                    label="Copy to clipboard"
+                    label="Copy region to clipboard"
                     successMessage="Copied the AWS S3 region"
                     failureMessage="Could not copy the AWS S3 region"
                   />
@@ -137,7 +146,7 @@ export const GranuleResultsDataLinksButton = ({
                         <CopyableText
                           className="granule-results-data-links-button__menu-panel-value"
                           text={bucketAndObjPrefix}
-                          label="Copy to clipboard"
+                          label="Copy bucket/object prefix to clipboard"
                           successMessage="Copied the AWS S3 Bucket/Object Prefix"
                           failureMessage="Could not copy the AWS S3 Bucket/Object Prefix"
                         />
@@ -151,22 +160,13 @@ export const GranuleResultsDataLinksButton = ({
                     {'AWS S3 Credentials: '}
                   </span>
                   <span className="granule-results-data-links-button__menu-panel-value">
-                    <a
-                      className="link link--external"
-                      href={s3CredentialsApiEndpoint}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
+                    <ExternalLink className="link--separated" href={s3CredentialsApiEndpoint}>
                       Get AWS S3 Credentials
-                    </a>
-                    <a
-                      className="link link--separated link--external"
-                      href={s3CredentialsApiDocumentationUrl}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
+                    </ExternalLink>
+                    &nbsp;
+                    <ExternalLink className="link--separated" href={s3CredentialsApiDocumentationUrl}>
                       View Documentation
-                    </a>
+                    </ExternalLink>
                   </span>
                 </div>
               </header>
@@ -189,7 +189,7 @@ export const GranuleResultsDataLinksButton = ({
                   failureMessage={() => `Could not copy AWS S3 path for: ${s3LinkTitle}`}
                   onClick={
                     () => {
-                      onMetricsDataAccess({
+                      metricsDataAccess({
                         type: 'single_granule_s3_access',
                         collections: [{
                           collectionId
@@ -206,8 +206,8 @@ export const GranuleResultsDataLinksButton = ({
     }
 
     return (
-      <Dropdown onClick={(event) => { event.stopPropagation() }} drop="right">
-        <Dropdown.Toggle as={CustomDataLinksToggle} />
+      <Dropdown onClick={(event) => { event.stopPropagation() }} drop="down">
+        <Dropdown.Toggle as={CustomDataLinksToggle} id={id} />
         {
           ReactDOM.createPortal(
             <Dropdown.Menu
@@ -217,13 +217,13 @@ export const GranuleResultsDataLinksButton = ({
               {
                 s3Links.length > 0 && dataLinks.length > 0
                   ? (
-                    <EDSCTabs padding={false}>
+                    <EDSCTabs padding={false} fill>
                       <Tab
                         className="granule-results-data-links-button__menu-panel"
                         title={
                           (
                             <span className="granule-results-data-links-button__tab-text">
-                              <FaDownload className="granule-results-data-links-button__tab-icon" />
+                              <Download className="granule-results-data-links-button__tab-icon" />
                               Download Files
                             </span>
                           )
@@ -240,7 +240,7 @@ export const GranuleResultsDataLinksButton = ({
                         title={
                           (
                             <span className="granule-results-data-links-button__tab-text">
-                              <FaCloud className="granule-results-data-links-button__tab-icon" />
+                              <CloudFill className="granule-results-data-links-button__tab-icon" />
                               AWS S3 Access
                             </span>
                           )
@@ -289,19 +289,25 @@ export const GranuleResultsDataLinksButton = ({
     return (
       <Button
         className="button granule-results-data-links-button__button"
-        icon={FaDownload}
+        icon={Download}
         variant={buttonVariant}
         href={dataLinks[0].href}
         onClick={
-          () => onMetricsDataAccess({
-            type: 'single_granule_download',
-            collections: [{
-              collectionId
-            }]
-          })
+          (event) => {
+            metricsDataAccess({
+              type: 'single_granule_download',
+              collections: [{
+                collectionId
+              }]
+            })
+
+            event.stopPropagation()
+          }
         }
         rel="noopener noreferrer"
-        label="Download single granule data"
+        ariaLabel="Download granule data"
+        tooltip="Download granule data"
+        tooltipId={`download-granule-tooltip-${id}`}
         target="_blank"
       />
     )
@@ -312,7 +318,7 @@ export const GranuleResultsDataLinksButton = ({
       className="button granule-results-data-links-button__button"
       variant={buttonVariant}
       type="button"
-      icon={FaDownload}
+      icon={Download}
       label="No download link available"
       disabled
       onClick={(event) => event.preventDefault()}
@@ -322,11 +328,8 @@ export const GranuleResultsDataLinksButton = ({
 
 GranuleResultsDataLinksButton.displayName = 'GranuleResultsDataLinksButton'
 
-GranuleResultsDataLinksButton.defaultProps = {
-  buttonVariant: ''
-}
-
 GranuleResultsDataLinksButton.propTypes = {
+  id: PropTypes.string.isRequired,
   buttonVariant: PropTypes.string,
   collectionId: PropTypes.string.isRequired,
   directDistributionInformation: PropTypes.shape({
@@ -338,8 +341,7 @@ GranuleResultsDataLinksButton.propTypes = {
   dataLinks: PropTypes.arrayOf(PropTypes.shape({
     href: PropTypes.string
   })).isRequired,
-  s3Links: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
-  onMetricsDataAccess: PropTypes.func.isRequired
+  s3Links: PropTypes.arrayOf(PropTypes.shape({})).isRequired
 }
 
 export default GranuleResultsDataLinksButton

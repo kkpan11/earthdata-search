@@ -12,7 +12,7 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 1 : 3,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['list'],
@@ -24,13 +24,13 @@ export default defineConfig({
     baseURL: 'http://localhost:8080',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
-
-    viewport: {
-      width: 1400,
-      height: 900
-    }
+    trace: 'on-first-retry'
   },
+
+  // Set maxFailures to 5 on CI to avoid running the entire test suite if there are many failures.
+  maxFailures: process.env.CI ? 5 : 0,
+
+  snapshotPathTemplate: '{testDir}/{testFilePath}-snapshots/{projectName}/{arg}{ext}',
 
   expect: {
     toHaveScreenshot: {
@@ -47,7 +47,8 @@ export default defineConfig({
         viewport: {
           width: 1400,
           height: 900
-        }
+        },
+        deviceScaleFactor: 2
       }
     },
 
@@ -58,7 +59,8 @@ export default defineConfig({
         viewport: {
           width: 1400,
           height: 900
-        }
+        },
+        deviceScaleFactor: 2
       }
     },
 
@@ -69,7 +71,8 @@ export default defineConfig({
         viewport: {
           width: 1400,
           height: 900
-        }
+        },
+        deviceScaleFactor: 2
       }
     }
 

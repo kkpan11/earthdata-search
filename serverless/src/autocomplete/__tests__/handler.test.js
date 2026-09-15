@@ -2,22 +2,18 @@ import nock from 'nock'
 
 import * as deployedEnvironment from '../../../../sharedUtils/deployedEnvironment'
 import * as doSearchRequest from '../../util/cmr/doSearchRequest'
-import * as getEchoToken from '../../util/urs/getEchoToken'
-import * as getJwtToken from '../../util/getJwtToken'
+import * as getAuthorizerContext from '../../util/getAuthorizerContext'
 
 import autocomplete from '../handler'
 
 beforeEach(() => {
-  jest.clearAllMocks()
-
-  jest.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
-  jest.spyOn(getJwtToken, 'getJwtToken').mockImplementation(() => 'mockJwt')
-  jest.spyOn(getEchoToken, 'getEchoToken').mockImplementation(() => '1234-abcd-5678-efgh')
+  vi.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
+  vi.spyOn(getAuthorizerContext, 'getAuthorizerContext').mockImplementation(() => ({ jwtToken: 'mockJwt' }))
 })
 
 describe('autocomplete', () => {
   test('calls doSearchRequest', async () => {
-    const mock = jest.spyOn(doSearchRequest, 'doSearchRequest').mockImplementationOnce(() => jest.fn())
+    const mock = vi.spyOn(doSearchRequest, 'doSearchRequest').mockImplementationOnce(() => vi.fn())
 
     const event = {
       body: JSON.stringify({
@@ -30,8 +26,8 @@ describe('autocomplete', () => {
 
     await autocomplete(event, {})
 
-    expect(mock).toBeCalledTimes(1)
-    expect(mock).toBeCalledWith({
+    expect(mock).toHaveBeenCalledTimes(1)
+    expect(mock).toHaveBeenCalledWith({
       jwtToken: 'mockJwt',
       earthdataEnvironment: 'prod',
       method: 'get',
@@ -74,7 +70,7 @@ describe('autocomplete', () => {
   })
 
   test('responds correctly when an exception is thrown', async () => {
-    jest.spyOn(doSearchRequest, 'doSearchRequest').mockImplementationOnce(() => { throw new Error('Code Exception Occurred') })
+    vi.spyOn(doSearchRequest, 'doSearchRequest').mockImplementationOnce(() => { throw new Error('Code Exception Occurred') })
 
     const event = {
       body: JSON.stringify({

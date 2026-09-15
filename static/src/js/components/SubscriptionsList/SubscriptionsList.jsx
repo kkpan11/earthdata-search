@@ -1,34 +1,48 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 import { partition } from 'lodash-es'
+import { useQuery } from '@apollo/client'
 
 import Spinner from '../Spinner/Spinner'
 import SubscriptionsListTable from './SubscriptionsListTable'
+
+import SUBSCRIPTIONS from '../../operations/queries/subscriptions'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getUsername } from '../../zustand/selectors/user'
+
+import { apolloClientNames } from '../../constants/apolloClientNames'
 
 import './SubscriptionsList.scss'
 
 /**
  * Renders the logged in users' subscription list
  */
-export const SubscriptionsList = ({
-  subscriptions = {},
-  onDeleteSubscription,
-  onFocusedCollectionChange
-}) => {
-  const {
-    byId: subscriptionsById,
-    isLoading,
-    isLoaded
-  } = subscriptions
+const SubscriptionsList = () => {
+  const username = useEdscStore(getUsername)
 
-  const subscriptionsMetadata = Object.values(subscriptionsById)
-  const [collectionSubsciptions, granuleSubscriptions] = partition(subscriptionsMetadata, (metadata) => metadata.type === 'collection')
+  const { data, loading } = useQuery(SUBSCRIPTIONS, {
+    skip: !username,
+    variables: {
+      params: {
+        subscriberId: username
+      }
+    },
+    context: {
+      clientName: apolloClientNames.CMR_GRAPHQL
+    }
+  })
+
+  const { subscriptions } = data || {}
+  const { items = [] } = subscriptions || {}
+
+  // Split subscription list into collections and granules for displaying in separate tables
+  const [collectionSubsciptions, granuleSubscriptions] = partition(items, (metadata) => metadata.type === 'collection')
 
   return (
     <>
       <h2 className="route-wrapper__page-heading">Subscriptions</h2>
       {
-        (isLoading && !isLoaded) && (
+        (loading || !username) && (
           <Spinner
             className="subscriptions-list__spinner"
             type="dots"
@@ -39,7 +53,7 @@ export const SubscriptionsList = ({
       }
 
       {
-        isLoaded && (
+        data && (
           <>
             <div className="subscriptions-list__subscription-group">
               <h3 className="h4">Dataset Search Subscription</h3>
@@ -47,8 +61,6 @@ export const SubscriptionsList = ({
               <SubscriptionsListTable
                 subscriptionsMetadata={collectionSubsciptions}
                 subscriptionType="collection"
-                onDeleteSubscription={onDeleteSubscription}
-                onFocusedCollectionChange={onFocusedCollectionChange}
               />
             </div>
             <div className="subscriptions-list__subscription-group">
@@ -57,8 +69,6 @@ export const SubscriptionsList = ({
               <SubscriptionsListTable
                 subscriptionsMetadata={granuleSubscriptions}
                 subscriptionType="granule"
-                onDeleteSubscription={onDeleteSubscription}
-                onFocusedCollectionChange={onFocusedCollectionChange}
               />
             </div>
           </>
@@ -66,12 +76,6 @@ export const SubscriptionsList = ({
       }
     </>
   )
-}
-
-SubscriptionsList.propTypes = {
-  subscriptions: PropTypes.shape({}).isRequired,
-  onDeleteSubscription: PropTypes.func.isRequired,
-  onFocusedCollectionChange: PropTypes.func.isRequired
 }
 
 export default SubscriptionsList

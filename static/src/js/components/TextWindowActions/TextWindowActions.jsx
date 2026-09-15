@@ -1,24 +1,25 @@
 import PropTypes from 'prop-types'
 import React, { useRef, useState } from 'react'
-import {
-  FaCopy,
-  FaSave,
-  FaExpand,
-  FaDownload,
-  FaExternalLinkAlt
-} from 'react-icons/fa'
 
-import { Alert } from 'react-bootstrap'
+import {
+  ArrowLineDiagonal,
+  Copy,
+  Download,
+  Expand
+} from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+
+import { FaSave } from 'react-icons/fa'
+import Alert from 'react-bootstrap/Alert'
 
 import { constructDownloadableFile } from '../../util/files/constructDownloadableFile'
 
 import { getApplicationConfig } from '../../../../../sharedUtils/config'
 
-import EDSCModalContainer from '../../containers/EDSCModalContainer/EDSCModalContainer'
-import Spinner from '../Spinner/Spinner'
-import EDSCIcon from '../EDSCIcon/EDSCIcon'
-
 import Button from '../Button/Button'
+import EDSCIcon from '../EDSCIcon/EDSCIcon'
+import EDSCModalContainer from '../../containers/EDSCModalContainer/EDSCModalContainer'
+import ExternalLink from '../ExternalLink/ExternalLink'
+import Spinner from '../Spinner/Spinner'
 
 import './TextWindowActions.scss'
 
@@ -26,27 +27,32 @@ import './TextWindowActions.scss'
  * Renders TextWindowActions.
  * @param {Node} children - React children to display in the text window
  * @param {String} clipboardContents - An string that will be copied to the users clipboard.
+ * @param {Boolean} disableBodyScroll - Disables scrolling on the body.
+ * @param {Boolean} disableCopy - Disables the copy functionality.
+ * @param {Boolean} disableEddInProgress - Disables EDD button when a job is still in progress (e.g. a Harmony job still in progress).
+ * @param {Boolean} disableSave - Disables the save functionality.
+ * @param {String} eddLink - The EDD link.
  * @param {String} fileContents - An optional string to be saved to the users computer.
  * @param {String} fileName - An optional string to to set the name for the file saved to the users computer.
+ * @param {Boolean} hideEdd - A flag to hide the EDD button completely.
  * @param {String} id - The id to use for the bootstrap modal.
  * @param {String} modalTitle - The title for the modal.
- * @param {Boolean} disableCopy - Disables the copy functionality.
- * @param {Boolean} disableSave - Disables the save functionality.
- * @param {Boolean} disableEdd - Disables EDD button.
  */
-export const TextWindowActions = ({
-  children,
-  clipboardContents,
-  disableEdd,
-  disableCopy,
-  disableSave,
-  fileContents,
-  fileName,
-  id,
-  modalTitle,
-  eddLink
+const TextWindowActions = ({
+  children = null,
+  clipboardContents = '',
+  disableBodyScroll = false,
+  disableCopy = false,
+  disableEddInProgress = false,
+  disableSave = false,
+  eddLink = null,
+  fileContents = null,
+  fileName = null,
+  hideEdd = false,
+  id = null,
+  modalTitle = null
 }) => {
-  const { disableEddDownload } = getApplicationConfig()
+  const { disableEddInProgressDownload: hideEddFromSettings } = getApplicationConfig()
 
   const supportsClipboard = document.queryCommandSupported('copy')
   const textareaElRef = useRef(null)
@@ -81,20 +87,27 @@ export const TextWindowActions = ({
     }
   }
 
+  let eddTooltipMessage = 'Download files with Earthdata Download'
+  if (disableEddInProgress) {
+    // If the EDD button is disabled when a job is still in progress, add a note to the tooltip
+    eddTooltipMessage += ' when the job is complete'
+  }
+
   return (
     <div className="text-window-actions">
       <header className="text-window-actions__actions">
         {
-          (!disableEdd && disableEddDownload !== 'true' && eddLink) && (
+          (!hideEdd && hideEddFromSettings !== 'true' && (eddLink || disableEddInProgress)) && (
             <Button
+              disabled={disableEddInProgress}
               className="text-window-actions__action text-window-actions__action--edd"
               bootstrapSize="sm"
-              bootstrapVariant="success"
-              icon={FaDownload}
+              icon={Download}
+              bootstrapVariant="primary"
               onClick={handleEddModalOpen}
               tooltipId={`text-window-actions__tooltip--${id}`}
               tooltip={(
-                <span>Download files with Earthdata Download</span>
+                <span>{eddTooltipMessage}</span>
               )}
             >
               Download Files
@@ -106,7 +119,7 @@ export const TextWindowActions = ({
             <Button
               className="text-window-actions__action text-window-actions__action--copy"
               bootstrapSize="sm"
-              icon={FaCopy}
+              icon={Copy}
               onClick={copyToClipboard}
               label="Copy"
             >
@@ -137,7 +150,7 @@ export const TextWindowActions = ({
           bootstrapSize="sm"
           onClick={handleLinksModalOpen}
           label="Expand"
-          icon={FaExpand}
+          icon={Expand}
         >
           Expand
         </Button>
@@ -149,7 +162,11 @@ export const TextWindowActions = ({
           )
         }
       </header>
-      <div className="text-window-actions__body">
+      <div className={
+        `text-window-actions__body
+        ${disableBodyScroll ? 'text-window-actions__body--no-scroll' : ''}`
+      }
+      >
         {children}
       </div>
       {
@@ -191,7 +208,7 @@ export const TextWindowActions = ({
                         <Button
                           className="text-window-actions__action text-window-actions__modal action text-window-actions__modal-action--copy"
                           bootstrapSize="sm"
-                          icon={FaCopy}
+                          icon={Copy}
                           onClick={copyToClipboard}
                           label="Copy"
                         >
@@ -237,11 +254,13 @@ export const TextWindowActions = ({
           (
             <div className="d-flex flex-column align-items-center">
               <h3 className="font-weight-bolder h5 mt-3 text-center w-75">Opening Earthdata Download to download your files...</h3>
-              <EDSCIcon
-                className="mt-4 text-window-actions__modal-icon"
-                icon={FaExternalLinkAlt}
-                size="4rem"
-              />
+              <div className="text-window-actions__modal-container">
+                <EDSCIcon
+                  className="text-window-actions__modal-icon"
+                  icon={ArrowLineDiagonal}
+                  size="36"
+                />
+              </div>
               <Spinner
                 className="mt-4"
                 type="dots"
@@ -262,7 +281,8 @@ export const TextWindowActions = ({
                 className="text-window-actions__action text-window-actions__modal action text-window-actions__modal-action--open-edd mt-3"
                 bootstrapSize="sm"
                 label="Open Earthdata Download"
-                icon={FaExternalLinkAlt}
+                icon={ArrowLineDiagonal}
+                iconPosition="right"
                 href={eddLink}
                 bootstrapVariant="primary"
               >
@@ -273,7 +293,9 @@ export const TextWindowActions = ({
                 <br />
                 Go To the
                 {' '}
-                <a className="link link--external" href="https://nasa.github.io/earthdata-download/" target="_blank" rel="nofollow noreferrer">Downloads Page</a>
+                <ExternalLink href="https://nasa.github.io/earthdata-download/">
+                  Downloads Page
+                </ExternalLink>
               </Alert>
             </div>
           )
@@ -283,28 +305,17 @@ export const TextWindowActions = ({
   )
 }
 
-TextWindowActions.defaultProps = {
-  children: null,
-  disableEdd: false,
-  disableCopy: false,
-  disableSave: false,
-  clipboardContents: '',
-  fileContents: null,
-  fileName: null,
-  id: null,
-  modalTitle: null,
-  eddLink: null
-}
-
 TextWindowActions.propTypes = {
   children: PropTypes.node,
   clipboardContents: PropTypes.string,
-  disableEdd: PropTypes.bool,
+  disableBodyScroll: PropTypes.bool,
   disableCopy: PropTypes.bool,
+  disableEddInProgress: PropTypes.bool,
   disableSave: PropTypes.bool,
+  eddLink: PropTypes.string,
   fileContents: PropTypes.string,
   fileName: PropTypes.string,
-  eddLink: PropTypes.string,
+  hideEdd: PropTypes.bool,
   id: PropTypes.string,
   modalTitle: PropTypes.string
 }

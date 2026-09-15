@@ -3,30 +3,39 @@ import React, {
   useEffect,
   useState
 } from 'react'
-import PropTypes from 'prop-types'
-import { OverlayTrigger, Tooltip } from 'react-bootstrap'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
+
+import { AlertInformation } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
+import {
+  CloudFill,
+  Minus,
+  Plus,
+  Settings
+} from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+
 import {
   FaClock,
-  FaCloud,
-  FaInfoCircle,
   FaLock,
-  FaMap,
-  FaMinus,
-  FaPlus
+  FaMap
 } from 'react-icons/fa'
 
+import { metricsAddCollectionToProject } from '../../util/metrics/metricsAddCollectionToProject'
 import { collectionMetadataPropType } from '../../util/propTypes/collectionMetadata'
 import { commafy } from '../../util/commafy'
 import { getApplicationConfig } from '../../../../../sharedUtils/config'
 import { pluralize } from '../../util/pluralize'
 import { retrieveThumbnail } from '../../util/retrieveThumbnail'
+import renderTooltip from '../../util/renderTooltip'
 
 import Button from '../Button/Button'
-import CustomizableIcons from '../CustomizableIcons/CustomizableIcons'
+import AvailableCustomizationsIcons from '../AvailableCustomizationsIcons/AvailableCustomizationsIcons'
+import AvailableCustomizationsTooltipIcons from '../AvailableCustomizationsIcons/AvailableCustomizationsTooltipIcons'
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
 import MetaIcon from '../MetaIcon/MetaIcon'
 import Spinner from '../Spinner/Spinner'
 import PortalFeatureContainer from '../../containers/PortalFeatureContainer/PortalFeatureContainer'
+
+import useEdscStore from '../../zustand/useEdscStore'
 
 import './CollectionResultsItem.scss'
 
@@ -34,18 +43,22 @@ import './CollectionResultsItem.scss'
  * Renders CollectionResultsItem.
  * @param {Object} props - The props passed into the component.
  * @param {Object} props.collection - The collection metadata.
- * @param {Function} props.onAddProjectCollection - Callback to add a collection to a project.
- * @param {Function} props.onRemoveCollectionFromProject - Callback to remove a collection to a project.
- * @param {Function} props.onViewCollectionGranules - Callback to show collection granules route.
- * @param {Function} props.onViewCollectionDetails - Callback to show collection details route.
  */
 export const CollectionResultsItem = forwardRef(({
-  collectionMetadata,
-  onAddProjectCollection,
-  onRemoveCollectionFromProject,
-  onViewCollectionDetails,
-  onViewCollectionGranules
+  collectionMetadata
 }, ref) => {
+  const {
+    addProjectCollection,
+    removeProjectCollection,
+    viewCollectionDetails,
+    viewCollectionGranules
+  } = useEdscStore((state) => ({
+    addProjectCollection: state.project.addProjectCollection,
+    removeProjectCollection: state.project.removeProjectCollection,
+    viewCollectionDetails: state.collection.viewCollectionDetails,
+    viewCollectionGranules: state.collection.viewCollectionGranules
+  }))
+
   const {
     collectionId,
     consortiums = [],
@@ -128,14 +141,21 @@ export const CollectionResultsItem = forwardRef(({
       className="collection-results-item__action collection-results-item__action--add"
       onClick={
         (event) => {
-          onAddProjectCollection(collectionId)
+          addProjectCollection(collectionId)
+
+          metricsAddCollectionToProject({
+            collectionConceptId: collectionId,
+            view: 'list',
+            page: 'collections'
+          })
+
           event.stopPropagation()
         }
       }
       variant="light"
       bootstrapVariant="light"
       bootstrapSize="sm"
-      icon={FaPlus}
+      icon={Plus}
       label="Add collection to the current project"
       title="Add collection to the current project"
     />
@@ -146,18 +166,47 @@ export const CollectionResultsItem = forwardRef(({
       className="collection-results-item__action collection-results-item__action--remove"
       onClick={
         (event) => {
-          onRemoveCollectionFromProject(collectionId)
+          removeProjectCollection(collectionId)
           event.stopPropagation()
         }
       }
       variant="light"
       bootstrapVariant="light"
       bootstrapSize="sm"
-      icon={FaMinus}
+      icon={Minus}
       label="Remove collection from the current project"
       title="Remove collection from the current project"
     />
   )
+
+  const availableCustomizationsIcons = (
+    <AvailableCustomizationsIcons
+      hasSpatialSubsetting={hasSpatialSubsetting}
+      hasVariables={hasVariables}
+      hasTransforms={hasTransforms}
+      hasFormats={hasFormats}
+      hasTemporalSubsetting={hasTemporalSubsetting}
+      hasCombine={hasCombine}
+    />
+  )
+
+  const availableCustomizationsTooltipIcons = (
+    <AvailableCustomizationsTooltipIcons
+      hasSpatialSubsetting={hasSpatialSubsetting}
+      hasVariables={hasVariables}
+      hasTransforms={hasTransforms}
+      hasFormats={hasFormats}
+      hasTemporalSubsetting={hasTemporalSubsetting}
+      hasCombine={hasCombine}
+    />
+  )
+
+  const supportsDataCustomizations = hasSpatialSubsetting
+    || hasVariables
+    || hasTransforms
+    || hasFormats
+    || hasTemporalSubsetting
+    || hasCombine
 
   const component = (
     <div
@@ -173,7 +222,7 @@ export const CollectionResultsItem = forwardRef(({
         onKeyPress={
           (event) => {
             if (event.key === 'Enter') {
-              onViewCollectionGranules(collectionId)
+              viewCollectionGranules(collectionId)
             }
 
             event.stopPropagation()
@@ -181,7 +230,7 @@ export const CollectionResultsItem = forwardRef(({
         }
         onClick={
           (event) => {
-            onViewCollectionGranules(collectionId)
+            viewCollectionGranules(collectionId)
             event.stopPropagation()
           }
         }
@@ -210,36 +259,76 @@ export const CollectionResultsItem = forwardRef(({
                   )
                 }
                 {
+                  cloudHosted && (
+                    <MetaIcon
+                      id="feature-icon-list-view__earthdata-cloud"
+                      icon={CloudFill}
+                      iconProps={{ size: '1rem' }}
+                      label="Earthdata Cloud"
+                      tooltipClassName="collection-results-item__tooltip"
+                      tooltipContent="Dataset is available in the Earthdata Cloud"
+                    />
+                  )
+                }
+                {
+                  !cloudHosted && (
+                    <MetaIcon
+                      id="feature-icon-list-view__earthdata-cloud"
+                      icon={CloudFill}
+                      iconProps={{ size: '1rem' }}
+                      label="Not hosted in Earthdata Cloud"
+                      notAvailable
+                      tooltipClassName="collection-results-item__tooltip"
+                      tooltipContent="Dataset is not available in the Earthdata Cloud"
+                    />
+                  )
+                }
+                {
+                  supportsDataCustomizations && (
+                    <MetaIcon
+                      id="feature-icon-list-view__customize"
+                      icon={Settings}
+                      label="Customize"
+                      tooltipClassName="collection-results-item__tooltip text-align-left"
+                      tooltipContent={availableCustomizationsTooltipIcons}
+                      metadata={availableCustomizationsIcons}
+                    />
+                  )
+                }
+                {
+                  !supportsDataCustomizations && (
+                    <MetaIcon
+                      id="feature-icon-list-view__customize"
+                      icon={Settings}
+                      label="No customizations"
+                      notAvailable
+                      tooltipClassName="collection-results-item__tooltip text-align-left"
+                      tooltipContent="No customization support"
+                    />
+                  )
+                }
+                {
                   hasMapImagery && (
                     <MetaIcon
                       id="feature-icon-list-view__map-imagery"
                       icon={FaMap}
-                      iconProps={{ size: '0.975rem' }}
+                      iconProps={{ size: '15' }}
                       label="Map Imagery"
                       tooltipClassName="collection-results-item__tooltip"
                       tooltipContent="Supports advanced map visualizations using the GIBS tile service"
                     />
                   )
                 }
-                <CustomizableIcons
-                  hasSpatialSubsetting={hasSpatialSubsetting}
-                  hasVariables={hasVariables}
-                  hasTransforms={hasTransforms}
-                  hasFormats={hasFormats}
-                  hasTemporalSubsetting={hasTemporalSubsetting}
-                  hasCombine={hasCombine}
-                  forAccessMethodRadio={false}
-                />
                 {
-                  cloudHosted && (
+                  !hasMapImagery && (
                     <MetaIcon
-                      id="feature-icon-list-view__earthdata-cloud"
-                      icon={FaCloud}
-                      iconProps={{ size: '1rem' }}
-                      label="Earthdata Cloud"
-                      metadata="Earthdata Cloud"
+                      id="feature-icon-list-view__map-imagery"
+                      icon={FaMap}
+                      iconProps={{ size: '15' }}
+                      label="No map imagery"
+                      notAvailable
                       tooltipClassName="collection-results-item__tooltip"
-                      tooltipContent="Dataset is available in the Earthdata Cloud"
+                      tooltipContent="No map visualization support"
                     />
                   )
                 }
@@ -248,7 +337,7 @@ export const CollectionResultsItem = forwardRef(({
                     <MetaIcon
                       id="feature-icon-list-view__near-real-time"
                       icon={FaClock}
-                      iconProps={{ size: '0.825rem' }}
+                      iconProps={{ size: '14' }}
                       label="Near Real Time"
                       metadata={nrtLabel}
                       tooltipClassName="collection-results-item__tooltip"
@@ -296,25 +385,27 @@ export const CollectionResultsItem = forwardRef(({
                         className="collection-results-item__tooltip-container"
                         placement="top"
                         overlay={
-                          (
-                            <Tooltip
-                              id="tooltip__csda-badge"
-                              className="collection-results-item__tooltip collection-results-item__tooltip--csda"
-                            >
-                              Commercial Smallsat Data Acquisition Program
-                              <span className="tooltip__secondary-text">
-                                (Additional authentication required)
-                              </span>
-                            </Tooltip>
-                          )
+                          (tooltipProps) => renderTooltip({
+                            children: (
+                              <>
+                                Commercial Smallsat Data Acquisition Program
+                                <span className="tooltip__secondary-text">
+                                  (Additional authentication required)
+                                </span>
+                              </>
+                            ),
+                            className: 'collection-results-item__tooltip collection-results-item__tooltip--csda',
+                            id: 'tooltip__csda-badge',
+                            ...tooltipProps
+                          })
                         }
                       >
                         <li className="collection-results-item__attribution-list-item">
-                          <span className="collection-results-item__list-text collection-results-item__list-text--tooltip">
+                          <span className="collection-results-item__list-text collection-results-item__list-text--tooltip link">
                             <EDSCIcon
-                              className="collection-results-item__icon collection-results-item__icon--csda d-inline-block mr-1"
+                              className="collection-results-item__icon collection-results-item__icon--csda d-inline-block me-1"
                               icon={FaLock}
-                              size="0.55rem"
+                              size="8"
                             />
                             CSDA
                           </span>
@@ -333,16 +424,14 @@ export const CollectionResultsItem = forwardRef(({
                             className="collection-results-item__tooltip-container"
                             placement="top"
                             overlay={
-                              (
-                                <Tooltip
-                                  className={`collection-results-item__tooltip collection-results-item__tooltip--${consortium}`}
-                                >
-                                  {consortiumTooltip}
-                                </Tooltip>
-                              )
+                              (tooltipProps) => renderTooltip({
+                                children: consortiumTooltip,
+                                className: `collection-results-item__tooltip collection-results-item__tooltip--${consortium}`,
+                                ...tooltipProps
+                              })
                             }
                           >
-                            <span className="collection-results-item__list-text collection-results-item__list-text--tooltip">{consortiumDisplay}</span>
+                            <span className="collection-results-item__list-text collection-results-item__list-text--tooltip link">{consortiumDisplay}</span>
                           </OverlayTrigger>
                         )
                       }
@@ -379,7 +468,7 @@ export const CollectionResultsItem = forwardRef(({
                   className="collection-results-item__action collection-results-item__action--collection-details"
                   onClick={
                     (event) => {
-                      onViewCollectionDetails(collectionId)
+                      viewCollectionDetails(collectionId)
                       event.stopPropagation()
                     }
                   }
@@ -387,7 +476,7 @@ export const CollectionResultsItem = forwardRef(({
                   title="View collection details"
                   bootstrapSize="sm"
                   bootstrapVariant="light"
-                  icon={FaInfoCircle}
+                  icon={AlertInformation}
                 />
                 <PortalFeatureContainer authentication>
                   <>
@@ -409,11 +498,7 @@ export const CollectionResultsItem = forwardRef(({
 CollectionResultsItem.displayName = 'CollectionResultsItem'
 
 CollectionResultsItem.propTypes = {
-  collectionMetadata: collectionMetadataPropType.isRequired,
-  onAddProjectCollection: PropTypes.func.isRequired,
-  onRemoveCollectionFromProject: PropTypes.func.isRequired,
-  onViewCollectionDetails: PropTypes.func.isRequired,
-  onViewCollectionGranules: PropTypes.func.isRequired
+  collectionMetadata: collectionMetadataPropType.isRequired
 }
 
 export default CollectionResultsItem

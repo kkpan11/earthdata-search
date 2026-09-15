@@ -1,33 +1,30 @@
 import React, { useCallback, useMemo } from 'react'
 import PropTypes from 'prop-types'
-
-import { locationPropType } from '../../util/propTypes/location'
+import { useLocation } from 'react-router-dom'
 
 import Cell from '../EDSCTable/EDSCTableCell'
 import GranuleResultsTableHeaderCell from './GranuleResultsTableHeaderCell'
 import GranuleResultsBrowseImageCell from './GranuleResultsBrowseImageCell'
 import EDSCTable from '../EDSCTable/EDSCTable'
 
+import useEdscStore from '../../zustand/useEdscStore'
+import { getCollectionsQuerySpatial } from '../../zustand/selectors/query'
+import { getFocusedCollectionTags } from '../../zustand/selectors/collection'
+import { getGranuleId } from '../../zustand/selectors/granule'
+
 import './GranuleResultsTable.scss'
 
 /**
  * Renders GranuleResultsTable.
  * @param {Object} props - The props passed into the component.
- * @param {String} props.collectionId - The collection ID.
+ * @param {String} props.collectionId - The focused collection ID.
  * @param {Object} props.directDistributionInformation - The direct distribution information.
- * @param {String} props.focusedGranuleId - The focused granule ID.
  * @param {Array} props.granules - List of formatted granule.
  * @param {Boolean} props.hasBrowseImagery - Designates if the collection has browse imagery.
  * @param {Function} props.isGranuleInProject - Function to determine if the granule is in the project.
  * @param {Function} props.isItemLoaded - Callback to see if an item has loaded.
  * @param {Boolean} props.itemCount - The current count of rows to show.
  * @param {Function} props.loadMoreItems - Callback to load the next page of results.
- * @param {Object} props.location - Location passed from react router.
- * @param {Function} props.onAddGranuleToProjectCollection - Callback to add a granule to the project.
- * @param {Function} props.onExcludeGranule - Callback to exclude a granule.
- * @param {Function} props.onFocusedGranuleChange - Callback to change the focused granule.
- * @param {Function} props.onMetricsDataAccess - Callback to record data access metrics.
- * @param {Function} props.onRemoveGranuleFromProjectCollection - Callback to remove a granule to the project.
  * @param {Function} props.setVisibleMiddleIndex - Callback to set the state with the current middle item.
  * @param {String} props.visibleMiddleIndex - The current middle item.
  */
@@ -35,21 +32,28 @@ import './GranuleResultsTable.scss'
 export const GranuleResultsTable = ({
   collectionId,
   directDistributionInformation,
-  focusedGranuleId,
   granules,
   isGranuleInProject,
   isItemLoaded,
   itemCount,
   loadMoreItems,
-  location,
-  onAddGranuleToProjectCollection,
-  onExcludeGranule,
-  onFocusedGranuleChange,
-  onMetricsDataAccess,
-  onRemoveGranuleFromProjectCollection,
-  setVisibleMiddleIndex,
-  visibleMiddleIndex
+  setVisibleMiddleIndex = null,
+  visibleMiddleIndex = null
 }) => {
+  const location = useLocation()
+  const collectionTags = useEdscStore(getFocusedCollectionTags)
+  const collectionQuerySpatial = useEdscStore(getCollectionsQuerySpatial)
+  const focusedGranuleId = useEdscStore(getGranuleId)
+  const {
+    excludeGranule,
+    addGranuleToProjectCollection,
+    removeGranuleFromProjectCollection
+  } = useEdscStore((state) => ({
+    excludeGranule: state.query.excludeGranule,
+    addGranuleToProjectCollection: state.project.addGranuleToProjectCollection,
+    removeGranuleFromProjectCollection: state.project.removeGranuleFromProjectCollection
+  }))
+
   const columns = useMemo(() => [
     {
       Header: 'Granule',
@@ -58,17 +62,17 @@ export const GranuleResultsTable = ({
       sticky: 'left',
       width: '325',
       customProps: {
+        addGranuleToProjectCollection,
         cellClassName: 'granule-results-table__cell--granule',
         collectionId,
+        collectionQuerySpatial,
+        collectionTags,
         directDistributionInformation,
-        isGranuleInProject,
         GranuleResultsTableHeaderCell,
+        isGranuleInProject,
         location,
-        onAddGranuleToProjectCollection,
-        onExcludeGranule,
-        onFocusedGranuleChange,
-        onMetricsDataAccess,
-        onRemoveGranuleFromProjectCollection
+        onExcludeGranule: excludeGranule,
+        removeGranuleFromProjectCollection
       }
     },
     {
@@ -107,19 +111,24 @@ export const GranuleResultsTable = ({
     }
   ])
 
-  const initialRowStateAccessor = useMemo(() => ({
-    isFocusedGranule,
-    isHoveredGranule,
-    isInProject,
-    isCollectionInProject
-  }) => ({
-    isFocusedGranule,
-    isHoveredGranule,
-    isInProject,
-    isCollectionInProject
-  }), [focusedGranuleId])
+  const initialRowStateAccessor = useCallback((row) => {
+    const { original = {} } = row
+    const {
+      isFocusedGranule,
+      isHoveredGranule,
+      isInProject,
+      isCollectionInProject
+    } = original
 
-  const rowClassNamesFromRowState = useMemo(() => ({
+    return {
+      isFocusedGranule,
+      isHoveredGranule,
+      isInProject,
+      isCollectionInProject
+    }
+  }, [focusedGranuleId])
+
+  const rowClassNamesFromRowState = useCallback(({
     isFocusedGranule,
     isHoveredGranule,
     isCollectionInProject,
@@ -133,12 +142,12 @@ export const GranuleResultsTable = ({
     return classNames
   })
 
-  const rowTitleFromRowState = useMemo(() => ({ isFocusedGranule }) => {
-    let rowTitle = 'Focus granule on map'
+  const rowLabelFromRowState = useCallback(({ isFocusedGranule }) => {
+    let rowLabel = 'Focus granule on map'
 
-    if (isFocusedGranule) rowTitle = 'Unfocus granule on map'
+    if (isFocusedGranule) rowLabel = 'Unfocus granule on map'
 
-    return rowTitle
+    return rowLabel
   })
 
   const onRowClick = useCallback((e, row) => {
@@ -182,6 +191,7 @@ export const GranuleResultsTable = ({
         columns={columns}
         initialTableState={initialTableState}
         data={granules}
+        focusedItem={focusedGranuleId}
         itemCount={itemCount}
         loadMoreItems={loadMoreItems}
         isItemLoaded={isItemLoaded}
@@ -189,7 +199,7 @@ export const GranuleResultsTable = ({
         striped
         initialRowStateAccessor={initialRowStateAccessor}
         rowClassNamesFromRowState={rowClassNamesFromRowState}
-        rowTitleFromRowState={rowTitleFromRowState}
+        rowLabelFromRowState={rowLabelFromRowState}
         onRowMouseEnter={onRowMouseEnter}
         onRowMouseLeave={onRowMouseLeave}
         onRowClick={onRowClick}
@@ -198,26 +208,14 @@ export const GranuleResultsTable = ({
   )
 }
 
-GranuleResultsTable.defaultProps = {
-  setVisibleMiddleIndex: null,
-  visibleMiddleIndex: null
-}
-
 GranuleResultsTable.propTypes = {
   collectionId: PropTypes.string.isRequired,
   directDistributionInformation: PropTypes.shape({}).isRequired,
-  focusedGranuleId: PropTypes.string.isRequired,
   granules: PropTypes.arrayOf(PropTypes.shape).isRequired,
   isGranuleInProject: PropTypes.func.isRequired,
   isItemLoaded: PropTypes.func.isRequired,
   itemCount: PropTypes.number.isRequired,
   loadMoreItems: PropTypes.func.isRequired,
-  location: locationPropType.isRequired,
-  onAddGranuleToProjectCollection: PropTypes.func.isRequired,
-  onExcludeGranule: PropTypes.func.isRequired,
-  onFocusedGranuleChange: PropTypes.func.isRequired,
-  onMetricsDataAccess: PropTypes.func.isRequired,
-  onRemoveGranuleFromProjectCollection: PropTypes.func.isRequired,
   setVisibleMiddleIndex: PropTypes.func,
   visibleMiddleIndex: PropTypes.number
 }

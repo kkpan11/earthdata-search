@@ -1,50 +1,38 @@
 import React, {
-  Component,
   lazy,
-  Suspense
+  Suspense,
+  useEffect
 } from 'react'
-import { Provider } from 'react-redux'
-import { ConnectedRouter } from 'connected-react-router'
-import {
-  Switch,
-  Route,
-  Redirect
-} from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { ToastProvider } from 'react-toast-notifications'
 import { Helmet } from 'react-helmet'
 
-import ogImage from '../assets/images/earthdata-search-og-image.jpg'
-import configureStore from './store/configureStore'
-import history from './util/history'
+import ogImage from '../assets/images/earthdata-search-og-image.jpg?format=webp'
 import { getApplicationConfig, getEnvironmentConfig } from '../../../sharedUtils/config'
 
-// Routes
-import Project from './routes/Project/Project'
-import Search from './routes/Search/Search'
+import routerHelper from './router/router'
 
-// Components and Containers
-import AboutCSDAModalContainer from './containers/AboutCSDAModalContainer/AboutCSDAModalContainer'
-import AboutCwicModalContainer from './containers/AboutCwicModalContainer/AboutCwicModalContainer'
-import AppHeader from './components/AppHeader/AppHeader'
+// Routes
+import Home from './routes/Home/Home'
+
+// Components
+import ErrorBoundary from './components/Errors/ErrorBoundary'
+import NotFound from './components/Errors/NotFound'
+import GrowthBookWrapper from './components/GrowthBookWrapper/GrowthBookWrapper'
+import RouterErrorBoundary from './components/Errors/RouterErrorBoundary'
+import Spinner from './components/Spinner/Spinner'
+
+// Containers
 import AuthCallbackContainer from './containers/AuthCallbackContainer/AuthCallbackContainer'
 import AuthRequiredContainer from './containers/AuthRequiredContainer/AuthRequiredContainer'
-import AuthTokenContainer from './containers/AuthTokenContainer/AuthTokenContainer'
-import ChunkedOrderModalContainer from './containers/ChunkedOrderModalContainer/ChunkedOrderModalContainer'
-import DeprecatedParameterModalContainer from './containers/DeprecatedParameterModalContainer/DeprecatedParameterModalContainer'
-import EditSubscriptionModalContainer from './containers/EditSubscriptionModalContainer/EditSubscriptionModalContainer'
-import ErrorBannerContainer from './containers/ErrorBannerContainer/ErrorBannerContainer'
-import ErrorBoundary from './components/Errors/ErrorBoundary'
-import FooterContainer from './containers/FooterContainer/FooterContainer'
-import HistoryContainer from './containers/HistoryContainer/HistoryContainer'
-import KeyboardShortcutsModalContainer from './containers/KeyboardShortcutsModalContainer/KeyboardShortcutsModalContainer'
-import MetricsEventsContainer from './containers/MetricsEventsContainer/MetricsEventsContainer'
-import NotFound from './components/Errors/NotFound'
 import PortalContainer from './containers/PortalContainer/PortalContainer'
-import ShapefileDropzoneContainer from './containers/ShapefileDropzoneContainer/ShapefileDropzoneContainer'
-import ShapefileUploadModalContainer from './containers/ShapefileUploadModalContainer/ShapefileUploadModalContainer'
-import Spinner from './components/Spinner/Spinner'
-import TooManyPointsModalContainer from './containers/TooManyPointsModalContainer/TooManyPointsModalContainer'
-import UrlQueryContainer from './containers/UrlQueryContainer/UrlQueryContainer'
+
+import AppLayout from './layouts/AppLayout/AppLayout'
+
+import GraphQlProvider from './providers/GraphQlProvider'
+import EmergencyNotification from './components/EmergencyNotification/EmergencyNotification'
+
+import { routes } from './constants/routes'
 
 // Required for toast notification system
 window.reactToastProvider = React.createRef()
@@ -60,46 +48,273 @@ window.reactToastProvider = React.createRef()
 // }
 
 // Lazy loaded routes
-const Admin = lazy(() => import('./routes/Admin/Admin'))
+const AboutCSDAModal = lazy(() => import('./components/AboutCSDAModal/AboutCSDAModal'))
+const AboutCwicModal = lazy(() => import('./components/AboutCwicModal/AboutCwicModal'))
+const ChunkedOrderModal = lazy(() => import('./components/ChunkedOrderModal/ChunkedOrderModal'))
 const ContactInfo = lazy(() => import('./routes/ContactInfo/ContactInfo'))
-const Downloads = lazy(() => import('./routes/Downloads/Downloads'))
+const DeprecatedParameterModal = lazy(() => import('./components/DeprecatedParameterModal/DeprecatedParameterModal'))
+const DownloadsLayout = lazy(() => import('./layouts/DownloadsLayout/DownloadsLayout'))
 const EarthdataDownloadRedirect = lazy(() => import('./routes/EarthdataDownloadRedirect/EarthdataDownloadRedirect'))
-const EdscMapContainer = lazy(() => import('./containers/MapContainer/MapContainer'))
+const EditSubscriptionModal = lazy(() => import('./components/EditSubscriptionModal/EditSubscriptionModal'))
+const KeyboardShortcutsModal = lazy(() => import('./components/KeyboardShortcutsModal/KeyboardShortcutsModal'))
 const Preferences = lazy(() => import('./routes/Preferences/Preferences'))
+const Project = lazy(() => import('./routes/Project/Project'))
+const Projects = lazy(() => import('./routes/Projects/Projects'))
+const Search = lazy(() => import('./routes/Search/Search'))
+const SearchTour = lazy(() => import('./components/SearchTour/SearchTour'))
+const ShapefileDropzoneContainer = lazy(() => import('./containers/ShapefileDropzoneContainer/ShapefileDropzoneContainer'))
+const ShapefileUploadModal = lazy(() => import('./components/ShapefileUploadModal/ShapefileUploadModal'))
 const Subscriptions = lazy(() => import('./routes/Subscriptions/Subscriptions'))
+const TooManyPointsModal = lazy(() => import('./components/TooManyPointsModal/TooManyPointsModal'))
+
+const AdminLayout = lazy(() => import('./layouts/AdminLayout/AdminLayout'))
+
+const browserRouter = createBrowserRouter([
+  {
+    path: routes.HOME,
+    element: <AppLayout />,
+    errorElement: <RouterErrorBoundary />,
+    children: [
+      {
+        index: true,
+        element: <Home />
+      },
+      {
+        path: '/portal/:portalId/*',
+        element: <PortalContainer />
+      },
+      {
+        path: `${routes.SEARCH}/*`,
+        element: (
+          <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+            <SearchTour />
+            <Search />
+            <AboutCSDAModal />
+            <AboutCwicModal />
+            <EditSubscriptionModal />
+            <DeprecatedParameterModal />
+            <KeyboardShortcutsModal />
+            <ShapefileDropzoneContainer />
+            <ShapefileUploadModal />
+            <TooManyPointsModal />
+          </Suspense>
+        )
+      },
+      {
+        path: routes.PROJECT,
+        element: (
+          <AuthRequiredContainer>
+            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+              <Project />
+              <AboutCSDAModal />
+              <ChunkedOrderModal />
+            </Suspense>
+          </AuthRequiredContainer>
+        )
+      },
+      {
+        path: routes.PROJECTS,
+        element: (
+          <AuthRequiredContainer>
+            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+              <Projects />
+            </Suspense>
+          </AuthRequiredContainer>
+        )
+      },
+      {
+        path: routes.DOWNLOADS,
+        element: (
+          <AuthRequiredContainer>
+            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+              <DownloadsLayout />
+            </Suspense>
+          </AuthRequiredContainer>
+        ),
+        children: [
+          {
+            index: true,
+            async lazy() {
+              const DownloadHistory = await import('./components/DownloadHistory/DownloadHistory')
+
+              return {
+                Component: DownloadHistory.default
+              }
+            }
+          },
+          {
+            path: `${routes.DOWNLOADS}/:id`,
+            async lazy() {
+              const OrderStatus = await import('./components/OrderStatus/OrderStatus')
+
+              return {
+                Component: OrderStatus.default
+              }
+            }
+          }
+        ]
+      },
+      {
+        path: routes.CONTACT_INFO,
+        element: (
+          <AuthRequiredContainer>
+            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+              <ContactInfo />
+            </Suspense>
+          </AuthRequiredContainer>
+        )
+      },
+      {
+        path: routes.PREFERENCES,
+        element: (
+          <AuthRequiredContainer>
+            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+              <Preferences />
+            </Suspense>
+          </AuthRequiredContainer>
+        )
+      },
+      {
+        path: routes.SUBSCRIPTIONS,
+        element: (
+          <AuthRequiredContainer>
+            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+              <Subscriptions />
+            </Suspense>
+          </AuthRequiredContainer>
+        )
+      },
+      {
+        path: routes.ADMIN,
+        element: (
+          <AuthRequiredContainer>
+            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+              <AdminLayout />
+            </Suspense>
+          </AuthRequiredContainer>
+        ),
+        children: [
+          {
+            index: true,
+            async lazy() {
+              const Admin = await import('./components/AdminIndex/AdminIndex')
+
+              return {
+                Component: Admin.default
+              }
+            }
+          },
+          {
+            path: routes.ADMIN_RETRIEVALS,
+            async lazy() {
+              const AdminRetrievals = await import('./components/AdminRetrievals/AdminRetrievals')
+
+              return {
+                Component: AdminRetrievals.default
+              }
+            }
+          },
+          {
+            path: `${routes.ADMIN_RETRIEVALS}/:obfuscatedId`,
+            async lazy() {
+              const AdminRetrieval = await import('./components/AdminRetrieval/AdminRetrieval')
+
+              return {
+                Component: AdminRetrieval.default
+              }
+            }
+          },
+          {
+            path: routes.ADMIN_PROJECTS,
+            async lazy() {
+              const AdminProjects = await import('./components/AdminProjects/AdminProjects')
+
+              return {
+                Component: AdminProjects.default
+              }
+            }
+          },
+          {
+            path: `${routes.ADMIN_PROJECTS}/:obfuscatedId`,
+            async lazy() {
+              const AdminProject = await import('./components/AdminProject/AdminProject')
+
+              return {
+                Component: AdminProject.default
+              }
+            }
+          },
+          {
+            path: routes.ADMIN_RETRIEVAL_METRICS,
+            async lazy() {
+              const AdminRetrievalsMetrics = await import('./components/AdminRetrievalsMetrics/AdminRetrievalsMetrics')
+
+              return {
+                Component: AdminRetrievalsMetrics.default
+              }
+            }
+          },
+          {
+            path: routes.ADMIN_PREFERENCES_METRICS,
+            async lazy() {
+              const AdminPreferencesMetrics = await import('./components/AdminPreferencesMetrics/AdminPreferencesMetrics')
+
+              return {
+                Component: AdminPreferencesMetrics.default
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    path: routes.AUTH_CALLBACK,
+    element: (
+      <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+        <AuthCallbackContainer />
+      </Suspense>
+    )
+  },
+  {
+    path: routes.EARTHDATA_DOWNLOAD_CALLBACK,
+    element: (
+      <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
+        <EarthdataDownloadRedirect />
+      </Suspense>
+    )
+  },
+  {
+    path: '*',
+    element: <NotFound />
+  }
+])
+
+routerHelper.router = browserRouter
 
 // Create the root App component
-class App extends Component {
-  constructor(props) {
-    super(props)
-    this.state = {}
-    this.store = configureStore()
-    const { edscHost } = getEnvironmentConfig()
-    const { env } = getApplicationConfig()
-    this.edscHost = edscHost
-    this.env = env
-  }
+const App = () => {
+  const { edscHost } = getEnvironmentConfig()
+  const { env } = getApplicationConfig()
+  const title = 'Earthdata Search'
+  const description = 'Search, discover, visualize, refine, and access NASA Earth Observation data in your browser with Earthdata Search'
+  const url = `${edscHost}/search`
+  const titleEnv = env.toUpperCase() === 'PROD' ? '' : `[${env.toUpperCase()}]`
 
-  // Portal paths have been removed, but this needs to stay in order to redirect users using
-  // a path to the param based portal
-  portalPaths(path) {
-    return [`/portal/:portalId${path}`, path]
-  }
+  useEffect(() => {
+    // Remove the loading class from the root element once the app has loaded
+    document.getElementById('root').classList.remove('root--loading')
+  }, [])
 
-  render() {
-    const { edscHost, env } = this
-    const title = 'Earthdata Search'
-    const description = 'Search, discover, visualize, refine, and access NASA Earth Observation data in your browser with Earthdata Search'
-    const url = `${edscHost}/search`
-    const titleEnv = env.toUpperCase() === 'PROD' ? '' : `[${env.toUpperCase()}]`
-
-    return (
-      <ErrorBoundary>
-        <Provider store={this.store}>
+  return (
+    <ErrorBoundary>
+      <GrowthBookWrapper>
+        <EmergencyNotification />
+        <GraphQlProvider>
           <ToastProvider ref={window.reactToastProvider}>
             <Helmet
               defaultTitle="Earthdata Search"
-              titleTemplate={`${titleEnv} %s | Earthdata Search`}
+              titleTemplate={`${titleEnv} %s - Earthdata Search`}
             >
               <meta name="description" content={description} />
               <meta property="og:type" content="website" />
@@ -110,153 +325,12 @@ class App extends Component {
               <meta name="theme-color" content="#191a1b" />
               <link rel="canonical" href={url} />
             </Helmet>
-            <ConnectedRouter history={history}>
-              <HistoryContainer />
-              <MetricsEventsContainer />
-              <Switch>
-                <Route path={this.portalPaths('/')} component={PortalContainer} />
-              </Switch>
-              <ErrorBannerContainer />
-              <AuthTokenContainer>
-                <UrlQueryContainer>
-                  <AppHeader />
-                  <Switch>
-                    <Route
-                      path="/admin"
-                      render={
-                        () => (
-                          <AuthRequiredContainer>
-                            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
-                              <Admin />
-                            </Suspense>
-                          </AuthRequiredContainer>
-                        )
-                      }
-                    />
-                    <Route
-                      path={this.portalPaths('/contact-info')}
-                      render={
-                        () => (
-                          <AuthRequiredContainer>
-                            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
-                              <ContactInfo />
-                            </Suspense>
-                          </AuthRequiredContainer>
-                        )
-                      }
-                    />
-                    <Route
-                      path={this.portalPaths('/preferences')}
-                      render={
-                        () => (
-                          <AuthRequiredContainer>
-                            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
-                              <Preferences />
-                            </Suspense>
-                          </AuthRequiredContainer>
-                        )
-                      }
-                    />
-                    <Route
-                      path={this.portalPaths('/earthdata-download-callback')}
-                      render={
-                        () => (
-                          <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
-                            <EarthdataDownloadRedirect />
-                          </Suspense>
-                        )
-                      }
-                    />
-                    <Route
-                      path={this.portalPaths('/subscriptions')}
-                      render={
-                        () => (
-                          <AuthRequiredContainer>
-                            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
-                              <Subscriptions />
-                            </Suspense>
-                          </AuthRequiredContainer>
-                        )
-                      }
-                    />
-                    <Redirect exact from="/data/retrieve/:retrieval_id" to="/downloads/:retrieval_id" />
-                    <Redirect exact from="/data/status" to="/downloads" />
-                    <Route
-                      path={this.portalPaths('/downloads')}
-                      render={
-                        () => (
-                          <AuthRequiredContainer>
-                            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--small" />}>
-                              <Downloads />
-                            </Suspense>
-                          </AuthRequiredContainer>
-                        )
-                      }
-                    />
-                    <Route
-                      path={this.portalPaths('/projects')}
-                      render={
-                        () => (
-                          <AuthRequiredContainer>
-                            <Project />
-                          </AuthRequiredContainer>
-                        )
-                      }
-                    />
-                    <Redirect exact from="/portal/:portalId/" to="/portal/:portalId/search" />
-                    <Redirect exact from="/" to="/search" />
-                    <Route
-                      path={this.portalPaths('/search')}
-                      render={
-                        () => (
-                          <>
-                            <Search />
-                            <Suspense fallback={<Spinner type="dots" className="root__spinner spinner spinner--dots spinner--white spinner--small" />}>
-                              <EdscMapContainer />
-                            </Suspense>
-                          </>
-                        )
-                      }
-                    />
-                    <Route
-                      exact
-                      path="/auth_callback"
-                      render={
-                        () => (
-                          <AuthCallbackContainer />
-                        )
-                      }
-                    />
-                    <Route component={NotFound} />
-                  </Switch>
-                  <FooterContainer />
-                  <Switch>
-                    <Route path={this.portalPaths('/')}>
-                      <AboutCSDAModalContainer />
-                      <AboutCwicModalContainer />
-                      <EditSubscriptionModalContainer />
-                      <ChunkedOrderModalContainer />
-                      <DeprecatedParameterModalContainer />
-                      <KeyboardShortcutsModalContainer />
-                      <ShapefileDropzoneContainer />
-                      <ShapefileUploadModalContainer />
-                      <TooManyPointsModalContainer />
-                    </Route>
-                    <Route path={this.portalPaths('/projects')}>
-                      <AboutCSDAModalContainer />
-                    </Route>
-                    <Route path={this.portalPaths('/downloads')}>
-                      <AboutCSDAModalContainer />
-                    </Route>
-                  </Switch>
-                </UrlQueryContainer>
-              </AuthTokenContainer>
-            </ConnectedRouter>
+            <RouterProvider router={browserRouter} />
           </ToastProvider>
-        </Provider>
-      </ErrorBoundary>
-    )
-  }
+        </GraphQlProvider>
+      </GrowthBookWrapper>
+    </ErrorBoundary>
+  )
 }
 
 export default App

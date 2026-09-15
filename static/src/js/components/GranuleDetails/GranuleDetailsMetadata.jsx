@@ -4,14 +4,16 @@ import { isEmpty } from 'lodash-es'
 
 import Spinner from '../Spinner/Spinner'
 
+import useEdscStore from '../../zustand/useEdscStore'
+
 import './GranuleDetailsMetadata.scss'
-import { buildAuthenticatedRedirectUrl } from '../../util/url/buildAuthenticatedRedirectUrl'
+import { getEdlToken } from '../../zustand/selectors/user'
 
 export const GranuleDetailsMetadata = ({
-  authToken,
-  earthdataEnvironment,
-  metadataUrls
+  metadataUrls = null
 }) => {
+  const edlToken = useEdscStore(getEdlToken)
+
   const metdataUrlKeys = [
     'native',
     'umm_json',
@@ -38,13 +40,8 @@ export const GranuleDetailsMetadata = ({
                       const { title, href } = metadataUrl
 
                       let cmrGranulesUrl = href
-                      if (authToken !== '') {
-                        // If an auth token is provided route the request through Lambda
-                        cmrGranulesUrl = buildAuthenticatedRedirectUrl(
-                          encodeURIComponent(href),
-                          authToken,
-                          earthdataEnvironment
-                        )
+                      if (edlToken) {
+                        cmrGranulesUrl = `${href}?token=Bearer%20${edlToken}`
                       }
 
                       return (
@@ -75,14 +72,7 @@ export const GranuleDetailsMetadata = ({
   )
 }
 
-GranuleDetailsMetadata.defaultProps = {
-  authToken: PropTypes.string,
-  metadataUrls: null
-}
-
 GranuleDetailsMetadata.propTypes = {
-  authToken: PropTypes.string,
-  earthdataEnvironment: PropTypes.string.isRequired,
   metadataUrls: PropTypes.shape({})
 }
 

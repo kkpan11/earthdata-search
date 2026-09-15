@@ -1,19 +1,24 @@
 import { test, expect } from 'playwright-test-coverage'
 
 import collectionsGraphJson from './__mocks__/collections_graph.json'
-import timeline from './__mocks__/timeline.json'
+import harmonyCapabilitiesDocument from './__mocks__/harmonyCapabilitiesDocument.json'
 import granules from './__mocks__/granules.json'
-import retrievals from './__mocks__/retrievals.json'
 import retrieval from './__mocks__/retrieval.json'
+import retrievalCollection from './__mocks__/retrievalCollection.json'
+import timeline from './__mocks__/timeline.json'
 
-import { login } from '../../support/login'
+import { setupTests } from '../../support/setupTests'
+import { login, MockGetUserRoute } from '../../support/login'
 import { getAuthHeaders } from '../../support/getAuthHeaders'
 
 test.describe('Download spec', () => {
   test('get to the download page', async ({ page, context }) => {
-    await page.route('**/*.{png,jpg,jpeg}', (route) => route.abort())
+    await setupTests({
+      page,
+      context
+    })
 
-    login(context)
+    await login(page, context)
 
     const authHeaders = getAuthHeaders()
 
@@ -28,11 +33,96 @@ test.describe('Download spec', () => {
       'https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/61/MYD04_3K/2020/012/MYD04_3K.A2020012.1825.061.2020013152621.hdf'
     ]
 
-    await page.route(/graphql/, async (route) => {
+    await page.route(/graphql.*\/api/, async (route) => {
       await route.fulfill({
         json: collectionsGraphJson.body,
         headers: authHeaders
       })
+    })
+
+    await page.route('**/graphql', async (route) => {
+      const request = JSON.parse(route.request().postData())
+      const { query, variables } = request
+
+      if (query.includes('query GetUser')) {
+        await MockGetUserRoute(route)
+      }
+
+      if (query.includes('mutation CreateRetrieval')) {
+        await route.fulfill({
+          json: {
+            data: {
+              createRetrieval: {
+                environment: 'prod',
+                obfuscatedId: '3154092254'
+              }
+            }
+          },
+          headers: {
+            'content-type': 'application/json'
+          }
+        })
+      }
+
+      if (query.includes('query GetRetrieval(')) {
+        await route.fulfill({
+          json: retrieval,
+          headers: {
+            'content-type': 'application/json'
+          }
+        })
+      }
+
+      if (query.includes('query GetRetrievalCollection')) {
+        await route.fulfill({
+          json: retrievalCollection,
+          headers: {
+            'content-type': 'application/json'
+          }
+        })
+      }
+
+      if (query.includes('query GetRetrievalGranuleLinks')) {
+        if (variables.cursor === null) {
+          await route.fulfill({
+            json: {
+              data: {
+                retrieveGranuleLinks: {
+                  cursor: 'mock-cursor',
+                  done: null,
+                  links: {
+                    browse: [],
+                    download: downloadLinks,
+                    s3: []
+                  }
+                }
+              }
+            },
+            headers: {
+              'content-type': 'application/json'
+            }
+          })
+        } else {
+          await route.fulfill({
+            json: {
+              data: {
+                retrieveGranuleLinks: {
+                  cursor: null,
+                  done: null,
+                  links: {
+                    browse: [],
+                    download: [],
+                    s3: []
+                  }
+                }
+              }
+            },
+            headers: {
+              'content-type': 'application/json'
+            }
+          })
+        }
+      }
     })
 
     await page.route(/timeline/, async (route) => {
@@ -42,59 +132,18 @@ test.describe('Download spec', () => {
       })
     })
 
-    // Load the download data and mock the results
-    await page.route(/retrievals/, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          json: retrieval.body,
-          headers: retrieval.headers
-        })
-      } else {
-        await route.fulfill({
-          json: retrievals.body,
-          headers: retrievals.headers
-        })
-      }
-    })
-
-    await page.route(/granule_links/, async (route) => {
-      if (route.request().url().includes('pageNum=1')) {
-        await route.fulfill({
-          json: {
-            cursor: 'mock-cursor',
-            links: {
-              browse: [],
-              download: downloadLinks,
-              s3: []
-            }
-          },
-          headers: authHeaders
-        })
-      } else {
-        await route.fulfill({
-          json: {
-            cursor: null,
-            links: {
-              browse: [],
-              download: [],
-              s3: []
-            }
-          }
-        })
-      }
-    })
-
     await page.route(/dqs/, async (route) => {
       await route.fulfill({
         json: []
       })
     })
 
-    await page.route(/granules$/, async (route) => {
+    await page.route(/granules\.json/, async (route) => {
       await route.fulfill({
         json: granules.body,
         headers: {
           ...authHeaders,
+          'access-control-expose-headers': 'cmr-hits',
           'cmr-hits': '42'
         }
       })
@@ -106,12 +155,19 @@ test.describe('Download spec', () => {
       })
     })
 
-    await page.goto('/projects?p=!C1443528505-LAADS&sb=-77.15071%2C38.78817%2C-76.89801%2C38.99784&lat=37.64643450971326&long=-77.407470703125&zoom=7&qt=2020-01-06T04%3A15%3A27.310Z%2C2020-01-13T07%3A32%3A50.962Z&ff=Map%20Imagery&tl=1563377338!4!!')
+    await page.route('**/capabilities**', async (route) => {
+      await route.fulfill({
+        json: harmonyCapabilitiesDocument
+      })
+    })
 
-    await page.getByTestId('C1443528505-LAADS_access-method__direct-download').click()
+    await page.goto('/project?p=!C1443528505-LAADS&sb=-77.15071%2C38.78817%2C-76.89801%2C38.99784&lat=37.64643450971326&long=-77.407470703125&zoom=7&qt=2020-01-06T04%3A15%3A27.310Z%2C2020-01-13T07%3A32%3A50.962Z&ff=Map%20Imagery&tl=1563377338!4!!')
+
+    await page.getByText('Download all data').click()
 
     // Click the done panel
-    await page.getByTestId('project-panels-done').click()
+    await page.getByRole('button', { name: 'Done' }).click()
+
     await expect(page.getByTestId('panels-section')).toBeVisible()
 
     // Click the Download Data button

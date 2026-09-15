@@ -1,3 +1,5 @@
+import camelcaseKeys from 'camelcase-keys'
+
 import CmrRequest from './cmrRequest'
 import {
   getApplicationConfig,
@@ -9,21 +11,21 @@ import { granuleRequestPermittedCmrKeys } from '../../../../../sharedConstants/p
 
 import { getTemporal } from '../../../../../sharedUtils/edscDate'
 
+import normalizeSpatial from '../map/normalizeSpatial'
+import { getBrowseImageUrlFromConcept } from '../getBrowseImageUrlFromConcept'
+
 /**
  * Request object for granule specific requests
  */
 export default class GranuleRequest extends CmrRequest {
-  constructor(authToken, earthdataEnvironment) {
-    if (authToken && authToken !== '') {
-      super(getEnvironmentConfig().apiHost, earthdataEnvironment)
+  constructor(edlToken, earthdataEnvironment) {
+    super(getEarthdataConfig(earthdataEnvironment).cmrHost, earthdataEnvironment)
 
+    this.searchPath = 'search/granules.json'
+
+    if (edlToken) {
       this.authenticated = true
-      this.authToken = authToken
-      this.searchPath = 'granules'
-    } else {
-      super(getEarthdataConfig(earthdataEnvironment).cmrHost, earthdataEnvironment)
-
-      this.searchPath = 'search/granules.json'
+      this.edlToken = edlToken
     }
   }
 
@@ -38,8 +40,6 @@ export default class GranuleRequest extends CmrRequest {
   transformResponse(data) {
     super.transformResponse(data)
 
-    const { earthdataEnvironment } = this
-
     // If the response status code is not 200, return unaltered data
     // If the status code is 200, it doesn't exist in the response
     const { statusCode = 200 } = data
@@ -52,8 +52,7 @@ export default class GranuleRequest extends CmrRequest {
       const {
         id,
         time_start: timeStart,
-        time_end: timeEnd,
-        links
+        time_end: timeEnd
       } = granule
 
       const updatedGranule = granule
@@ -70,38 +69,23 @@ export default class GranuleRequest extends CmrRequest {
       const { height, width } = thumbnailSize
 
       if (id) {
-        // Retrieve collection thumbnail if it exists
-        updatedGranule.thumbnail = `${getEnvironmentConfig().apiHost}/scale/granules/${id}?h=${height}&w=${width}&ee=${earthdataEnvironment}`
+        const browseUrl = getBrowseImageUrlFromConcept(granule)
+
+        if (browseUrl) {
+          updatedGranule.browse_url = browseUrl
+          updatedGranule.thumbnail = `${getEnvironmentConfig().apiHost}/scale?h=${height}&w=${width}&imageSrc=${encodeURIComponent(browseUrl)}`
+        }
       }
 
-      if (links && links.length > 0) {
-        let browseUrl
-
-        // Pick the first 'browse' link to use as the browseUrl
-        links.some((link) => {
-          const {
-            href,
-            rel
-          } = link
-
-          if (rel.indexOf('browse') > -1 && href.startsWith('https://')) {
-            browseUrl = href
-
-            return true
-          }
-
-          return false
-        })
-
-        updatedGranule.browse_url = browseUrl
-      }
+      // Create a GeoJSON representation of the granule spatial
+      updatedGranule.spatial = normalizeSpatial(camelcaseKeys(granule))
 
       return updatedGranule
     })
 
     return {
       feed: {
-        entry
+        entry: camelcaseKeys(entry, { deep: true })
       }
     }
   }

@@ -10,155 +10,93 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
         matrix:
-          node-version: ['lts/hydrogen']
+          node-version: ['lts/jod']
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Cache node modules
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-node-modules
-      with:
-        # npm cache files are stored in `~/.npm` on Linux/macOS
-        # not caching node_modules because `npm ci` removes it
-        path: ~/.npm
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
-    - name: Install dependencies
-      run: npm ci
+      uses: actions/checkout@v7
+
+    - name: Setup
+      uses: ./.github/actions/npm-setup
+
     - name: Run eslint
       run: npm run lint
-  jest:
+  vitest:
     needs: [eslint]
     runs-on: ubuntu-latest
     strategy:
         matrix:
-          node-version: ['lts/hydrogen']
+          node-version: ['lts/jod']
           shard: [1/3, 2/3, 3/3]
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Cache node modules
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-node-modules
-      with:
-        # npm cache files are stored in `~/.npm` on Linux/macOS
-        # not caching node_modules because `npm ci` removes it
-        path: ~/.npm
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
-    - name: Install dependencies
-      run: npm ci
-    - name: Copy secrets example file
-      run: npm run copy-secrets
-    - name: Prepare for jest tests
-      run: npm run jest:prepare-ci
-    - name: Run Jest tests
-      run: npm run silent-test -- --shard=${{ matrix.shard }}
+      uses: actions/checkout@v7
+
+    - name: Setup
+      uses: ./.github/actions/npm-setup
+
+    - name: Run Vitest tests
+      run: npm test -- run --shard=${{ matrix.shard }}
     - name: Upload coverage to codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v6
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-  cypress:
+
+  runBuild:
     needs: [eslint]
     runs-on: ubuntu-latest
     strategy:
         matrix:
-          node-version: ['lts/hydrogen']
+          node-version: ['lts/jod']
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/checkout@v7
+
+    - name: Setup
+      uses: ./.github/actions/npm-setup
+
+    - name: Run build
+      run: npm run prestart-ci
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v7
+      if: always()
       with:
-        node-version: ${{ matrix.node-version }}
-    - name: Cache node modules
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-node-modules
-      with:
-        # npm cache files are stored in `~/.npm` on Linux/macOS
-        # not caching node_modules because `npm ci` removes it
-        path: ~/.npm
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
-    - name: Install dependencies
-      run: npm ci
-    - name: Copy secrets example file
-      run: npm run copy-secrets
-    - name: Prepare for Cypress tests
-      run: npm run cypress:prepare-ci
-    - name: Run Cypress tests
-      run: npm run cypress:ci
-    - name: Upload coverage to codecov
-      uses: codecov/codecov-action@v4
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      with:
-        directory: 'cypress-coverage'
+        name: static-build
+        path: |
+          static/dist/
+        retention-days: 5
+
   playwright:
-    needs: [eslint]
+    needs: [runBuild]
     runs-on: ubuntu-latest
     strategy:
         fail-fast: false
         matrix:
-          node-version: ['lts/hydrogen']
-          shard: [1/3, 2/3, 3/3]
+          node-version: ['lts/jod']
+          shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+          shardTotal: [9]
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Cache node modules
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-node-modules
-      with:
-        # npm cache files are stored in `~/.npm` on Linux/macOS
-        # not caching node_modules because `npm ci` removes it
-        path: ~/.npm
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
-    - name: Install dependencies
-      run: npm ci
+      uses: actions/checkout@v7
+
+    - name: Setup
+      uses: ./.github/actions/npm-setup
+
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
-    - name: Copy secrets example file
-      run: npm run copy-secrets
-    - name: Prepare for Playwright tests
-      run: npm run playwright:prepare-ci
+    - name: Download build
+      uses: actions/download-artifact@v8
+      with:
+        name: static-build
+        path: static/dist/
     - name: Run Playwright tests
-      run: npm run playwright:ci:${{ matrix.shard }}
+      run: bin/start-playwright.sh ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
     - name: Upload coverage to codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v6
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:
         directory: 'playwright-coverage'
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       if: always()
       with:
         name: playwright-report-${{ strategy.job-index }}
@@ -167,13 +105,20 @@ jobs:
           test-results/
         retention-days: 30
 
+  tests-passed:
+    needs: ['vitest', 'playwright']
+    runs-on: ubuntu-latest
+    steps:
+    - name: All Tests Have Passed
+      run: 'echo true'
+
   deploy:
     if: success() && github.ref == 'refs/heads/main' # only run on main success
-    needs: [jest, cypress, playwright] # only run after jest and cypress jobs complete
+    needs: [tests-passed] # only run after all test jobs complete
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Install SSH key
       uses: shimataro/ssh-key-action@v2
       with:

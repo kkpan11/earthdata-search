@@ -1,37 +1,34 @@
 import { useEffect } from 'react'
-import PropTypes from 'prop-types'
-import { connect } from 'react-redux'
 
-import actions from '../../actions'
-import history from '../../util/history'
+import routerHelper from '../../router/router'
+import { changePath } from '../../util/url/changePath'
 
-export const mapDispatchToProps = (dispatch) => ({
-  onChangePath:
-    (portalId) => dispatch(actions.changePath(portalId))
-})
+const HistoryContainer = () => {
+  const { router } = routerHelper
 
-export const HistoryContainer = ({ onChangePath }) => {
   useEffect(() => {
-    const unlisten = history.listen((location, action) => {
-      // If the action is POP (browser back or forward buttons), call onChangePath to reset the store
-      // with the new location values
-      if (action === 'POP') {
-        const { pathname, search } = location
+    const unsubscribe = router.subscribe((event) => {
+      const {
+        historyAction,
+        location
+      } = event
 
-        onChangePath(`${pathname}${search}`)
+      const {
+        pathname,
+        search
+      } = location
+
+      if (historyAction === 'POP') {
+        changePath(`${pathname}${search}`)
       }
     })
 
     return () => {
-      unlisten()
+      unsubscribe()
     }
   }, [])
 
   return null
 }
 
-HistoryContainer.propTypes = {
-  onChangePath: PropTypes.func.isRequired
-}
-
-export default connect(null, mapDispatchToProps)(HistoryContainer)
+export default HistoryContainer

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { forwardRef } from 'react'
 import PropTypes from 'prop-types'
 import { IconContext } from 'react-icons'
 
@@ -6,37 +6,47 @@ import './EDSCIcon.scss'
 
 /**
  * Renders an icon wrapped with EDSCIcon.
- * @param {String|Function} icon - The `react-icon` or 'edsc-*' icon name to render
+ * @param {Object} ariaLabel - Optional string used as the `aria-label` attribute
  * @param {Node} children - React children to display with the icon.
  * @param {String} className - An optional classname.
  * @param {Object} context - Optional object to pass to `react-icons/IconContext.Provider`
+ * @param {String|Function} icon - The `react-icon` or 'edsc-*' icon name to render
+ * @param {Boolean} inlineFlex - Optional boolean used to determine if the icon should be displayed as an inline-flex element
+ * @param {String} size - Optional string used as the `size` attribute
  * @param {String} title - Optional string used as the `title` attribute
+ * @param {String} variant - Optional string that determines the icon's wrapper element and styling.
  */
-export const EDSCIcon = ({
-  icon,
-  className,
+export const EDSCIcon = forwardRef(({
+  ariaLabel,
   children,
+  className,
   context,
+  icon,
+  inlineFlex,
   size,
   title,
   variant,
   ...props
-}) => {
+}, ref) => {
   if (!icon) return null
 
   let iconClassNames = 'edsc-icon'
 
   if (variant) iconClassNames = `${iconClassNames} edsc-icon--${variant}`
   if (className) iconClassNames = `${iconClassNames} ${className}`
+  if (inlineFlex) iconClassNames = `${iconClassNames} d-inline-flex`
 
   if (typeof icon === 'string') {
     iconClassNames = `${iconClassNames} edsc-icon--simple`
 
     return (
       <i
+        ref={ref}
         className={iconClassNames}
         title={title}
         data-testid="edsc-icon-simple"
+        aria-label={ariaLabel}
+        role="graphics-symbol"
         // eslint-disable-next-line react/jsx-props-no-spreading
         {...props}
       />
@@ -49,12 +59,15 @@ export const EDSCIcon = ({
     return (
       <IconContext.Provider
         value={context}
+        ref={ref}
       >
         <Icon
           className={iconClassNames}
           title={title}
           size={size}
           data-testid="edsc-icon"
+          aria-label={ariaLabel}
+          role="graphics-symbol"
           {...props}
         />
         {children}
@@ -64,12 +77,17 @@ export const EDSCIcon = ({
 
   if (variant === 'details') {
     return (
-      <div className="access-method-radio__icons-rightside">
+      <div
+        ref={ref}
+        className="access-method-radio__icons-rightside"
+      >
         <Icon
           className={iconClassNames}
           title={title}
           size={size}
           data-testid="edsc-icon-details"
+          aria-label={ariaLabel}
+          role="graphics-symbol"
           {...props}
         />
         {children}
@@ -79,12 +97,17 @@ export const EDSCIcon = ({
 
   if (variant === 'details-span') {
     return (
-      <span className="pl-2">
+      <span
+        ref={ref}
+        className="pl-2"
+      >
         <Icon
           className={iconClassNames}
           title={title}
           size={size}
+          aria-label={ariaLabel}
           data-testid="edsc-icon-details"
+          role="graphics-symbol"
           {...props}
         />
         {children}
@@ -93,34 +116,45 @@ export const EDSCIcon = ({
   }
 
   return (
-    <>
+    <span
+      ref={ref}
+      className={iconClassNames}
+      data-testid="edsc-icon-wrapper"
+    >
       <Icon
-        className={iconClassNames}
         title={title}
         size={size}
+        aria-label={ariaLabel}
         data-testid="edsc-icon"
+        role="graphics-symbol"
         {...props}
       />
       {children}
-    </>
+    </span>
   )
-}
+})
+
+EDSCIcon.displayName = 'EDSCIcon'
 
 EDSCIcon.defaultProps = {
-  icon: null,
+  ariaLabel: null,
   children: '',
   className: null,
   context: null,
-  size: '1rem',
+  icon: null,
+  inlineFlex: true,
+  size: '16',
   title: null,
   variant: null
 }
 
 EDSCIcon.propTypes = {
-  icon: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
+  ariaLabel: PropTypes.string,
   children: PropTypes.node,
   className: PropTypes.string,
   context: PropTypes.shape({}),
+  icon: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
+  inlineFlex: PropTypes.bool,
   size: PropTypes.string,
   title: PropTypes.string,
   variant: PropTypes.string

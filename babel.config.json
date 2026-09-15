@@ -4,13 +4,14 @@
       "@babel/preset-env",
       {
         "targets": {
-          "node": "18",
-          "esmodules": true,
-          "ie": "11"
+          "node": "22",
+          "esmodules": true
         }
       }
     ],
-    "@babel/preset-react"
+    "@babel/preset-react",
+    "@babel/preset-typescript",
+    "babel-preset-vite"
   ],
   "sourceType": "unambiguous",
   "plugins": [

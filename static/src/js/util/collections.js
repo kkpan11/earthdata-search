@@ -2,28 +2,25 @@ import { categoryNameToCMRParam } from './facets'
 import { encodeTemporal } from './url/temporalEncoders'
 import { getApplicationConfig } from '../../../../sharedUtils/config'
 import { tagName } from '../../../../sharedUtils/tags'
-import { autocompleteFacetsMap } from './autocompleteFacetsMap'
-import { withAdvancedSearch } from './withAdvancedSearch'
+import { withSelectedRegion } from './withSelectedRegion'
+import { collectionSortKeys } from '../constants/collectionSortKeys'
+
+import useEdscStore from '../zustand/useEdscStore'
+import { getCollectionsQuery, getSelectedRegionQuery } from '../zustand/selectors/query'
 
 /**
- * Prepare parameters used in getCollections() based on current Redux State
- * @param {Object} state Current Redux State
- * @returns {Object} Parameters used in buildCollectionSearchParams
+ * Prepare parameters used in getCollections() based on current store state
  */
-export const prepareCollectionParams = (state) => {
-  const {
-    autocomplete = {},
-    advancedSearch = {},
-    authToken,
-    facetsParams = {},
-    portal = {},
-    query = {
-      collection: {}
-    },
-    searchResults = {}
-  } = state
+export const prepareCollectionParams = () => {
+  const zustandState = useEdscStore.getState()
 
-  const { collection: collectionQuery } = query
+  const {
+    portal,
+    facetParams,
+    facets
+  } = zustandState
+  const collectionQuery = getCollectionsQuery(zustandState)
+  const selectedRegion = getSelectedRegionQuery(zustandState)
 
   const {
     hasGranulesOrCwic,
@@ -31,7 +28,8 @@ export const prepareCollectionParams = (state) => {
     onlyEosdisCollections,
     overrideTemporal = {},
     pageNum,
-    sortKey = [],
+    includeInactiveCollections,
+    sortKey,
     spatial = {},
     tagKey: selectedTag,
     temporal = {}
@@ -45,7 +43,7 @@ export const prepareCollectionParams = (state) => {
     polygon
   } = spatial
 
-  const { viewAllFacets: viewAllFacetsSearchResults = {} } = searchResults
+  const { viewAllFacets: viewAllFacetsSearchResults = {} } = facets
   const { selectedCategory: viewAllFacetsCategory } = viewAllFacetsSearchResults
 
   // If we have an overrideTemporal use it, if not use temporal
@@ -61,10 +59,10 @@ export const prepareCollectionParams = (state) => {
   }
 
   const {
-    cmr: cmrFacets = {},
-    feature: featureFacets = {},
-    viewAll: viewAllFacets = {}
-  } = facetsParams
+    cmrFacets = {},
+    featureFacets = {},
+    viewAllFacets = {}
+  } = facetParams
 
   const tagKey = []
   if (selectedTag) tagKey.push(selectedTag)
@@ -89,7 +87,6 @@ export const prepareCollectionParams = (state) => {
   const { consortium: portalConsortium = [] } = portalQuery
 
   const collectionParams = {
-    authToken,
     boundingBox,
     circle,
     cloudHosted,
@@ -102,6 +99,7 @@ export const prepareCollectionParams = (state) => {
     point,
     polygon,
     serviceType,
+    includeInactiveCollections,
     sortKey,
     tagKey,
     temporalString,
@@ -114,24 +112,10 @@ export const prepareCollectionParams = (state) => {
     ]
   }
 
-  // Add the autocomplete selected parameters if the type is not a CMR Facet
-  const { selected = [] } = autocomplete
-  selected.forEach((param) => {
-    const { type, value } = param
-
-    if (!autocompleteFacetsMap[type]) {
-      if (collectionParams[type]) {
-        collectionParams[type].push(value)
-      } else {
-        collectionParams[type] = [value]
-      }
-    }
-  })
-
   // Apply any overrides for advanced search
-  const paramsWithAdvancedSearch = withAdvancedSearch(collectionParams, advancedSearch)
+  const paramsWithSelectedRegion = withSelectedRegion(collectionParams, selectedRegion)
 
-  return paramsWithAdvancedSearch
+  return paramsWithSelectedRegion
 }
 
 /**
@@ -165,11 +149,13 @@ export const buildCollectionSearchParams = (params) => {
     project,
     provider,
     serviceType,
+    includeInactiveCollections,
     sortKey: selectedSortKey,
     spatialKeyword,
     standardProduct,
     tagKey,
     temporalString,
+    toolConceptId,
     viewAllFacets,
     viewAllFacetsCategory
   } = params
@@ -177,7 +163,7 @@ export const buildCollectionSearchParams = (params) => {
   let facetsToSend = { ...cmrFacets }
 
   // If viewAllFacets has any keys, we know that the view all facets modal is active and we want to
-  // detirmine the next results based on those facets.
+  // determine the next results based on those facets.
   if (Object.keys(viewAllFacets).length) {
     facetsToSend = { ...viewAllFacets }
   }
@@ -191,9 +177,14 @@ export const buildCollectionSearchParams = (params) => {
     keywordWithWildcard = `${keyword.replace(/\s+/g, '* ')}*`
   }
 
-  const sortKey = [...selectedSortKey]
+  const sortKey = [selectedSortKey]
   // Only include has_granules_or_cwic sort key if the parameter is being used
   if (hasGranulesOrCwic) sortKey.unshift('has_granules_or_cwic')
+
+  // Add Recent Version as a secondary sort key for all collection searches
+  if (selectedSortKey !== collectionSortKeys.recentVersion) {
+    sortKey.push(collectionSortKeys.recentVersion)
+  }
 
   // Set up params that are not driven by the URL
   const defaultParams = {
@@ -245,6 +236,7 @@ export const buildCollectionSearchParams = (params) => {
     granuleDataFormatH: facetsToSend.granule_data_format_h,
     hasGranulesOrCwic,
     horizontalDataResolutionRange: facetsToSend.horizontal_data_resolution_range,
+    includeNonOperational: includeInactiveCollections ? true : undefined,
     instrument,
     instrumentH: facetsToSend.instrument_h,
     keyword: keywordWithWildcard,
@@ -265,6 +257,7 @@ export const buildCollectionSearchParams = (params) => {
     standardProduct,
     tagKey,
     temporal: temporalString,
+    toolConceptId,
     twoDCoordinateSystemName: facetsToSend.two_d_coordinate_system_name,
     facetsSize: viewAllFacetsCategory
       ? { [categoryNameToCMRParam(viewAllFacetsCategory)]: 10000 }

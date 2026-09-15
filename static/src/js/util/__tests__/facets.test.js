@@ -1,12 +1,15 @@
-import { changeCmrFacet } from '../facets'
+import {
+  changeCmrFacet,
+  getNormalizedFirstLetter,
+  getStartingLetters,
+  buildOrganizedFacets
+} from '../facets'
 
-beforeEach(() => {
-  jest.resetAllMocks()
-})
+import { alphabet } from '../alphabetic-list'
 
 describe('changeCmrFacet', () => {
   test('calls the change handler with the correct arguments', () => {
-    const onChangeHandlerMock = jest.fn()
+    const onChangeHandlerMock = vi.fn()
 
     changeCmrFacet(
       {},
@@ -22,15 +25,13 @@ describe('changeCmrFacet', () => {
     expect(onChangeHandlerMock).toHaveBeenCalledWith(
       expect.objectContaining({
         granule_data_format_h: ['ASCII']
-      }),
-      {},
-      false
+      })
     )
   })
 
   describe('when the facet has encoded characters', () => {
     test('does not decode the values', () => {
-      const onChangeHandlerMock = jest.fn()
+      const onChangeHandlerMock = vi.fn()
 
       changeCmrFacet(
         {},
@@ -46,10 +47,136 @@ describe('changeCmrFacet', () => {
       expect(onChangeHandlerMock).toHaveBeenCalledWith(
         expect.objectContaining({
           data_center_h: ['Level-1%2Band%2BAtmosphere%2BArchive%2B%2526%2BDistribution%2BSystem%2B%2528LAADS%2529']
-        }),
-        {},
-        false
+        })
       )
+    })
+  })
+})
+
+describe('getNormalizedFirstLetter', () => {
+  test('returns null for undefined title', () => {
+    expect(getNormalizedFirstLetter(undefined)).toBeNull()
+  })
+
+  test('returns null for empty title', () => {
+    expect(getNormalizedFirstLetter('')).toBeNull()
+  })
+
+  test('converts first letter to uppercase', () => {
+    expect(getNormalizedFirstLetter('foo')).toBe('F')
+    expect(getNormalizedFirstLetter('bar')).toBe('B')
+  })
+
+  test('returns # for numeric first character', () => {
+    expect(getNormalizedFirstLetter('123')).toBe('#')
+    expect(getNormalizedFirstLetter('1foo')).toBe('#')
+  })
+})
+
+describe('getStartingLetters', () => {
+  test('returns empty array for empty facets', () => {
+    expect(getStartingLetters([])).toEqual([])
+  })
+
+  test('returns unique starting letters in order of appearance', () => {
+    const facets = [
+      { title: 'foo' },
+      { title: 'bar' },
+      { title: 'qux' },
+      { title: '123' }
+    ]
+    expect(getStartingLetters(facets)).toEqual(['F', 'B', 'Q', '#'])
+  })
+
+  test('handles facets with undefined titles', () => {
+    const facets = [
+      { title: 'foo' },
+      {},
+      { title: undefined },
+      { title: 'bar' }
+    ]
+    expect(getStartingLetters(facets)).toEqual(['F', 'B'])
+  })
+
+  test('does not duplicate letters', () => {
+    const facets = [
+      { title: 'foo' },
+      { title: 'foobar' },
+      { title: 'fizz' }
+    ]
+    expect(getStartingLetters(facets)).toEqual(['F'])
+  })
+})
+
+describe('buildOrganizedFacets', () => {
+  const createFacet = (title, applied = false) => ({
+    title,
+    applied
+  })
+
+  test('organizes facets alphabetically when not lifting', () => {
+    const facets = [
+      createFacet('foo'),
+      createFacet('bar'),
+      createFacet('123'),
+      createFacet('baz')
+    ]
+    const options = { liftSelectedFacets: false }
+
+    const result = buildOrganizedFacets(facets, options)
+
+    expect(result.facetsToLift).toEqual([])
+    expect(result.alphabetizedList['#']).toHaveLength(1)
+    expect(result.alphabetizedList.F).toHaveLength(1)
+    expect(result.alphabetizedList.B).toHaveLength(2)
+  })
+
+  test('lifts applied facets when liftSelectedFacets is true', () => {
+    const facets = [
+      createFacet('foo', true),
+      createFacet('bar'),
+      createFacet('baz', true)
+    ]
+    const options = { liftSelectedFacets: true }
+
+    const result = buildOrganizedFacets(facets, options)
+
+    expect(result.facetsToLift).toHaveLength(2)
+    expect(result.alphabetizedList.B).toHaveLength(1)
+    expect(result.facetsToLift).toEqual([
+      createFacet('foo', true),
+      createFacet('baz', true)
+    ])
+  })
+
+  test('handles facets with invalid titles', () => {
+    const facets = [
+      createFacet(''),
+      createFacet(undefined),
+      createFacet('foo')
+    ]
+    const options = { liftSelectedFacets: false }
+
+    const result = buildOrganizedFacets(facets, options)
+
+    expect(result.alphabetizedList.F).toHaveLength(1)
+    // Check that invalid facets were skipped
+    const totalFacets = Object.values(result.alphabetizedList)
+      .reduce((sum, arr) => sum + arr.length, 0)
+    expect(totalFacets).toBe(1)
+  })
+
+  test('creates empty arrays for all alphabet letters that are not present', () => {
+    const facets = [createFacet('foo')]
+    const options = { liftSelectedFacets: false }
+
+    const result = buildOrganizedFacets(facets, options)
+
+    alphabet.forEach((letter) => {
+      expect(Array.isArray(result.alphabetizedList[letter])).toBe(true)
+      if (letter !== 'F') {
+        expect(result.alphabetizedList[letter]).toHaveLength(0)
+      }
     })
   })
 })

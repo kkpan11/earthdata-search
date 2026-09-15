@@ -2,33 +2,48 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import classNames from 'classnames'
 import { kebabCase } from 'lodash-es'
-
-import { Badge, ProgressBar } from 'react-bootstrap'
+import Badge from 'react-bootstrap/Badge'
+import ProgressBar from 'react-bootstrap/ProgressBar'
 
 import { getStateFromOrderStatus, formatOrderStatus } from '../../../../../sharedUtils/orderStatus'
+
+import ExternalLink from '../ExternalLink/ExternalLink'
+
+import { ACCESS_METHOD_TYPES } from '../../../../../sharedConstants/accessMethodTypes'
+import { ORDER_STATES } from '../../../../../sharedConstants/orderStates'
 
 import './OrderProgressItem.scss'
 
 export const OrderProgressItem = ({
-  order
+  retrievalOrder
 }) => {
   const {
-    order_number: orderId,
+    orderNumber: orderId,
     state: orderStatus,
-    order_information: orderInformation = {},
+    orderInformation = {},
     type
-  } = order
+  } = retrievalOrder
 
   let numGranulesProccessed
   let totalGranulesInOrder
   let totalPercentProcessed
+  let jobInformationHref
 
-  if (type === 'Harmony') {
-    const { progress = 0 } = orderInformation
+  if (type === ACCESS_METHOD_TYPES.HARMONY) {
+    const { progress = 0, request = '' } = orderInformation
     totalPercentProcessed = progress
+
+    let domainName = ''
+
+    if (request) {
+      const requestUrl = new URL(request)
+      domainName = requestUrl.origin
+    }
+
+    jobInformationHref = domainName && orderId ? `${domainName}/workflow-ui/${orderId}` : null
   }
 
-  if (type === 'ESI') {
+  if (type === ACCESS_METHOD_TYPES.ESI) {
     const { requestStatus = {} } = orderInformation
 
     const {
@@ -44,6 +59,13 @@ export const OrderProgressItem = ({
     } else {
       totalPercentProcessed = Math.floor((numGranulesProccessed / totalGranulesInOrder) * 100)
     }
+  }
+
+  // Grab the order status if it exists and check if it's complete
+  const { status = 'created' } = orderInformation
+
+  if (type === ACCESS_METHOD_TYPES.SWODLR && status === ORDER_STATES.COMPLETE) {
+    totalPercentProcessed = 100
   }
 
   const badgeClass = classNames(
@@ -65,13 +87,14 @@ export const OrderProgressItem = ({
             {orderId || 'Not provided'}
           </h5>
           <Badge
+            role="status"
             className={badgeClass}
           >
             {formatOrderStatus(orderStatus)}
           </Badge>
         </div>
         <div className="order-progress-item__info">
-          <span className="order-progress-item__processed">
+          <span role="status" className="order-progress-item__processed">
             {
               !!(numGranulesProccessed && totalGranulesInOrder) && (
                 `${numGranulesProccessed} of ${totalGranulesInOrder} granule(s) processed `
@@ -85,6 +108,13 @@ export const OrderProgressItem = ({
           </span>
         </div>
       </header>
+      {
+        type === ACCESS_METHOD_TYPES.HARMONY && jobInformationHref && (
+          <ExternalLink href={jobInformationHref}>
+            View Harmony Job Information
+          </ExternalLink>
+        )
+      }
       <ProgressBar
         className="order-progress-item__bar"
         now={totalPercentProcessed}
@@ -94,10 +124,10 @@ export const OrderProgressItem = ({
 }
 
 OrderProgressItem.propTypes = {
-  order: PropTypes.shape({
-    order_number: PropTypes.string,
+  retrievalOrder: PropTypes.shape({
+    orderNumber: PropTypes.string,
     state: PropTypes.string,
-    order_information: PropTypes.shape({}),
+    orderInformation: PropTypes.shape({}),
     type: PropTypes.string
   }).isRequired
 }

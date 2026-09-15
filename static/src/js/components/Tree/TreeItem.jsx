@@ -5,17 +5,15 @@ import React, {
 } from 'react'
 import PropTypes from 'prop-types'
 import { difference } from 'lodash-es'
-import {
-  FaInfoCircle,
-  FaFolder,
-  FaFolderOpen
-} from 'react-icons/fa'
+import { AlertInformation } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
+
+import { FaFolder, FaFolderOpen } from 'react-icons/fa'
 
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
 
 import './TreeItem.scss'
 
-export const TreeItem = ({
+const TreeItem = ({
   index,
   item,
   onChange,
@@ -35,21 +33,20 @@ export const TreeItem = ({
     value,
     variable = {}
   } = item
-
   const {
     longName
   } = variable
   const checkboxElement = useRef(null)
   const [isExpanded, setIsExpanded] = useState(expanded)
 
-  const childItems = () => children.map((child, i) => (
+  const childItems = () => children.map((child, childIndex) => (
     <TreeItem
       key={`${child.getKey()}`}
       index={index}
       item={child}
       onChange={onChange}
-      isFirst={i === 0}
-      isLast={i === children.length - 1}
+      isFirst={childIndex === 0}
+      isLast={childIndex === children.length - 1}
       collectionId={collectionId}
       onUpdateSelectedVariables={onUpdateSelectedVariables}
       onViewDetails={onViewDetails}
@@ -127,6 +124,8 @@ export const TreeItem = ({
   treeItemClasses += ` ${!isClosed ? 'tree-item--is-open' : ''}`
   treeItemClasses += ` ${isLast ? 'tree-item--has-blocker' : ''}`
 
+  const itemName = item.getName()
+
   return (
     <div
       className={treeItemClasses}
@@ -140,6 +139,7 @@ export const TreeItem = ({
               className="tree-item__parent-button"
               type="button"
               onClick={onToggleExpanded}
+              aria-label={`${isClosed ? 'Expand' : 'Collapse'} ${itemName}`}
             >
               {
                 isClosed
@@ -185,16 +185,17 @@ export const TreeItem = ({
           htmlFor={fullValue}
         >
           <div className="tree-item__label-name">
-            {item.getName()}
+            {itemName}
             {
               item.isLeaf && (
                 <button
                   className="tree-item__info-button"
                   type="button"
+                  aria-label="View details"
                   onClick={() => onViewDetails(item.variable, index)}
                 >
                   <EDSCIcon
-                    icon={FaInfoCircle}
+                    icon={AlertInformation}
                     context={
                       {
                         style: {
@@ -241,3 +242,5 @@ TreeItem.propTypes = {
   onUpdateSelectedVariables: PropTypes.func.isRequired,
   onViewDetails: PropTypes.func.isRequired
 }
+
+export default TreeItem

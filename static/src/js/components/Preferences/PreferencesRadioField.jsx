@@ -1,8 +1,7 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import { startCase } from 'lodash-es'
-
-import { Form } from 'react-bootstrap'
+import Form from 'react-bootstrap/Form'
 
 import './PreferencesRadioField.scss'
 
@@ -34,14 +33,16 @@ class PreferencesRadioField extends Component {
     const {
       name: fieldName,
       formData,
-      schema
+      schema,
+      uiSchema
     } = this.props
 
     const {
       enum: values,
-      enumNames,
       description
     } = schema
+
+    const { 'ui:enumNames': enumNames } = uiSchema
 
     return (
       <div className="preferences-radio-field">
@@ -78,15 +79,24 @@ class PreferencesRadioField extends Component {
   }
 }
 
+// FormData changed from required to optional because a user may not have a saved homeSearchMode.
+// We do not want to force them into either option via a preference setting.
 PreferencesRadioField.propTypes = {
-  formData: PropTypes.string.isRequired,
+  formData: PropTypes.string,
   name: PropTypes.string.isRequired,
   onChange: PropTypes.func.isRequired,
   schema: PropTypes.shape({
     enum: PropTypes.arrayOf(PropTypes.string),
     enumNames: PropTypes.arrayOf(PropTypes.string),
     description: PropTypes.string
+  }).isRequired,
+  uiSchema: PropTypes.shape({
+    'ui:enumNames': PropTypes.arrayOf(PropTypes.string)
   }).isRequired
+}
+
+PreferencesRadioField.defaultProps = {
+  formData: undefined
 }
 
 export default PreferencesRadioField

@@ -1,4 +1,4 @@
-import projections from '../map/projections'
+import projectionCodes from '../../constants/projectionCodes'
 
 /**
  * Decode the deprecated map parameter
@@ -20,9 +20,9 @@ export const decodeDeprecatedMapParam = (param) => {
   const decodedZoomFromMParam = parseFloat(zoomFromMParam)
 
   const formattedProjectionList = [
-    projections.arctic,
-    projections.geographic,
-    projections.antarctic
+    projectionCodes.arctic,
+    projectionCodes.geographic,
+    projectionCodes.antarctic
   ]
 
   const decodedProjectionFromMParam = formattedProjectionList[projectionFromMParam]
@@ -30,7 +30,7 @@ export const decodeDeprecatedMapParam = (param) => {
   let decodedBaseFromMParam
   if (baseFromMParam) {
     decodedBaseFromMParam = {
-      blueMarble: baseFromMParam === '0',
+      worldImagery: baseFromMParam === '0',
       trueColor: baseFromMParam === '1',
       landWaterMap: baseFromMParam === '2'
     }
@@ -39,9 +39,9 @@ export const decodeDeprecatedMapParam = (param) => {
   let decodedOverlaysFromMParam
   if (overlaysFromMParam) {
     decodedOverlaysFromMParam = {
-      referenceFeatures: overlaysFromMParam.split(',').indexOf('0') !== -1,
+      bordersRoads: overlaysFromMParam.split(',').indexOf('0') !== -1,
       coastlines: overlaysFromMParam.split(',').indexOf('1') !== -1,
-      referenceLabels: overlaysFromMParam.split(',').indexOf('2') !== -1
+      placeLabels: overlaysFromMParam.split(',').indexOf('2') !== -1
     }
   }
 

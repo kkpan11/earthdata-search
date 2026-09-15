@@ -4,10 +4,11 @@ import { emptyDecodedResult } from './url.mocks'
 
 import * as deployedEnvironment from '../../../../../../sharedUtils/deployedEnvironment'
 import * as getApplicationConfig from '../../../../../../sharedUtils/config'
+import { initialGranuleQuery } from '../collectionsEncoders'
 
 beforeEach(() => {
-  jest.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
-  jest.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
+  vi.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
+  vi.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
     defaultPortal: 'default'
   }))
 })
@@ -18,13 +19,12 @@ describe('url#decodeUrlParams', () => {
       ...emptyDecodedResult,
       focusedCollection: 'collectionId',
       query: {
+        ...emptyDecodedResult.query,
         collection: {
           ...emptyDecodedResult.query.collection,
           byId: {
             collectionId: {
-              granules: {
-                pageNum: 1
-              }
+              granules: initialGranuleQuery
             }
           }
         }
@@ -37,7 +37,9 @@ describe('url#decodeUrlParams', () => {
 describe('url#encodeUrlQuery', () => {
   test('encodes focusedCollection correctly', () => {
     const props = {
-      hasGranulesOrCwic: true,
+      collectionsQuery: {
+        hasGranulesOrCwic: true
+      },
       pathname: '/path/here',
       focusedCollection: 'collectionId'
     }

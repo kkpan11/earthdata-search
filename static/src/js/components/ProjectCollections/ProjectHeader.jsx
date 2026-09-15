@@ -1,48 +1,55 @@
-/* eslint-disable jsx-a11y/img-redundant-alt */
 import React, {
   memo,
   useEffect,
   useRef,
   useState
 } from 'react'
-import { PropTypes } from 'prop-types'
-import { OverlayTrigger, Tooltip } from 'react-bootstrap'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
 import abbreviate from 'number-abbreviate'
 import classNames from 'classnames'
-import {
-  FaInfoCircle,
-  FaCheck,
-  FaEdit
-} from 'react-icons/fa'
+import { FaEdit } from 'react-icons/fa'
+import { AlertInformation } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
+import { Check } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 
 import { commafy } from '../../util/commafy'
 import { convertSizeToMB, convertSize } from '../../util/project'
 import { pluralize } from '../../util/pluralize'
+import renderTooltip from '../../util/renderTooltip'
+
 import { projectHeader } from './skeleton'
 
 import Skeleton from '../Skeleton/Skeleton'
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
 
+import useEdscStore from '../../zustand/useEdscStore'
+import { getSavedProjectName } from '../../zustand/selectors/savedProject'
+
 import './ProjectHeader.scss'
 
 /**
  * Renders ProjectHeader.
- * @param {function} onUpdateProjectName - Function to updated the saved project name
- * @param {object} project - Project collections passed from redux store.
- * @param {object} savedProject - Saved Project information (name) passed from redux store
  */
 
-export const ProjectHeader = memo(({
-  onUpdateProjectName,
-  project,
-  savedProject
-}) => {
+export const ProjectHeader = memo(() => {
+  const setProjectName = useEdscStore((state) => state.savedProject.setProjectName)
+  const projectName = useEdscStore(getSavedProjectName)
+
+  const projectCollections = useEdscStore((state) => state.project.collections)
   const projectTitleInput = useRef()
   const projectTitleText = useRef()
 
-  const { name = '' } = savedProject
   const [isEditingName, setIsEditingName] = useState(false)
-  const [projectName, setProjectName] = useState(name || 'Untitled Project')
+  const [name, setName] = useState(projectName || 'Untitled Project')
+
+  // Update projectName when name changes
+  // This can happen when loading a project from the URL, after the response comes back from the API
+  useEffect(() => {
+    setName(projectName || 'Untitled Project')
+
+    return () => {
+      setTimeout(() => {}, 0)
+    }
+  }, [projectName])
 
   const renderInput = (() => {
     const input = projectTitleInput.current
@@ -69,11 +76,12 @@ export const ProjectHeader = memo(({
   }, [isEditingName])
 
   const handleNameSubmit = (() => {
-    const newName = projectName || 'Untitled Project'
-    setProjectName(newName)
+    const newName = name || 'Untitled Project'
+    setName(newName)
     setIsEditingName(false)
     renderInput()
-    onUpdateProjectName(projectName)
+
+    setProjectName(newName)
   })
 
   const handleKeypress = ((event) => {
@@ -97,11 +105,10 @@ export const ProjectHeader = memo(({
   })
 
   const onInputChange = ((event) => {
-    setProjectName(event.target.value)
+    setName(event.target.value)
     renderInput()
   })
 
-  const { collections: projectCollections } = project
   const {
     allIds: projectCollectionIds,
     byId: projectCollectionById
@@ -116,7 +123,7 @@ export const ProjectHeader = memo(({
     const { [collectionId]: projectCollection = {} } = projectCollectionById
     const { granules = {} } = projectCollection
     const {
-      hits: granulesCount,
+      count: granulesCount,
       isLoaded,
       singleGranuleSize
     } = granules
@@ -164,7 +171,7 @@ export const ProjectHeader = memo(({
                 data-testid="project-header__span"
                 onKeyDown={handleNameKeyPress}
               >
-                {projectName}
+                {name}
               </span>
             </h2>
           </div>
@@ -172,7 +179,7 @@ export const ProjectHeader = memo(({
             <input
               className="project-header__title"
               name="projectName"
-              value={projectName}
+              value={name}
               onFocus={handleOnFocus}
               onChange={onInputChange}
               onKeyDown={handleKeypress}
@@ -189,7 +196,7 @@ export const ProjectHeader = memo(({
               data-testid="submit_button"
               onClick={handleNameSubmit}
             >
-              <EDSCIcon icon={FaCheck} />
+              <EDSCIcon icon={Check} />
             </button>
           )
         }
@@ -237,25 +244,19 @@ export const ProjectHeader = memo(({
               <OverlayTrigger
                 placement="right"
                 overlay={
-                  (
-                    <Tooltip
-                      className="tooltip--large tooltip--ta-left tooltip--wide"
-                    >
-                      This is the estimated overall size of your project. If no size
-                      information exists in a granule&apos;s metadata, it will not be
-                      included in this number. The size is estimated based upon the
-                      first 20 granules added to your project from each collection.
-                    </Tooltip>
-                  )
+                  (tooltipProps) => renderTooltip({
+                    children: 'This is the estimated overall size of your project. If no size information exists in a granule\'s metadata, it will not be included in this number. The size is estimated based upon the first 20 granules added to your project from each collection.',
+                    className: 'tooltip--large tooltip--ta-left tooltip--wide',
+                    ...tooltipProps
+                  })
                 }
               >
-                <EDSCIcon icon={FaInfoCircle} className="project-header__stats-icon" />
+                <EDSCIcon icon={AlertInformation} className="project-header__stats-icon" />
               </OverlayTrigger>
             </li>
           </ul>
         ) : (
           <Skeleton
-            dataTestId="project-header__skeleton"
             containerStyle={
               {
                 height: '21px',
@@ -272,18 +273,5 @@ export const ProjectHeader = memo(({
 })
 
 ProjectHeader.displayName = 'ProjectHeader'
-
-ProjectHeader.propTypes = {
-  onUpdateProjectName: PropTypes.func.isRequired,
-  project: PropTypes.shape({
-    collections: PropTypes.shape({
-      allIds: PropTypes.arrayOf(PropTypes.string),
-      byId: PropTypes.shape({})
-    })
-  }).isRequired,
-  savedProject: PropTypes.shape({
-    name: PropTypes.string
-  }).isRequired
-}
 
 export default ProjectHeader

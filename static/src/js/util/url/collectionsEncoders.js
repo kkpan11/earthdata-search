@@ -1,7 +1,14 @@
+import { granuleSortKeys } from '../../constants/granuleSortKeys'
 import isNumber from '../isNumber'
 
 import { encodeGranuleFilters, decodeGranuleFilters } from './granuleFiltersEncoders'
 
+export const initialGranuleQuery = {
+  excludedGranuleIds: [],
+  gridCoords: '',
+  pageNum: 1,
+  sortKey: granuleSortKeys.startDateDescending
+}
 /**
  * Encode a list of Granule IDs
  * @param {boolean} isOpenSearch Are the granules CWIC
@@ -78,6 +85,26 @@ const encodeConcatenateDownload = (projectCollection) => {
   } = selectedMethod
 
   return enableConcatenateDownload ? 't' : 'f'
+}
+
+const encodeSwodlrDownload = (projectCollection) => {
+  if (!projectCollection) return null
+
+  const {
+    accessMethods,
+    selectedAccessMethod
+  } = projectCollection
+
+  if (!accessMethods || !selectedAccessMethod) {
+    return null
+  }
+
+  const selectedMethod = accessMethods[selectedAccessMethod]
+  const {
+    swodlrData
+  } = selectedMethod
+
+  return swodlrData
 }
 
 const encodeSelectedVariables = (projectCollection) => {
@@ -201,6 +228,13 @@ const decodedSelectedVariables = (pgParam) => {
   return variableIds.split('!')
 }
 
+const decodedSwodlrDownload = (pgParam) => {
+  const { swod: swodlrData } = pgParam
+  if (!swodlrData) return undefined
+
+  return swodlrData
+}
+
 const decodedSelectedAccessMethod = (pgParam) => {
   const { m: accessMethod } = pgParam
 
@@ -249,11 +283,9 @@ export const encodeCollections = (props) => {
   const {
     collectionsMetadata = {},
     focusedCollection,
-    project = {},
-    query = {}
+    projectCollections = {},
+    collectionsQuery = {}
   } = props
-
-  const { collections: projectCollections = {} } = project
 
   const {
     byId: projectById = {},
@@ -307,7 +339,6 @@ export const encodeCollections = (props) => {
     let encodedExcludedGranules
     const excludedKey = isOpenSearch ? 'cx' : 'x'
 
-    const { collection: collectionsQuery = {} } = query
     const { byId: collectionQueryById = {} } = collectionsQuery
     const { [collectionId]: collectionQuery = {} } = collectionQueryById
     const { granules: granuleQuery = {} } = collectionQuery
@@ -359,6 +390,9 @@ export const encodeCollections = (props) => {
 
     // Encode selected variables
     pg.uv = encodeSelectedVariables(projectCollection)
+
+    // Encode swodlr form variables
+    pg.swod = encodeSwodlrDownload(projectCollection)
 
     // Encode concatenation selection
     pg.cd = encodeConcatenateDownload(projectCollection)
@@ -419,6 +453,11 @@ export const decodeCollections = (params) => {
   const ids = projectExists ? projectCollectionIds : [focusedCollection]
 
   ids.forEach((collectionId, index) => {
+    // Default a collection granule query for each collectionId
+    collectionGranuleQueryById[collectionId] = {
+      granules: initialGranuleQuery
+    }
+
     // Compensate for the fact that we've already pulled
     // off the first element above to determine the focused collection
     const collectionListIndex = index + (projectExists ? 1 : 0)
@@ -436,6 +475,7 @@ export const decodeCollections = (params) => {
     let removedGranuleIds = []
     let removedIsOpenSearch
     let selectedAccessMethod
+    let swodlrData
     let selectedOutputFormat
     let selectedOutputProjection
     let variableIds
@@ -459,7 +499,7 @@ export const decodeCollections = (params) => {
         granuleIds: removedGranuleIds = []
       } = decodedGranules('r', pCollection));
 
-      // Granules removed by way of terciary filter
+      // Granules removed by way of tertiary filter
       ({
         isOpenSearch: excludedIsOpenSearch,
         granuleIds: excludedGranuleIds = []
@@ -476,6 +516,7 @@ export const decodeCollections = (params) => {
       const { granules: granuleQuery } = collectionGranuleQuery
 
       const newGranuleQuery = {
+        ...initialGranuleQuery,
         ...granuleQuery,
         ...decodeGranuleFilters(pCollection)
       }
@@ -498,7 +539,6 @@ export const decodeCollections = (params) => {
 
       // Decode selected access method
       selectedAccessMethod = decodedSelectedAccessMethod(pCollection)
-
       // Decode output format
       selectedOutputFormat = decodedOutputFormat(pCollection)
 
@@ -515,10 +555,15 @@ export const decodeCollections = (params) => {
         enableConcatenateDownload = decodedConcatenateDownload(pCollection)
       }
 
+      // Decode swodlr subsettings on collections
+      if (selectedAccessMethod && selectedAccessMethod.startsWith('swodlr')) {
+        swodlrData = decodedSwodlrDownload(pCollection)
+      }
+
       // Determine if the collection is a CWIC collection
       isOpenSearch = excludedIsOpenSearch || addedIsOpenSearch || removedIsOpenSearch
 
-      // Populate the collection object for the redux store
+      // Populate the collection object for the store
       collectionMetadata[collectionId] = {
         id: collectionId,
         isOpenSearch
@@ -557,6 +602,14 @@ export const decodeCollections = (params) => {
             }
           }
         }
+
+        if (swodlrData) {
+          projectById[collectionId].accessMethods = {
+            [selectedAccessMethod]: {
+              swodlrData
+            }
+          }
+        }
       }
 
       if (addedGranuleIds.length && projectById[collectionId]) {
@@ -583,7 +636,7 @@ export const decodeCollections = (params) => {
 
   return {
     collections,
-    focusedCollection,
+    focusedCollection: focusedCollection.length > 0 ? focusedCollection : null,
     project,
     query: {
       collection: {

@@ -1,0 +1,41 @@
+import React from 'react'
+import { screen } from '@testing-library/react'
+import setupTest from '../../../../../../vitestConfigs/setupTest'
+import AdminIndex from '../AdminIndex'
+import { routes } from '../../../constants/routes'
+
+// Mock the PortalLinkContainer so it renders <a> and children.
+// Expects 'to' prop for href.
+vi.mock('../../../containers/PortalLinkContainer/PortalLinkContainer', () => {
+  const MockPortalLinkContainer = vi.fn(({ to, children }) => (
+    <a href={to}>{children}</a>
+  ))
+
+  return { default: MockPortalLinkContainer }
+})
+
+const setup = setupTest({
+  Component: AdminIndex
+})
+
+describe('Admin', () => {
+  test('renders Admin header text', () => {
+    setup()
+    expect(screen.getByRole('heading', {
+      level: 2,
+      name: /Admin/
+    })).toBeInTheDocument()
+  })
+
+  test('links have correct hrefs', () => {
+    setup()
+
+    const portalLinks = screen.getAllByRole('link')
+    expect(portalLinks).toHaveLength(4)
+
+    expect(screen.getByRole('link', { name: 'Retrievals' })).toHaveAttribute('href', routes.ADMIN_RETRIEVALS)
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', routes.ADMIN_PROJECTS)
+    expect(screen.getByRole('link', { name: 'Retrieval Metrics' })).toHaveAttribute('href', routes.ADMIN_RETRIEVAL_METRICS)
+    expect(screen.getByRole('link', { name: 'Preferences Metrics' })).toHaveAttribute('href', routes.ADMIN_PREFERENCES_METRICS)
+  })
+})

@@ -1,56 +1,55 @@
 import React, { useCallback, useState } from 'react'
-import PropTypes from 'prop-types'
-import { Tooltip, OverlayTrigger } from 'react-bootstrap'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
 import { FaDoorOpen } from 'react-icons/fa'
 import classNames from 'classnames'
+import { useLocation } from 'react-router-dom'
 
 import { getApplicationConfig } from '../../../../../sharedUtils/config'
-import { locationPropType } from '../../util/propTypes/location'
 import { usePortalLogo } from '../../hooks/usePortalLogo'
 
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
-import SearchFormContainer from '../../containers/SearchFormContainer/SearchFormContainer'
+import SearchForm from '../SearchForm/SearchForm'
 import Spinner from '../Spinner/Spinner'
+
+import useEdscStore from '../../zustand/useEdscStore'
+
+import renderTooltip from '../../util/renderTooltip'
 
 import './SearchSidebarHeader.scss'
 
 /**
  * Renders SearchSidebarHeader
- * @prop {Object} props - The props object
- * @prop {Object} props.portal - A portal object from Redux
- * @prop {Object} props.location - A location object from React Router
  */
-export const SearchSidebarHeader = ({
-  portal,
-  location
-}) => {
-  let logoEl
+export const SearchSidebarHeader = () => {
+  const location = useLocation()
+
+  const portal = useEdscStore((state) => state.portal)
   const {
     title = {},
     portalId,
     moreInfoUrl
   } = portal
 
-  if (portalId === getApplicationConfig().defaultPortal) {
-    return (
-      <header className="search-sidebar-header">
-        <SearchFormContainer />
-      </header>
-    )
-  }
-
   const portalLogoSrc = usePortalLogo(portalId)
 
   const [thumbnailLoading, setThumbnailLoading] = useState(true)
 
-  const { primary: primaryTitle, secondary: secondaryTitle } = title
-
-  const displayTitle = `${primaryTitle}${secondaryTitle && ` (${secondaryTitle})`}`
-
   const onThumbnailLoaded = useCallback(() => {
     setThumbnailLoading(false)
   })
+
+  if (portalId === getApplicationConfig().defaultPortal) {
+    return (
+      <header className="search-sidebar-header">
+        <SearchForm />
+      </header>
+    )
+  }
+
+  const { primary: primaryTitle, secondary: secondaryTitle } = title
+
+  const displayTitle = `${primaryTitle}${secondaryTitle && ` (${secondaryTitle})`}`
 
   const portalLogoClassNames = classNames(
     'search-sidebar-header__thumbnail',
@@ -58,6 +57,8 @@ export const SearchSidebarHeader = ({
       'search-sidebar-header__thumbnail--is-loaded': !thumbnailLoading
     }
   )
+
+  let logoEl
 
   if (portalLogoSrc === undefined || portalLogoSrc) {
     logoEl = (
@@ -98,14 +99,18 @@ export const SearchSidebarHeader = ({
       <OverlayTrigger
         placement="top"
         overlay={
-          (
-            <Tooltip className="tooltip--auto">
-              Find more information about
-              {' '}
-              {displayTitle}
-              <EDSCIcon className="search-sidebar-header__portal-tooltip-icon edsc-icon-ext-link edsc-icon-fw" icon="edsc-icon-ext-link edsc-icon-fw" />
-            </Tooltip>
-          )
+          (tooltipProps) => renderTooltip({
+            children: (
+              <>
+                Find more information about
+                {' '}
+                {displayTitle}
+                <EDSCIcon className="search-sidebar-header__portal-tooltip-icon edsc-icon-ext-link edsc-icon-fw" icon="edsc-icon-ext-link edsc-icon-fw" />
+              </>
+            ),
+            className: 'tooltip--auto',
+            ...tooltipProps
+          })
         }
       >
         <a
@@ -157,21 +162,9 @@ export const SearchSidebarHeader = ({
 
         </div>
       </section>
-      <SearchFormContainer />
+      <SearchForm />
     </header>
   )
-}
-
-SearchSidebarHeader.propTypes = {
-  location: locationPropType.isRequired,
-  portal: PropTypes.shape({
-    title: PropTypes.shape({
-      primary: PropTypes.string,
-      secondary: PropTypes.string
-    }),
-    moreInfoUrl: PropTypes.string,
-    portalId: PropTypes.string.isRequired
-  }).isRequired
 }
 
 export default SearchSidebarHeader

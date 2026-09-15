@@ -1,0 +1,489 @@
+import React from 'react'
+import { screen } from '@testing-library/react'
+
+import setupTest from '../../../../../../vitestConfigs/setupTest'
+import getByTextWithMarkup from '../../../../../../vitestConfigs/getByTextWithMarkup'
+
+import GranuleResultsBody from '../GranuleResultsBody'
+import GranuleResultsList from '../GranuleResultsList'
+import GranuleResultsTable from '../GranuleResultsTable'
+import Spinner from '../../Spinner/Spinner'
+
+vi.mock('../GranuleResultsList', () => ({ default: vi.fn(() => <div />) }))
+vi.mock('../GranuleResultsTable', () => ({ default: vi.fn(() => <div />) }))
+vi.mock('../../Spinner/Spinner', () => ({ default: vi.fn(() => <div />) }))
+
+const setup = setupTest({
+  Component: GranuleResultsBody,
+  defaultProps: {
+    collectionId: 'collectionId',
+    directDistributionInformation: {},
+    isOpenSearch: false,
+    loadNextPage: vi.fn(),
+    location: { search: 'value' },
+    panelView: 'list'
+  },
+  defaultZustandState: {
+    granules: {
+      granules: {
+        count: 2,
+        isLoaded: true,
+        isLoading: false,
+        loadTime: 1123,
+        items: [
+          {
+            id: 'two',
+            browseFlag: true,
+            onlineAccessFlag: true,
+            dayNightFlag: 'DAY',
+            formattedTemporal: [
+              '2019-04-28 00:00:00',
+              '2019-04-29 23:59:59'
+            ],
+            thumbnail: '/fake/path/image.jpg',
+            title: 'Granule title one',
+            links: [
+              {
+                rel: 'http://linkrel/data#',
+                title: 'linktitle',
+                href: 'http://linkhref'
+              }
+            ]
+          },
+          {
+            id: 'two',
+            browseFlag: true,
+            onlineAccessFlag: true,
+            dayNightFlag: 'DAY',
+            formattedTemporal: [
+              '2019-04-28 00:00:00',
+              '2019-04-29 23:59:59'
+            ],
+            thumbnail: '/fake/path/image.jpg',
+            title: 'Granule title two',
+            links: [
+              {
+                rel: 'http://linkrel/data#',
+                title: 'linktitle',
+                href: 'http://linkhref'
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+})
+
+describe('GranuleResultsBody component', () => {
+  test('renders itself correctly', () => {
+    setup()
+
+    expect(GranuleResultsList).toHaveBeenCalledTimes(1)
+    expect(GranuleResultsList).toHaveBeenCalledWith({
+      collectionId: 'collectionId',
+      directDistributionInformation: {},
+      excludedGranuleIds: [],
+      granules: [{
+        browseFlag: true,
+        browseUrl: undefined,
+        dataLinks: [{
+          href: 'http://linkhref',
+          rel: 'http://linkrel/data#',
+          title: 'linktitle'
+        }],
+        dayNightFlag: 'DAY',
+        formattedTemporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+        granuleThumbnail: '/fake/path/image.jpg',
+        handleClick: expect.any(Function),
+        handleMouseEnter: expect.any(Function),
+        handleMouseLeave: expect.any(Function),
+        id: 'two',
+        isCollectionInProject: false,
+        isFocusedGranule: false,
+        isHoveredGranule: false,
+        isInProject: false,
+        isOpenSearch: undefined,
+        links: [{
+          href: 'http://linkhref',
+          rel: 'http://linkrel/data#',
+          title: 'linktitle'
+        }],
+        onlineAccessFlag: true,
+        original: {
+          browseFlag: true,
+          dayNightFlag: 'DAY',
+          formattedTemporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+          id: 'two',
+          links: [{
+            href: 'http://linkhref',
+            rel: 'http://linkrel/data#',
+            title: 'linktitle'
+          }],
+          onlineAccessFlag: true,
+          thumbnail: '/fake/path/image.jpg',
+          title: 'Granule title one'
+        },
+        s3Links: [],
+        temporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+        thumbnail: '/fake/path/image.jpg',
+        timeEnd: '2019-04-29 23:59:59',
+        timeStart: '2019-04-28 00:00:00',
+        title: 'Granule title one'
+      }, {
+        browseFlag: true,
+        browseUrl: undefined,
+        dataLinks: [{
+          href: 'http://linkhref',
+          rel: 'http://linkrel/data#',
+          title: 'linktitle'
+        }],
+        dayNightFlag: 'DAY',
+        formattedTemporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+        granuleThumbnail: '/fake/path/image.jpg',
+        handleClick: expect.any(Function),
+        handleMouseEnter: expect.any(Function),
+        handleMouseLeave: expect.any(Function),
+        id: 'two',
+        isCollectionInProject: false,
+        isFocusedGranule: false,
+        isHoveredGranule: false,
+        isInProject: false,
+        isOpenSearch: undefined,
+        links: [{
+          href: 'http://linkhref',
+          rel: 'http://linkrel/data#',
+          title: 'linktitle'
+        }],
+        onlineAccessFlag: true,
+        original: {
+          browseFlag: true,
+          dayNightFlag: 'DAY',
+          formattedTemporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+          id: 'two',
+          links: [{
+            href: 'http://linkhref',
+            rel: 'http://linkrel/data#',
+            title: 'linktitle'
+          }],
+          onlineAccessFlag: true,
+          thumbnail: '/fake/path/image.jpg',
+          title: 'Granule title two'
+        },
+        s3Links: [],
+        temporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+        thumbnail: '/fake/path/image.jpg',
+        timeEnd: '2019-04-29 23:59:59',
+        timeStart: '2019-04-28 00:00:00',
+        title: 'Granule title two'
+      }],
+      isCollectionInProject: false,
+      isGranuleInProject: expect.any(Function),
+      isItemLoaded: expect.any(Function),
+      isOpenSearch: false,
+      itemCount: 2,
+      loadMoreItems: expect.any(Function),
+      readableGranuleName: [''],
+      setVisibleMiddleIndex: expect.any(Function),
+      visibleMiddleIndex: null
+    }, {})
+  })
+
+  test('renders GranuleResultsTable', () => {
+    setup({
+      overrideProps: {
+        panelView: 'table'
+      }
+    })
+
+    expect(GranuleResultsTable).toHaveBeenCalledTimes(1)
+    expect(GranuleResultsTable).toHaveBeenCalledWith({
+      collectionId: 'collectionId',
+      directDistributionInformation: {},
+      excludedGranuleIds: [],
+      granules: [{
+        browseFlag: true,
+        browseUrl: undefined,
+        dataLinks: [{
+          href: 'http://linkhref',
+          rel: 'http://linkrel/data#',
+          title: 'linktitle'
+        }],
+        dayNightFlag: 'DAY',
+        formattedTemporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+        granuleThumbnail: '/fake/path/image.jpg',
+        handleClick: expect.any(Function),
+        handleMouseEnter: expect.any(Function),
+        handleMouseLeave: expect.any(Function),
+        id: 'two',
+        isCollectionInProject: false,
+        isFocusedGranule: false,
+        isHoveredGranule: false,
+        isInProject: false,
+        isOpenSearch: undefined,
+        links: [{
+          href: 'http://linkhref',
+          rel: 'http://linkrel/data#',
+          title: 'linktitle'
+        }],
+        onlineAccessFlag: true,
+        original: {
+          browseFlag: true,
+          dayNightFlag: 'DAY',
+          formattedTemporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+          id: 'two',
+          links: [{
+            href: 'http://linkhref',
+            rel: 'http://linkrel/data#',
+            title: 'linktitle'
+          }],
+          onlineAccessFlag: true,
+          thumbnail: '/fake/path/image.jpg',
+          title: 'Granule title one'
+        },
+        s3Links: [],
+        temporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+        thumbnail: '/fake/path/image.jpg',
+        timeEnd: '2019-04-29 23:59:59',
+        timeStart: '2019-04-28 00:00:00',
+        title: 'Granule title one'
+      }, {
+        browseFlag: true,
+        browseUrl: undefined,
+        dataLinks: [{
+          href: 'http://linkhref',
+          rel: 'http://linkrel/data#',
+          title: 'linktitle'
+        }],
+        dayNightFlag: 'DAY',
+        formattedTemporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+        granuleThumbnail: '/fake/path/image.jpg',
+        handleClick: expect.any(Function),
+        handleMouseEnter: expect.any(Function),
+        handleMouseLeave: expect.any(Function),
+        id: 'two',
+        isCollectionInProject: false,
+        isFocusedGranule: false,
+        isHoveredGranule: false,
+        isInProject: false,
+        isOpenSearch: undefined,
+        links: [{
+          href: 'http://linkhref',
+          rel: 'http://linkrel/data#',
+          title: 'linktitle'
+        }],
+        onlineAccessFlag: true,
+        original: {
+          browseFlag: true,
+          dayNightFlag: 'DAY',
+          formattedTemporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+          id: 'two',
+          links: [{
+            href: 'http://linkhref',
+            rel: 'http://linkrel/data#',
+            title: 'linktitle'
+          }],
+          onlineAccessFlag: true,
+          thumbnail: '/fake/path/image.jpg',
+          title: 'Granule title two'
+        },
+        s3Links: [],
+        temporal: ['2019-04-28 00:00:00', '2019-04-29 23:59:59'],
+        thumbnail: '/fake/path/image.jpg',
+        timeEnd: '2019-04-29 23:59:59',
+        timeStart: '2019-04-28 00:00:00',
+        title: 'Granule title two'
+      }],
+      isCollectionInProject: false,
+      isGranuleInProject: expect.any(Function),
+      isItemLoaded: expect.any(Function),
+      isOpenSearch: false,
+      itemCount: 2,
+      loadMoreItems: expect.any(Function),
+      setVisibleMiddleIndex: expect.any(Function),
+      visibleMiddleIndex: null
+    }, {})
+  })
+
+  describe('when the first granules are loading', () => {
+    test('adds a dummy item to the list', () => {
+      setup({
+        overrideZustandState: {
+          granules: {
+            granules: {
+              isLoading: true,
+              isLoaded: false,
+              items: []
+            }
+          }
+        }
+      })
+
+      expect(GranuleResultsList).toHaveBeenCalledTimes(1)
+      expect(GranuleResultsList).toHaveBeenCalledWith(expect.objectContaining({
+        granules: [],
+        itemCount: 1
+      }), {})
+    })
+  })
+
+  describe('when there are more pages to be loaded', () => {
+    test('adds a dummy item to the list', () => {
+      setup({
+        overrideZustandState: {
+          granules: {
+            granules: {
+              count: 10
+            }
+          }
+        }
+      })
+
+      expect(GranuleResultsList).toHaveBeenCalledTimes(1)
+      expect(GranuleResultsList).toHaveBeenCalledWith(expect.objectContaining({
+        itemCount: 3
+      }), {})
+    })
+  })
+
+  describe('when all collections are loaded', () => {
+    test('does not add a dummy item ', () => {
+      setup()
+
+      expect(GranuleResultsList).toHaveBeenCalledTimes(1)
+      expect(GranuleResultsList).toHaveBeenCalledWith(expect.objectContaining({
+        itemCount: 2
+      }), {})
+    })
+  })
+
+  describe('search time', () => {
+    test('renders the correct search time', () => {
+      setup()
+
+      expect(getByTextWithMarkup('Search Time: 1.1s')).toBeInTheDocument()
+    })
+
+    test('renders a spinner when the page is loading', () => {
+      setup({
+        overrideZustandState: {
+          granules: {
+            granules: {
+              isLoading: true,
+              isLoaded: false
+            }
+          }
+        }
+      })
+
+      expect(Spinner).toHaveBeenCalledTimes(1)
+      expect(Spinner).toHaveBeenCalledWith({
+        type: 'dots',
+        size: 'x-tiny'
+      }, {})
+
+      expect(screen.getByText('Search Time:')).toBeInTheDocument()
+    })
+  })
+
+  describe('isItemLoaded', () => {
+    describe('when there is no next page', () => {
+      test('returns true', () => {
+        setup()
+
+        const result = GranuleResultsList.mock.calls[0][0].isItemLoaded(1)
+        expect(result).toEqual(true)
+      })
+    })
+
+    describe('when there is a next page and the item is not loaded', () => {
+      test('returns false', () => {
+        setup({
+          overrideZustandState: {
+            granules: {
+              granules: {
+                count: 5
+              }
+            }
+          }
+        })
+
+        const result = GranuleResultsList.mock.calls[0][0].isItemLoaded(2)
+        expect(result).toEqual(false)
+      })
+    })
+  })
+
+  describe('isGranuleInProject', () => {
+    test('when the granule is added to the project', () => {
+      setup({
+        overrideZustandState: {
+          project: {
+            collections: {
+              allIds: ['collectionId'],
+              byId: {
+                collectionId: {
+                  granules: {
+                    addedGranuleIds: ['one']
+                  }
+                }
+              }
+            }
+          }
+        }
+      })
+
+      const one = GranuleResultsList.mock.calls[0][0].isGranuleInProject('one')
+      expect(one).toEqual(true)
+
+      const two = GranuleResultsList.mock.calls[0][0].isGranuleInProject('two')
+      expect(two).toEqual(false)
+    })
+
+    test('when all granules are added to the project', () => {
+      setup({
+        overrideZustandState: {
+          project: {
+            collections: {
+              allIds: ['collectionId'],
+              byId: {
+                collectionId: {}
+              }
+            }
+          }
+        }
+      })
+
+      const one = GranuleResultsList.mock.calls[0][0].isGranuleInProject('one')
+      expect(one).toEqual(true)
+
+      const two = GranuleResultsList.mock.calls[0][0].isGranuleInProject('two')
+      expect(two).toEqual(true)
+    })
+
+    test('when granules are removed from the project', () => {
+      setup({
+        overrideZustandState: {
+          project: {
+            collections: {
+              allIds: ['collectionId'],
+              byId: {
+                collectionId: {
+                  granules: {
+                    removedGranuleIds: ['one']
+                  }
+                }
+              }
+            }
+          }
+        }
+      })
+
+      const one = GranuleResultsList.mock.calls[0][0].isGranuleInProject('one')
+      expect(one).toEqual(false)
+
+      const two = GranuleResultsList.mock.calls[0][0].isGranuleInProject('two')
+      expect(two).toEqual(true)
+    })
+  })
+})

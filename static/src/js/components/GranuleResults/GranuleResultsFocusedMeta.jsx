@@ -1,40 +1,47 @@
 import React, { useState } from 'react'
-import PropTypes from 'prop-types'
 import classNames from 'classnames'
+
 import {
-  FaChevronLeft,
-  FaChevronRight,
-  FaDownload,
-  FaExpand,
-  FaList
-} from 'react-icons/fa'
-import {
-  ListGroup,
-  OverlayTrigger,
-  Popover,
-  Tooltip
-} from 'react-bootstrap'
+  ArrowChevronRight,
+  ArrowChevronLeft,
+  Download,
+  Expand,
+  List
+} from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+
+import ListGroup from 'react-bootstrap/ListGroup'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
+import Popover from 'react-bootstrap/Popover'
 
 import { getEnvironmentConfig } from '../../../../../sharedUtils/config'
+import { isLinkBrowse } from '../../../../../sharedUtils/isLinkBrowse'
+
+import renderTooltip from '../../util/renderTooltip'
+import { metricsBrowseGranuleImage } from '../../util/metrics/metricsBrowseGranuleImage'
 
 import Button from '../Button/Button'
 import EDSCModalContainer from '../../containers/EDSCModalContainer/EDSCModalContainer'
 import EDSCImage from '../EDSCImage/EDSCImage'
 
+import useEdscStore from '../../zustand/useEdscStore'
+import { getGranuleId } from '../../zustand/selectors/granule'
+import { getGranulesById } from '../../zustand/selectors/granules'
+
 import './GranuleResultsFocusedMeta.scss'
 
 /**
  * Renders GranuleResultsFocusedMeta.
- * @param {Object} props - The props passed into the component.
- * @param {String} props.earthdataEnvironment - The current Earthdata environment.
- * @param {String} props.focusedGranuleMetadata - The metadata for any currently focused granule.
- * @param {String} props.focusedGranuleId - The id for the focused granule.
  */
-const GranuleResultsFocusedMeta = ({
-  focusedGranuleMetadata,
-  focusedGranuleId
-}) => {
-  const { title, links = [], browseFlag } = focusedGranuleMetadata
+const GranuleResultsFocusedMeta = () => {
+  const focusedGranuleId = useEdscStore(getGranuleId)
+  const granulesById = useEdscStore(getGranulesById)
+  const focusedGranuleMetadata = granulesById[focusedGranuleId] || {}
+
+  const {
+    title,
+    links = [],
+    browseFlag
+  } = focusedGranuleMetadata
   const [activeBrowseImageIndex, setActiveBrowseImageIndex] = useState(0)
   const [activeModalBrowseImageIndex, setActiveModalBrowseImageIndex] = useState(0)
   const [browseImageModalIsActive, setBrowseImageModalIsActive] = useState(false)
@@ -45,8 +52,7 @@ const GranuleResultsFocusedMeta = ({
 
   // Filter the links on the granule to find all browse links with an http/https protocol. This filters
   // any S3 browse links which cause protocol issues.
-  const testProtocol = /^(http|https):\/\//
-  const browseThumbnails = links.filter(({ rel, href }) => rel.includes('/browse#') && testProtocol.test(href))
+  const browseThumbnails = links.filter((link) => isLinkBrowse(link))
 
   const onClickPreviousButton = () => {
     if (activeBrowseImageIndex > 0) {
@@ -102,14 +108,27 @@ const GranuleResultsFocusedMeta = ({
     setShowTitleTooltip(show)
   }
 
-  const browseImageSelectionButton = (
-    <Button
-      className="granule-results-focused-meta__image-nav-button"
-      type="button"
-      label="View available browse imagery"
-      icon={FaList}
-    />
-  )
+  const browseImageSelectionButton = (listProps) => {
+    const { modalIsOpen } = listProps
+
+    return (
+      <Button
+        className="granule-results-focused-meta__image-nav-button"
+        type="button"
+        label="View available browse imagery"
+        onClick={
+          () => {
+            metricsBrowseGranuleImage({
+              modalOpen: modalIsOpen,
+              granuleId: focusedGranuleId,
+              value: 'View List'
+            })
+          }
+        }
+        icon={List}
+      />
+    )
+  }
 
   const browseImageSelectionPopover = (
     <OverlayTrigger
@@ -152,7 +171,7 @@ const GranuleResultsFocusedMeta = ({
         )
       }
     >
-      {browseImageSelectionButton}
+      {browseImageSelectionButton({ modalIsOpen: false })}
     </OverlayTrigger>
   )
 
@@ -197,7 +216,7 @@ const GranuleResultsFocusedMeta = ({
         )
       }
     >
-      {browseImageSelectionButton}
+      {browseImageSelectionButton({ modalIsOpen: true })}
     </OverlayTrigger>
   )
 
@@ -226,50 +245,77 @@ const GranuleResultsFocusedMeta = ({
         show={!hideTitleTooltip && showTitleTooltip}
         onToggle={onTitleTooltipToggle}
         overlay={
-          (
-            <Tooltip
-              id="tooltip__granule-results-actions__download-all-button"
-              className="tooltip--nowrap"
-              data-testid="granule-results-focused-meta-tooltip"
-            >
-              {activeTitle}
-            </Tooltip>
-          )
+          (tooltipProps) => renderTooltip({
+            children: activeTitle,
+            className: 'tooltip--nowrap',
+            'data-testid': 'granule-results-focused-meta-tooltip',
+            id: 'tooltip__granule-results-actions__download-all-button',
+            ...tooltipProps
+          })
         }
       >
         <div data-testid="granule-results-focused-meta-overlay-wrapper">
           {
-            // Focused granule id is used here to prevent a bug that surfaced with loading new focused granules.
-            // The value in the store is becoming unset momentarily when focusing new granules.
-            (focusedGranuleId && !!browseThumbnails.length && browseFlag) && (
+            (!!browseThumbnails.length && browseFlag) && (
               <div className="granule-results-focused-meta" data-testid="granule-results-focused-meta">
                 <div className="granule-results-focused-meta__secondary-actions">
                   <Button
                     className="granule-results-focused-meta__image-nav-button"
                     type="button"
-                    icon={FaExpand}
+                    icon={Expand}
                     label="Expand browse image"
-                    onClick={() => onModalOpen(true)}
+                    onClick={
+                      () => {
+                        onModalOpen(true)
+
+                        metricsBrowseGranuleImage({
+                          modalOpen: false,
+                          granuleId: focusedGranuleId,
+                          value: 'Expand'
+                        })
+                      }
+                    }
                   />
                 </div>
                 {
+                  // TODO can we consolidate and reuse the logic between the expanded modal and the panel?
                   (browseThumbnails.length && browseThumbnails.length > 1) && (
                     <nav className="granule-results-focused-meta__primary-actions">
                       <div className="granule-results-focused-meta__image-nav-primary">
                         <Button
                           className="granule-results-focused-meta__image-nav-button"
                           type="button"
-                          icon={FaChevronLeft}
+                          icon={ArrowChevronLeft}
                           label="Previous browse image thumbnail"
-                          onClick={() => onClickPreviousButton()}
+                          onClick={
+                            () => {
+                              onClickPreviousButton()
+
+                              metricsBrowseGranuleImage({
+                                modalOpen: false,
+                                granuleId: focusedGranuleId,
+                                value: 'Previous'
+                              })
+                            }
+                          }
                           data-testid="granule-results-focused-meta-nav-previous"
                         />
                         <Button
                           className="granule-results-focused-meta__image-nav-button"
                           type="button"
-                          icon={FaChevronRight}
+                          icon={ArrowChevronRight}
                           label="Next browse image thumbnail"
-                          onClick={() => onClickNextButton()}
+                          onClick={
+                            () => {
+                              onClickNextButton()
+
+                              metricsBrowseGranuleImage({
+                                modalOpen: false,
+                                granuleId: focusedGranuleId,
+                                value: 'Next'
+                              })
+                            }
+                          }
                         />
                       </div>
                       <div className="granule-results-focused-meta__image-nav-secondary">
@@ -293,19 +339,19 @@ const GranuleResultsFocusedMeta = ({
                           'granule-results-focused-meta__thumb--is-active': activeBrowseImageIndex === i
                         }
                       ])
-                      const imgSrc = `${getEnvironmentConfig().apiHost}/scale/granules/${focusedGranuleId}?h=175&w=175&imageSrc=${href}`
+                      const imgSrc = `${getEnvironmentConfig().apiHost}/scale?h=175&w=175&imageSrc=${encodeURIComponent(href)}`
+                      const key = `thumb-${href}-${i}`
 
                       return (
                         href && (
                           <EDSCImage
-                            key={href}
+                            key={key}
                             className={thumbnailClassName}
-                            dataTestId="granule-results-focused-meta-image"
                             src={imgSrc}
                             alt={description || `Browse image for ${title}`}
                             width={175}
                             height={175}
-                            isBase64Image
+                            resizeImage
                           />
                         )
                       )
@@ -341,19 +387,19 @@ const GranuleResultsFocusedMeta = ({
                       }
                     ])
 
-                    const modalImage = `${getEnvironmentConfig().apiHost}/scale/granules/${focusedGranuleId}?h=175&w=175&imageSrc=${href}`
+                    const modalImage = `${getEnvironmentConfig().apiHost}/scale?h=538&w=538&imageSrc=${encodeURIComponent(href)}`
+                    const key = `modal-${href}-${i}`
 
                     return (
                       href && (
                         <EDSCImage
-                          key={href}
-                          dataTestId="granule-results-focused-meta-modal-image"
+                          key={key}
                           className={thumbnailClassName}
                           src={modalImage}
                           alt={description || `Browse image for ${title}`}
-                          width={528}
-                          height={528}
-                          isBase64Image
+                          width={538}
+                          height={538}
+                          resizeImage
                         />
                       )
                     )
@@ -361,37 +407,72 @@ const GranuleResultsFocusedMeta = ({
                 }
               </div>
               {
-                (browseThumbnails.length && browseThumbnails.length > 1) && (
+                (browseThumbnails.length) && (
                   <nav className="granule-results-focused-meta__modal-primary-actions">
-                    <div className="granule-results-focused-meta__modal-nav-primary">
-                      <Button
-                        className="granule-results-focused-meta__image-nav-button"
-                        type="button"
-                        icon={FaChevronLeft}
-                        label="Previous browse image"
-                        onClick={() => onClickModalPreviousButton()}
-                      />
-                      <Button
-                        className="granule-results-focused-meta__image-nav-button"
-                        type="button"
-                        icon={FaChevronRight}
-                        label="Next browse image"
-                        onClick={() => onClickModalNextButton()}
-                      />
-                      <span className="granule-results-focused-meta__pagination">
-                        {`${activeModalBrowseImageIndex + 1}/${browseThumbnails.length}`}
-                      </span>
-                      {modalBrowseImageSelectionPopover}
-                    </div>
+                    {(browseThumbnails.length === 1) && (<div className="granule-results-focused-meta__modal-nav-primary" />)}
+                    {
+                      (browseThumbnails.length > 1) && (
+                        <div className="granule-results-focused-meta__modal-nav-primary">
+                          <Button
+                            className="granule-results-focused-meta__image-nav-button"
+                            type="button"
+                            icon={ArrowChevronLeft}
+                            label="Previous browse image"
+                            onClick={
+                              () => {
+                                onClickModalPreviousButton()
+
+                                metricsBrowseGranuleImage({
+                                  modalOpen: true,
+                                  granuleId: focusedGranuleId,
+                                  value: 'Previous'
+                                })
+                              }
+                            }
+                          />
+                          <Button
+                            className="granule-results-focused-meta__image-nav-button"
+                            type="button"
+                            icon={ArrowChevronRight}
+                            label="Next browse image"
+                            onClick={
+                              () => {
+                                onClickModalNextButton()
+
+                                metricsBrowseGranuleImage({
+                                  modalOpen: true,
+                                  granuleId: focusedGranuleId,
+                                  value: 'Next'
+                                })
+                              }
+                            }
+                          />
+                          <span className="granule-results-focused-meta__pagination">
+                            {`${activeModalBrowseImageIndex + 1}/${browseThumbnails.length}`}
+                          </span>
+                          {modalBrowseImageSelectionPopover}
+                        </div>
+                      )
+                    }
+
                     {
                       activeModalHref && (
                         <div className="granule-results-focused-meta__modal-nav-secondary">
                           <Button
                             className="granule-results-focused-meta__image-nav-button"
                             type="button"
-                            target="__blank"
+                            target="_blank"
+                            onClick={
+                              () => {
+                                metricsBrowseGranuleImage({
+                                  modalOpen: true,
+                                  granuleId: focusedGranuleId,
+                                  value: 'Download'
+                                })
+                              }
+                            }
                             rel="noopener noreferrer"
-                            icon={FaDownload}
+                            icon={Download}
                             label="Download browse image"
                             href={activeModalHref}
                           />
@@ -407,22 +488,6 @@ const GranuleResultsFocusedMeta = ({
       />
     </>
   )
-}
-
-GranuleResultsFocusedMeta.propTypes = {
-  focusedGranuleId: PropTypes.string.isRequired,
-  focusedGranuleMetadata: PropTypes.shape({
-    browseFlag: PropTypes.bool,
-    conceptId: PropTypes.string,
-    links: PropTypes.arrayOf(
-      PropTypes.shape({
-        href: PropTypes.string.isRequired,
-        inherited: PropTypes.bool,
-        rel: PropTypes.string.isRequired
-      })
-    ),
-    title: PropTypes.string
-  }).isRequired
 }
 
 export default GranuleResultsFocusedMeta

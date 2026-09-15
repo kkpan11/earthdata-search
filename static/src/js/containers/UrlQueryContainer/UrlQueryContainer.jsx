@@ -1,136 +1,192 @@
-import { PureComponent } from 'react'
-import { connect } from 'react-redux'
+import { useEffect, useMemo } from 'react'
 import PropTypes from 'prop-types'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useMutation } from '@apollo/client'
 
-import actions from '../../actions/index'
+import { changePath } from '../../util/url/changePath'
+import { changeUrl } from '../../util/url/changeUrl'
+import { encodeUrlQuery, urlPathsWithoutUrlParams } from '../../util/url/url'
+import isPath from '../../util/isPath'
 
-import { encodeUrlQuery } from '../../util/url/url'
-import { locationPropType } from '../../util/propTypes/location'
+import useEdscStore from '../../zustand/useEdscStore'
+import { getCollectionsQuery, getSelectedRegionQuery } from '../../zustand/selectors/query'
+import { getEarthdataEnvironment } from '../../zustand/selectors/earthdataEnvironment'
+import { getCollectionId, getCollectionsMetadata } from '../../zustand/selectors/collection'
+import { getGranuleId } from '../../zustand/selectors/granule'
+import { getMapPreferences, getCollectionSortPreference } from '../../zustand/selectors/user'
 
-import { getCollectionsMetadata } from '../../selectors/collectionMetadata'
-import { getEarthdataEnvironment } from '../../selectors/earthdataEnvironment'
-import { getFocusedCollectionId } from '../../selectors/focusedCollection'
-import { getFocusedGranuleId } from '../../selectors/focusedGranule'
-import { getMapPreferences } from '../../selectors/preferences'
+import CREATE_PROJECT from '../../operations/mutations/createProject'
+import UPDATE_PROJECT from '../../operations/mutations/updateProject'
 
-export const mapDispatchToProps = (dispatch) => ({
-  onChangePath:
-    (path) => dispatch(actions.changePath(path)),
-  onChangeUrl:
-    (query) => dispatch(actions.changeUrl(query))
-})
+import { routes } from '../../constants/routes'
 
-export const mapStateToProps = (state) => ({
-  advancedSearch: state.advancedSearch,
-  autocompleteSelected: state.autocomplete.selected,
-  boundingBoxSearch: state.query.collection.spatial.boundingBox,
-  circleSearch: state.query.collection.spatial.circle,
-  collectionsMetadata: getCollectionsMetadata(state),
-  earthdataEnvironment: getEarthdataEnvironment(state),
-  featureFacets: state.facetsParams.feature,
-  focusedCollection: getFocusedCollectionId(state),
-  focusedGranule: getFocusedGranuleId(state),
-  granuleDataFormatFacets: state.facetsParams.cmr.granule_data_format_h,
-  hasGranulesOrCwic: state.query.collection.hasGranulesOrCwic,
-  horizontalDataResolutionRangeFacets: state.facetsParams.cmr.horizontal_data_resolution_range,
-  latency: state.facetsParams.cmr.latency,
-  instrumentFacets: state.facetsParams.cmr.instrument_h,
-  keywordSearch: state.query.collection.keyword,
-  lineSearch: state.query.collection.spatial.line,
-  location: state.router.location,
-  map: state.map,
-  mapPreferences: getMapPreferences(state),
-  onlyEosdisCollections: state.query.collection.onlyEosdisCollections,
-  organizationFacets: state.facetsParams.cmr.data_center_h,
-  overrideTemporalSearch: state.query.collection.overrideTemporal,
-  pathname: state.router.location.pathname,
-  platformFacets: state.facetsParams.cmr.platforms_h,
-  portalId: state.portal.portalId,
-  pointSearch: state.query.collection.spatial.point,
-  polygonSearch: state.query.collection.spatial.polygon,
-  processingLevelFacets: state.facetsParams.cmr.processing_level_id_h,
-  project: state.project,
-  projectFacets: state.facetsParams.cmr.project_h,
-  query: state.query,
-  scienceKeywordFacets: state.facetsParams.cmr.science_keywords_h,
-  selectedFeatures: state.shapefile.selectedFeatures,
-  shapefileId: state.shapefile.shapefileId,
-  tagKey: state.query.collection.tagKey,
-  temporalSearch: state.query.collection.temporal,
-  twoDCoordinateSystemNameFacets: state.facetsParams.cmr.two_d_coordinate_system_name,
-  timelineQuery: state.timeline.query
-})
+const UrlQueryContainer = ({
+  children
+}) => {
+  const location = useLocation()
+  const {
+    pathname,
+    search
+  } = location
 
-export class UrlQueryContainer extends PureComponent {
-  constructor(props) {
-    super(props)
+  const navigate = useNavigate()
 
-    this.state = {
-      currentPath: ''
+  const {
+    savedProject,
+    setProject
+  } = useEdscStore((state) => ({
+    savedProject: state.savedProject.project,
+    setProject: state.savedProject.setProject
+  }))
+
+  const zustandValues = useEdscStore((state) => ({
+    collectionsMetadata: getCollectionsMetadata(state),
+    collectionsQuery: getCollectionsQuery(state),
+    collectionSortPreference: getCollectionSortPreference(state),
+    earthdataEnvironment: getEarthdataEnvironment(state),
+    featureFacets: state.facetParams.featureFacets,
+    focusedCollection: getCollectionId(state),
+    focusedGranule: getGranuleId(state),
+    granuleDataFormatFacets: state.facetParams.cmrFacets.granule_data_format_h,
+    horizontalDataResolutionRangeFacets:
+      state.facetParams.cmrFacets.horizontal_data_resolution_range,
+    instrumentFacets: state.facetParams.cmrFacets.instrument_h,
+    latency: state.facetParams.cmrFacets.latency,
+    mapPreferences: getMapPreferences(state),
+    mapView: state.map.mapView,
+    organizationFacets: state.facetParams.cmrFacets.data_center_h,
+    platformFacets: state.facetParams.cmrFacets.platforms_h,
+    portalId: state.portal.portalId,
+    processingLevelFacets: state.facetParams.cmrFacets.processing_level_id_h,
+    projectCollections: state.project.collections,
+    projectFacets: state.facetParams.cmrFacets.project_h,
+    scienceKeywordFacets: state.facetParams.cmrFacets.science_keywords_h,
+    selectedFeatures: state.shapefile.selectedFeatures,
+    selectedRegion: getSelectedRegionQuery(state),
+    shapefileId: state.shapefile.shapefileId,
+    // TODO Add this back during EDSC-4569
+    // timelineQuery: state.timeline.query,
+    twoDCoordinateSystemNameFacets: state.facetParams.cmrFacets.two_d_coordinate_system_name
+  }))
+
+  // Encode the URL values
+  const encodedUrl = useMemo(() => (
+    encodeUrlQuery({
+      ...zustandValues,
+      pathname
+    })
+  ), [
+    pathname,
+    // Use the stringified values to ensure we only encode the values when they change
+    JSON.stringify(zustandValues)
+  ])
+
+  // When the page loads, call changePath to load the values from the URL
+  useEffect(() => {
+    // If the user is on the /projects path and there is a search string, redirect to /project
+    if (pathname === routes.PROJECTS && search !== '') {
+      const newUrl = `${routes.PROJECT}${search}`
+
+      // React-router's navigate doesn't seem to work here, so using window.location.replace
+      window.location.replace(newUrl)
+
+      return
     }
-  }
 
-  componentDidMount() {
-    const {
-      onChangePath,
-      location
-    } = this.props
+    changePath([pathname, search].filter(Boolean).join(''))
+  }, [])
 
-    const {
-      pathname,
-      search
-    } = location
+  const [createProjectMutation] = useMutation(CREATE_PROJECT)
+  const [updateProjectMutation] = useMutation(UPDATE_PROJECT)
 
-    onChangePath([pathname, search].filter(Boolean).join(''))
-  }
+  // When the Zustand state changes, encode the values and call changeUrl to update the URL
+  useEffect(() => {
+    if (encodedUrl !== '') {
+      const {
+        id: projectId,
+        path: projectPath
+      } = savedProject
 
-  UNSAFE_componentWillReceiveProps(nextProps) {
-    const {
-      location: nextLocation
-    } = nextProps
+      const shouldSaveProject = !isPath(encodedUrl, urlPathsWithoutUrlParams)
+      // We don't want projects to use the `/projects` path, but we don't want to add it to
+      // `urlPathsWithoutUrlParams` because that would affect other functionality
+      && !isPath(encodedUrl, [routes.PROJECTS])
 
-    const {
-      onChangeUrl,
-      location
-    } = this.props
+      if (projectId && shouldSaveProject) {
+        const updatedNextUrl = encodedUrl.replace('/projects?', '/project?')
 
-    const { search } = location
-    const { currentPath } = this.state
+        if (projectPath !== encodedUrl) {
+          // If there is a projectId call updateProjectMutation
+          updateProjectMutation({
+            variables: {
+              obfuscatedId: projectId,
+              path: updatedNextUrl
+            },
+            onCompleted: (data) => {
+              const { updateProject } = data
+              const {
+                name,
+                obfuscatedId,
+                path
+              } = updateProject
 
-    const { search: nextSearch } = nextLocation
+              setProject({
+                id: obfuscatedId,
+                name,
+                path
+              })
 
-    // The only time the search prop changes is after the URL has been updated
-    // So we only need to worry about encoding the query and updating the URL
-    // if the previous search and next search are the same
-    if (
-      search === nextSearch
-    ) {
-      const nextPath = encodeUrlQuery(nextProps)
-      if (currentPath !== nextPath) {
-        this.setState({
-          currentPath: nextPath
-        })
+              // Update the URL with the new projectId
+              const newUrl = `${updatedNextUrl.split('?')[0]}?projectId=${obfuscatedId}`
 
-        if (nextPath !== '') {
-          onChangeUrl(nextPath)
+              navigate(newUrl, { replace: true })
+            }
+          })
+        } else {
+          const newUrl = `${updatedNextUrl.split('?')[0]}?projectId=${projectId}`
+
+          navigate(newUrl, { replace: true })
         }
+      } else if (encodedUrl.length > 2000 && shouldSaveProject) {
+        // If there is more than 2000 characters in the URL, call createProjectMutation
+        createProjectMutation({
+          variables: {
+            path: encodedUrl
+          },
+          onCompleted: (data) => {
+            const { createProject } = data
+            const {
+              name,
+              obfuscatedId,
+              path
+            } = createProject
+
+            setProject({
+              id: obfuscatedId,
+              name,
+              path
+            })
+
+            // If the projectId has changed, update the URL
+            if (projectId !== obfuscatedId) {
+              const newUrl = `${encodedUrl.split('?')[0]}?projectId=${obfuscatedId}`
+
+              navigate(newUrl, { replace: true })
+            }
+          }
+        })
+      } else {
+        // Else call changeUrl to update the URL values
+        changeUrl(encodedUrl)
       }
     }
-  }
+  }, [encodedUrl])
 
-  render() {
-    const { children } = this.props
-
-    return children
-  }
+  return children
 }
 
 UrlQueryContainer.propTypes = {
-  children: PropTypes.node.isRequired,
-  location: locationPropType.isRequired,
-  onChangePath: PropTypes.func.isRequired,
-  onChangeUrl: PropTypes.func.isRequired,
-  project: PropTypes.shape({}).isRequired
+  children: PropTypes.node.isRequired
 }
 
-export default connect(mapStateToProps, mapDispatchToProps)(UrlQueryContainer)
+export default UrlQueryContainer

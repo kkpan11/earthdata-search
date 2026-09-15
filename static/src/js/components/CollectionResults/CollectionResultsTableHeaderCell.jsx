@@ -1,30 +1,33 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import {
-  FaMinus,
-  FaPlus,
-  FaInfoCircle
-} from 'react-icons/fa'
+import { Plus, Minus } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+import { AlertInformation } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
 
 import Button from '../Button/Button'
 import PortalFeatureContainer from '../../containers/PortalFeatureContainer/PortalFeatureContainer'
+import useEdscStore from '../../zustand/useEdscStore'
+import { metricsAddCollectionToProject } from '../../util/metrics/metricsAddCollectionToProject'
 
 /**
  * Renders CollectionResultsTableHeaderCell.
  * @param {Object} props - The props passed into the component from react-table.
  */
 const CollectionResultsTableHeaderCell = (props) => {
-  const { column, cell, row } = props
-  const { customProps } = column
+  const {
+    addProjectCollection,
+    removeProjectCollection,
+    viewCollectionDetails,
+    viewCollectionGranules
+  } = useEdscStore((state) => ({
+    addProjectCollection: state.project.addProjectCollection,
+    removeProjectCollection: state.project.removeProjectCollection,
+    viewCollectionDetails: state.collection.viewCollectionDetails,
+    viewCollectionGranules: state.collection.viewCollectionGranules
+  }))
+
+  const { cell, row } = props
   const { original: rowProps } = row
   const { collectionId, isCollectionInProject } = rowProps
-
-  const {
-    onViewCollectionGranules,
-    onAddProjectCollection,
-    onRemoveCollectionFromProject,
-    onViewCollectionDetails
-  } = customProps
 
   const { value } = cell
 
@@ -37,7 +40,7 @@ const CollectionResultsTableHeaderCell = (props) => {
         title={value}
         onClick={
           (event) => {
-            onViewCollectionGranules(collectionId)
+            viewCollectionGranules(collectionId)
             event.stopPropagation()
           }
         }
@@ -49,13 +52,14 @@ const CollectionResultsTableHeaderCell = (props) => {
       <div className="collection-results-table__collection-actions">
         <Button
           className="collection-results-table__collection-action collection-results-table__collection-action--info"
-          icon={FaInfoCircle}
+          icon={AlertInformation}
+          iconSize="48"
           variant="naked"
           label="View collection details"
           title="View collection details"
           onClick={
             (event) => {
-              onViewCollectionDetails(collectionId)
+              viewCollectionDetails(collectionId)
               event.stopPropagation()
             }
           }
@@ -66,13 +70,20 @@ const CollectionResultsTableHeaderCell = (props) => {
               ? (
                 <Button
                   className="collection-results-table__collection-action collection-results-table__collection-action--add"
-                  icon={FaPlus}
+                  icon={Plus}
                   variant="naked"
                   label="Add collection to the current project"
                   title="Add collection to the current project"
                   onClick={
                     (event) => {
-                      onAddProjectCollection(collectionId)
+                      addProjectCollection(collectionId)
+
+                      metricsAddCollectionToProject({
+                        collectionConceptId: collectionId,
+                        view: 'table',
+                        page: 'collections'
+                      })
+
                       event.stopPropagation()
                     }
                   }
@@ -80,13 +91,14 @@ const CollectionResultsTableHeaderCell = (props) => {
               ) : (
                 <Button
                   className="collection-results-table__collection-action collection-results-table__collection-action--remove"
-                  icon={FaMinus}
+                  icon={Minus}
                   variant="naked"
                   label="Remove collection from the current project"
                   title="Remove collection from the current project"
                   onClick={
                     (event) => {
-                      onRemoveCollectionFromProject(collectionId)
+                      removeProjectCollection(collectionId)
+
                       event.stopPropagation()
                     }
                   }
@@ -102,14 +114,6 @@ const CollectionResultsTableHeaderCell = (props) => {
 CollectionResultsTableHeaderCell.propTypes = {
   cell: PropTypes.shape({
     value: PropTypes.string
-  }).isRequired,
-  column: PropTypes.shape({
-    customProps: PropTypes.shape({
-      onViewCollectionGranules: PropTypes.func,
-      onAddProjectCollection: PropTypes.func,
-      onRemoveCollectionFromProject: PropTypes.func,
-      onViewCollectionDetails: PropTypes.func
-    })
   }).isRequired,
   row: PropTypes.shape({
     original: PropTypes.shape({

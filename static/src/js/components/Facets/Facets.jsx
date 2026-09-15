@@ -1,37 +1,45 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 import { camelCase } from 'lodash-es'
 
+import { FaMap } from 'react-icons/fa'
+import { CloudFill, Settings } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 import { changeFeatureFacet, changeCmrFacet } from '../../util/facets'
 
 import FacetsGroup from './FacetsGroup'
 
+import useEdscStore from '../../zustand/useEdscStore'
+
 import './Facets.scss'
 
-const Facets = (props) => {
-  const {
-    facetsById,
-    featureFacets,
-    portal,
-    onChangeCmrFacet,
-    onChangeFeatureFacet,
-    onTriggerViewAllFacets
-  } = props
+const Facets = () => {
+  const facetsById = useEdscStore((state) => state.facets.facets.byId)
 
-  const featureFacetHandler = (e, facetLinkInfo) => {
-    changeFeatureFacet(e, facetLinkInfo, onChangeFeatureFacet)
+  const {
+    featureFacets,
+    setCmrFacets,
+    setFeatureFacets,
+    portal
+  } = useEdscStore((state) => ({
+    featureFacets: state.facetParams.featureFacets,
+    setCmrFacets: state.facetParams.setCmrFacets,
+    setFeatureFacets: state.facetParams.setFeatureFacets,
+    portal: state.portal
+  }))
+
+  const featureFacetHandler = (event, facetLinkInfo) => {
+    changeFeatureFacet(event, facetLinkInfo, setFeatureFacets)
   }
 
-  const cmrFacetHandler = (e, facetLinkInfo, facet, applied) => {
-    changeCmrFacet(e, facetLinkInfo, onChangeCmrFacet, facet, applied)
+  const cmrFacetHandler = (event, facetLinkInfo) => {
+    changeCmrFacet(event, facetLinkInfo, setCmrFacets)
   }
 
   const { features = {} } = portal
   const { featureFacets: portalFeatureFacets = {} } = features
   const {
-    showMapImagery,
+    showAvailableInEarthdataCloud,
     showCustomizable,
-    showAvailableInEarthdataCloud
+    showMapImagery
   } = portalFeatureFacets
 
   const featuresFacet = {
@@ -47,6 +55,11 @@ const Facets = (props) => {
     featuresFacet.children.push({
       applied: featureFacets.availableInEarthdataCloud,
       title: 'Available in Earthdata Cloud',
+      value: 'availableInEarthdataCloud',
+      iconProps: {
+        icon: CloudFill,
+        ariaLabel: 'A cloud icon'
+      },
       type: 'feature'
     })
   }
@@ -55,6 +68,11 @@ const Facets = (props) => {
     featuresFacet.children.push({
       applied: featureFacets.customizable,
       title: 'Customizable',
+      value: 'customizable',
+      iconProps: {
+        icon: Settings,
+        ariaLabel: 'A gear icon'
+      },
       description: 'Include only collections that support customization (temporal, spatial, or variable subsetting, reformatting, etc.)',
       type: 'feature'
     })
@@ -63,6 +81,11 @@ const Facets = (props) => {
   if (showMapImagery) {
     featuresFacet.children.push({
       applied: featureFacets.mapImagery,
+      value: 'mapImagery',
+      iconProps: {
+        icon: FaMap,
+        ariaLabel: 'A map icon'
+      },
       title: 'Map Imagery',
       type: 'feature'
     })
@@ -72,6 +95,13 @@ const Facets = (props) => {
     changeHandler: cmrFacetHandler,
     children: []
   }
+
+  /**
+   * NOTE: If these facets are changed in the future (like new groups added), be sure
+   * to update the metrics helper `computeFacets` function to ensure the
+   * metrics are still being collected correctly.
+   * `computeFacets` found here: static/src/js/middleware/metrics/helpers.js
+   */
 
   const keywordsFacet = {
     ...cmrFacetDefaults,
@@ -85,7 +115,7 @@ const Facets = (props) => {
   const platformsFacet = {
     ...cmrFacetDefaults,
     title: 'Platforms',
-    autocompleteType: 'platform',
+    autocompleteType: 'platforms',
     options: {
       liftSelectedFacets: true
     }
@@ -112,7 +142,7 @@ const Facets = (props) => {
   const processingLevels = {
     ...cmrFacetDefaults,
     title: 'Processing Levels',
-    autocompleteType: 'processing_level_id'
+    autocompleteType: 'processing_level'
   }
 
   const formats = {
@@ -169,7 +199,6 @@ const Facets = (props) => {
         key={facet.title}
         facet={facet}
         facetCategory={camelCase(facet.title)}
-        onTriggerViewAllFacets={onTriggerViewAllFacets}
       />
     )
   })
@@ -179,22 +208,6 @@ const Facets = (props) => {
       {facetsGroups}
     </ul>
   )
-}
-
-Facets.propTypes = {
-  facetsById: PropTypes.shape({}).isRequired,
-  featureFacets: PropTypes.shape({
-    availableInEarthdataCloud: PropTypes.bool,
-    customizable: PropTypes.bool,
-    mapImagery: PropTypes.bool,
-    nearRealTime: PropTypes.bool
-  }).isRequired,
-  portal: PropTypes.shape({
-    features: PropTypes.shape({})
-  }).isRequired,
-  onChangeCmrFacet: PropTypes.func.isRequired,
-  onChangeFeatureFacet: PropTypes.func.isRequired,
-  onTriggerViewAllFacets: PropTypes.func.isRequired
 }
 
 export default Facets

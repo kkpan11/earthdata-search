@@ -2,6 +2,7 @@ import { determineEarthdataEnvironment } from '../util/determineEarthdataEnviron
 import { generatePolicy } from '../util/authorizer/generatePolicy'
 import { validateToken } from '../util/authorizer/validateToken'
 import { downcaseKeys } from '../util/downcaseKeys'
+import { getDbConnection } from '../util/database/getDbConnection'
 
 /**
  * Custom authorizer for API Gateway authentication
@@ -24,10 +25,25 @@ const edlAuthorizer = async (event) => {
   const tokenParts = authorizationToken.split(' ')
   const jwtToken = tokenParts[1]
 
-  const username = await validateToken(jwtToken, earthdataEnvironment)
+  const { username } = await validateToken(jwtToken, earthdataEnvironment)
 
   if (username) {
-    return generatePolicy(username, jwtToken, 'Allow', methodArn)
+    // Retrieve a connection to the database
+    const dbConnection = await getDbConnection()
+
+    const { id: userId } = await dbConnection('users').where({
+      environment: earthdataEnvironment,
+      urs_id: username
+    }).first()
+
+    return generatePolicy({
+      earthdataEnvironment,
+      effect: 'Allow',
+      jwtToken,
+      resource: methodArn,
+      userId,
+      username
+    })
   }
 
   throw new Error('Unauthorized')

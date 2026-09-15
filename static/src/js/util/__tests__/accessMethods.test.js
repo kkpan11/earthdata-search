@@ -14,7 +14,7 @@ describe('isAccessMethodValid', () => {
         }
       },
       granules: {
-        hits: 150
+        count: 150
       },
       selectedAccessMethod: 'download'
     }
@@ -34,7 +34,7 @@ describe('isAccessMethodValid', () => {
         }
       },
       granules: {
-        hits: 150
+        count: 150
       },
       selectedAccessMethod: 'download'
     }
@@ -53,7 +53,7 @@ describe('isAccessMethodValid', () => {
         }
       },
       granules: {
-        hits: 150
+        count: 150
       },
       selectedAccessMethod: 'download'
     }
@@ -73,7 +73,7 @@ describe('isAccessMethodValid', () => {
         }
       },
       granules: {
-        hits: 150
+        count: 150
       }
     }
 
@@ -101,7 +101,7 @@ describe('isAccessMethodValid', () => {
         }
       },
       granules: {
-        hits: 1
+        count: 1
       },
       selectedAccessMethod: 'download'
     }
@@ -131,7 +131,7 @@ describe('isAccessMethodValid', () => {
         }
       },
       granules: {
-        hits: 150
+        count: 150
       },
       selectedAccessMethod: 'download'
     }
@@ -151,7 +151,7 @@ describe('isAccessMethodValid', () => {
         }
       },
       granules: {
-        hits: 150
+        count: 150
       },
       selectedAccessMethod: 'download'
     }
@@ -182,7 +182,7 @@ describe('isAccessMethodValid', () => {
         }
       },
       granules: {
-        hits: 0
+        count: 0
       },
       selectedAccessMethod: 'download'
     }
@@ -215,7 +215,7 @@ describe('isAccessMethodValid', () => {
           }
         },
         granules: {
-          hits: 1
+          count: 1
         },
         selectedAccessMethod: 'download'
       }
@@ -243,7 +243,7 @@ describe('isAccessMethodValid', () => {
           }
         },
         granules: {
-          hits: 150
+          count: 150
         },
         selectedAccessMethod: 'download'
       }
@@ -277,7 +277,7 @@ describe('isAccessMethodValid', () => {
           }
         },
         granules: {
-          hits: 140
+          count: 140
         },
         selectedAccessMethod: 'download'
       }
@@ -305,7 +305,7 @@ describe('isAccessMethodValid', () => {
           }
         },
         granules: {
-          hits: 153
+          count: 153
         },
         selectedAccessMethod: 'download'
       }
@@ -324,6 +324,102 @@ describe('isAccessMethodValid', () => {
         ...validAccessMethod,
         valid: false,
         tooManyGranules: true
+      })
+    })
+  })
+
+  describe('when there are specific rules for an access method', () => {
+    describe('when selected access method is Swodlr and granule count is > 10', () => {
+      test('returns false', () => {
+        const projectCollection = {
+          accessMethods: {
+            accessMethods: {
+              swodlr: {
+                isValid: true
+              }
+            }
+          },
+          granules: {
+            count: 150
+          },
+          selectedAccessMethod: 'swodlr'
+        }
+
+        expect(isAccessMethodValid(projectCollection, collection)).toEqual({
+          ...validAccessMethod,
+          valid: false
+        })
+      })
+    })
+
+    describe('when selected access method is Swodlr and granule count is <= 10', () => {
+      test('returns true', () => {
+        const projectCollection = {
+          accessMethods: {
+            swodlr: {
+              isValid: true
+            }
+          },
+          granules: {
+            count: 5
+          },
+          selectedAccessMethod: 'swodlr'
+        }
+
+        expect(isAccessMethodValid(projectCollection, collection)).toEqual({
+          ...validAccessMethod,
+          valid: true
+        })
+      })
+    })
+
+    describe('when selected access method is esi and project has not changed', () => {
+      test('returns false', () => {
+        const projectCollection = {
+          accessMethods: {
+            esi0: {
+              type: 'ESI',
+              url: 'https://esi/test',
+              isValid: false,
+              hasChanged: false
+            }
+          },
+          granules: {
+            count: 5
+          },
+          selectedAccessMethod: 'esi0'
+        }
+
+        expect(isAccessMethodValid(projectCollection, collection)).toEqual({
+          ...validAccessMethod,
+          valid: false,
+          needsCustomization: true
+        })
+      })
+    })
+
+    describe('when selected access method is esi and project has changed', () => {
+      test('returns true', () => {
+        const projectCollection = {
+          accessMethods: {
+            esi0: {
+              type: 'ESI',
+              url: 'https://esi/test',
+              isValid: true,
+              hasChanged: true
+            }
+          },
+          granules: {
+            count: 5
+          },
+          selectedAccessMethod: 'esi0'
+        }
+
+        expect(isAccessMethodValid(projectCollection, collection)).toEqual({
+          ...validAccessMethod,
+          valid: true,
+          needsCustomization: false
+        })
       })
     })
   })

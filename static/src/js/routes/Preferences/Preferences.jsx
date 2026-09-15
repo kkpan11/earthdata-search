@@ -1,12 +1,15 @@
 import React from 'react'
-import { withRouter } from 'react-router-dom'
 import { Helmet } from 'react-helmet'
 
-import PreferencesContainer from '../../containers/PreferencesContainer/PreferencesContainer'
+import PreferencesForm from '../../components/Preferences/PreferencesForm'
 
 import { getEnvironmentConfig } from '../../../../../sharedUtils/config'
+import { routes } from '../../constants/routes'
 
-export const Preferences = () => {
+/**
+ * The Preferences route component
+*/
+const Preferences = () => {
   const { edscHost } = getEnvironmentConfig()
 
   return (
@@ -15,12 +18,14 @@ export const Preferences = () => {
         <title>Preferences</title>
         <meta name="title" content="Preferences" />
         <meta name="robots" content="noindex, nofollow" />
-        <link rel="canonical" href={`${edscHost}/preferences`} />
+        <link rel="canonical" href={`${edscHost}${routes.PREFERENCES}`} />
       </Helmet>
       <div className="route-wrapper route-wrapper--light route-wrapper--content-page">
         <div className="route-wrapper__content">
           <div className="route-wrapper__content-inner">
-            <PreferencesContainer />
+            <div className="preferences">
+              <PreferencesForm />
+            </div>
           </div>
         </div>
       </div>
@@ -28,4 +33,4 @@ export const Preferences = () => {
   )
 }
 
-export default withRouter(Preferences)
+export default Preferences

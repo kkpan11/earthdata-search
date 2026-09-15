@@ -1,11 +1,17 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 
+import ExternalLink from '../ExternalLink/ExternalLink'
+
 import './CollectionDetailsCloudAccessInstance.scss'
 
 export const CollectionDetailsCloudAccessInstance = ({
-  type,
-  instanceInformation
+  type = null,
+  instanceInformation = {
+    url: '',
+    format: '',
+    description: ''
+  }
 }) => {
   if (type === 'variable') {
     const {
@@ -115,35 +121,16 @@ export const CollectionDetailsCloudAccessInstance = ({
         }
         <dt>AWS S3 Credentials</dt>
         <dd className="direct-distribution-information__links--horizontal">
-          <a
-            className="link link--external collection-details-cloud-access-direct-distribution-information__link"
-            href={s3CredentialsApiEndpoint}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
+          <ExternalLink href={s3CredentialsApiEndpoint} className="link--separated collection-details-cloud-access-direct-distribution-information__link">
             Get AWS S3 Credentials
-          </a>
-          <a
-            className="link link--separated link--external collection-details-cloud-access-direct-distribution-information__link"
-            href={s3CredentialsApiDocumentationUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
+          </ExternalLink>
+          <ExternalLink href={s3CredentialsApiDocumentationUrl} className="collection-details-cloud-access-direct-distribution-information__link">
             Documentation
-          </a>
+          </ExternalLink>
         </dd>
       </dl>
     </div>
   )
-}
-
-CollectionDetailsCloudAccessInstance.defaultProps = {
-  type: null,
-  instanceInformation: {
-    url: '',
-    format: '',
-    description: ''
-  }
 }
 
 CollectionDetailsCloudAccessInstance.propTypes = {

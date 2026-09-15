@@ -7,19 +7,17 @@ import getSubscriptionsGraphQlBody from './__mocks__/getSubscriptions.graphql.bo
 import granulesBody from './__mocks__/granules.body.json'
 import granulesGraphQlBody from './__mocks__/granulesGraphql.body.json'
 import graphQlHeaders from './__mocks__/graphql.headers.json'
+import harmonyCapabilitiesDocument from './__mocks__/harmonyCapabilitiesDocument.json'
 import retrieval from './__mocks__/retrieval.json'
-import retrievals from './__mocks__/retrievals.json'
+import retrievalCollection from './__mocks__/retrievalCollection.json'
 import timeline from './__mocks__/timeline.json'
 
-import { getAuthHeaders } from '../../support/getAuthHeaders'
-import { graphQlGetSubscriptionsQuery } from '../../support/graphQlGetSubscriptionsQuery'
-import { graphQlGetCollection } from '../../support/graphQlGetCollection'
-import { graphQlGetProjectCollections } from '../../support/graphQlProjectGetCollections'
+import { isGetCollectionQuery } from '../../support/isGetCollectionQuery'
 import { login } from '../../support/login'
+import { setupTests } from '../../support/setupTests'
+import { isGetProjectQuery } from '../../support/isGetProjectQuery'
 
 const conceptId = 'C1214470488-ASF'
-
-const authHeaders = getAuthHeaders()
 
 const downloadLinks = [
   'https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/61/MYD04_3K/2020/006/MYD04_3K.A2020006.1720.061.2020008170450.hdf'
@@ -27,11 +25,12 @@ const downloadLinks = [
 
 test.describe('History', () => {
   test.beforeEach(async ({ page, context }) => {
-    await page.route('**/*.{png,jpg,jpeg}', (route) => route.abort())
+    await setupTests({
+      page,
+      context
+    })
 
-    const granuleHits = 1
-
-    await page.route(/collections$/, async (route) => {
+    await page.route(/collections\.json/, async (route) => {
       await route.fulfill({
         json: collectionsSearchBody,
         headers: {
@@ -41,12 +40,12 @@ test.describe('History', () => {
       })
     })
 
-    await page.route(/granules$/, async (route) => {
+    await page.route(/granules\.json/, async (route) => {
       await route.fulfill({
         json: granulesBody,
         headers: {
           ...commonHeaders,
-          'cmr-hits': granuleHits.toString()
+          'cmr-hits': '1'
         }
       })
     })
@@ -57,24 +56,24 @@ test.describe('History', () => {
       })
     })
 
-    await page.route(/graphql/, async (route) => {
-      const { query } = JSON.parse(route.request().postData()).data
+    await page.route(/graphql.*\/api/, async (route) => {
+      const { query } = JSON.parse(route.request().postData())
 
-      if (query === graphQlGetSubscriptionsQuery) {
+      if (query.includes('query GetSubscriptions')) {
         await route.fulfill({
           json: getSubscriptionsGraphQlBody,
           headers: graphQlHeaders
         })
       }
 
-      if (query === JSON.parse(graphQlGetCollection(conceptId)).query) {
+      if (isGetCollectionQuery(route, conceptId)) {
         await route.fulfill({
           json: granulesGraphQlBody,
           headers: graphQlHeaders
         })
       }
 
-      if (query === JSON.parse(graphQlGetProjectCollections(conceptId)).query) {
+      if (query.includes('query GetProjectCollections')) {
         await route.fulfill({
           json: getCollectionsGraphQlBody,
           headers: graphQlHeaders
@@ -82,9 +81,23 @@ test.describe('History', () => {
       }
     })
 
-    await login(context)
+    await page.route(/saved_access_configs/, async (route) => {
+      await route.fulfill({
+        json: {}
+      })
+    })
 
-    await page.goto('/')
+    await page.route('**/capabilities**', async (route) => {
+      await route.fulfill({
+        json: harmonyCapabilitiesDocument
+      })
+    })
+
+    await login(page, context)
+
+    const initialMapPromise = page.waitForResponse(/World_Imagery\/MapServer\/tile\/3/)
+    await page.goto('/search')
+    await initialMapPromise
   })
 
   test.describe('when pressing the back button', () => {
@@ -94,6 +107,7 @@ test.describe('History', () => {
       await page.getByRole('button', { name: 'Download All' }).click()
 
       await expect(page.getByRole('button', { name: 'Download project data' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Download project data' })).toBeEnabled()
 
       await page.goBack()
     })
@@ -121,63 +135,117 @@ test.describe('History', () => {
         })
       })
 
-      await page.route(/projects$/, async (route) => {
+      await page.route('**/capabilities**', async (route) => {
         await route.fulfill({
-          json: {
-            name: 'Test Project',
-            path: '/projects?p=C1214470488-ASF!C1214470488-ASF&pg[1][v]=t&pg[1][gsk]=-start_date&pg[1][m]=download&pg[1][cd]=f&tl=1721757043!3!!&lat=0&long=0&zoom=2',
-            project_id: '9452013926'
-          }
+          json: harmonyCapabilitiesDocument
         })
       })
 
-      await page.route(/projects\/9452013926/, async (route) => {
-        await route.fulfill({
-          json: {
-            name: 'Test Project',
-            path: '/projects?p=C1214470488-ASF!C1214470488-ASF&pg[1][v]=t&pg[1][gsk]=-start_date&pg[1][m]=download&pg[1][cd]=f&tl=1721757043!3!!&lat=0&long=0&zoom=2'
-          }
-        })
-      })
+      await page.route('**/graphql', async (route) => {
+        const { query, variables } = JSON.parse(route.request().postData())
 
-      await page.route(/retrievals/, async (route) => {
-        if (route.request().method() === 'GET') {
-          await route.fulfill({
-            json: retrieval.body,
-            headers: retrieval.headers
-          })
-        } else {
-          await route.fulfill({
-            json: retrievals.body,
-            headers: retrievals.headers
-          })
-        }
-      })
-
-      await page.route(/granule_links/, async (route) => {
-        if (route.request().url().includes('pageNum=1')) {
+        if (isGetProjectQuery(route, '9452013926')) {
           await route.fulfill({
             json: {
-              cursor: 'mock-cursor',
-              links: {
-                browse: [],
-                download: downloadLinks,
-                s3: []
-              }
-            },
-            headers: authHeaders
-          })
-        } else {
-          await route.fulfill({
-            json: {
-              cursor: null,
-              links: {
-                browse: [],
-                download: [],
-                s3: []
+              data: {
+                project: {
+                  name: 'Test Project',
+                  obfuscatedId: '9452013926',
+                  path: '/project?p=C1214470488-ASF!C1214470488-ASF&pg[1][v]=t&pg[1][gsk]=-start_date&pg[1][m]=download&pg[1][cd]=f'
+                }
               }
             }
           })
+        }
+
+        if (query.includes('mutation CreateProject')) {
+          await route.fulfill({
+            json: {
+              data: {
+                createProject: {
+                  name: 'Test Project',
+                  obfuscatedId: '9452013926',
+                  path: '/project?p=C1214470488-ASF!C1214470488-ASF&pg[1][v]=t&pg[1][gsk]=-start_date&pg[1][m]=download&pg[1][cd]=f'
+                }
+              }
+            }
+          })
+        }
+
+        if (query.includes('mutation CreateRetrieval')) {
+          await route.fulfill({
+            json: {
+              data: {
+                createRetrieval: {
+                  environment: 'prod',
+                  obfuscatedId: '2058954173'
+                }
+              }
+            },
+            headers: {
+              'content-type': 'application/json'
+            }
+          })
+        }
+
+        if (query.includes('query GetRetrieval(')) {
+          await route.fulfill({
+            json: retrieval,
+            headers: {
+              'content-type': 'application/json'
+            }
+          })
+        }
+
+        if (query.includes('query GetRetrievalCollection')) {
+          await route.fulfill({
+            json: retrievalCollection,
+            headers: {
+              'content-type': 'application/json'
+            }
+          })
+        }
+
+        if (query.includes('query GetRetrievalGranuleLinks')) {
+          if (variables.cursor === null) {
+            await route.fulfill({
+              json: {
+                data: {
+                  retrieveGranuleLinks: {
+                    cursor: 'mock-cursor',
+                    done: null,
+                    links: {
+                      browse: [],
+                      download: downloadLinks,
+                      s3: []
+                    }
+                  }
+                }
+              },
+              headers: {
+                'content-type': 'application/json'
+              }
+            })
+          } else {
+            await route.fulfill({
+              json: {
+                data: {
+                  retrieveGranuleLinks: {
+                    cursor: null,
+                    done: null,
+                    links: {
+                      browse: [],
+                      download: [],
+                      s3: []
+                    }
+                  }
+                }
+              },
+              headers: {
+                'content-type': 'application/json'
+              }
+            })
+          }
         }
       })
     })
@@ -208,7 +276,7 @@ test.describe('History', () => {
       await expect(page.getByRole('button', { name: 'Download project data' })).toBeEnabled()
 
       // We want to make sure that the project is not updated when the back button is pressed
-      await page.route(/projects$/, async () => {
+      await page.route('**/graphql', async () => {
         expect('This route should not be called again').toEqual(true)
       })
 

@@ -7,9 +7,10 @@ import { getDbConnection } from '../util/database/getDbConnection'
 import { parseError } from '../../../sharedUtils/parseError'
 import { getStateFromOrderStatus } from '../../../sharedUtils/orderStatus'
 import { startOrderStatusUpdateWorkflow } from '../util/startOrderStatusUpdateWorkflow'
+import { maxSwodlrGranuleCount } from '../../../static/src/js/constants/swodlrConstants'
 
 const graphQlQuery = `
-mutation GenerateNewL2RasterProduct ($cycle: Int!, $pass: Int!, $scene: Int!, $outputGranuleExtentFlag: Boolean!, $outputSamplingGridType: GridType!, $rasterResolution: Int!, $utmZoneAdjust: Int, $mgrsBandAdjust: Int) { 
+mutation GenerateNewL2RasterProduct ($cycle: Int!, $pass: Int!, $scene: Int!, $outputGranuleExtentFlag: Boolean!, $outputSamplingGridType: GridType!, $rasterResolution: Int!, $utmZoneAdjust: Int, $mgrsBandAdjust: Int) {
   generateL2RasterProduct(cycle: $cycle, pass: $pass, scene: $scene, outputGranuleExtentFlag: $outputGranuleExtentFlag, outputSamplingGridType: $outputSamplingGridType, rasterResolution: $rasterResolution, utmZoneAdjust: $utmZoneAdjust, mgrsBandAdjust: $mgrsBandAdjust) {
     cycle
     pass
@@ -94,8 +95,8 @@ const submitSwodlrOrder = async (event, context) => {
 
       const { orderItems } = granuleInfo
 
-      if (orderItems.length > 10) {
-        throw new Error('Too many granules')
+      if (orderItems.length > maxSwodlrGranuleCount) {
+        throw new Error('Too many granules cannot submit to Swodlr api')
       }
 
       await orderItems.forEachAsync(async (granule) => {
@@ -167,16 +168,24 @@ const submitSwodlrOrder = async (event, context) => {
         const { data } = responseData
         const { generateL2RasterProduct } = data
 
+        // Log out swodlr product response
+        console.log('generateL2RasterProduct response from swodlr: ', generateL2RasterProduct)
+
         // ID Information
         // product Id is the Id of the product that's being generated
         // jobId is the Id of the job that is being run to generate the product
         const { id: productId, status: jobStatus } = generateL2RasterProduct
         const { id: jobId, state, timestamp: createdAt } = jobStatus[0]
 
+        // If the latest state is 'READY', we need to change it to 'GENERATING'.
+        // If we set it to 'READY' here, the frontend will think the order is complete and
+        // will not properly refresh.
+        const adjustedState = state === 'READY' ? 'GENERATING' : state
+
         const orderInfo = {
           jobId,
           productId,
-          status: state,
+          status: adjustedState,
           createdAt,
           updatedAt: createdAt,
           numGranules: orderItems.length
@@ -185,7 +194,7 @@ const submitSwodlrOrder = async (event, context) => {
         await dbConnection('retrieval_orders').update({
           order_number: productId,
           order_information: orderInfo,
-          state: getStateFromOrderStatus(state)
+          state: getStateFromOrderStatus(adjustedState)
         }).where({ id })
 
         // Start the order status check workflow

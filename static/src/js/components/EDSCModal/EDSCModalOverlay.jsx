@@ -3,8 +3,8 @@ import PropTypes from 'prop-types'
 
 import './EDSCModalOverlay.scss'
 
-export const EDSCModalOverlay = ({
-  children
+const EDSCModalOverlay = ({
+  children = null
 }) => {
   if (!children) return null
 
@@ -13,10 +13,6 @@ export const EDSCModalOverlay = ({
       {children}
     </div>
   )
-}
-
-EDSCModalOverlay.defaultProps = {
-  children: null
 }
 
 EDSCModalOverlay.propTypes = {

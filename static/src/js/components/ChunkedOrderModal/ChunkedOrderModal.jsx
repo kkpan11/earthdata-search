@@ -1,7 +1,7 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 import { parse } from 'qs'
-import { FaArrowCircleLeft } from 'react-icons/fa'
+import { ArrowCircleLeft } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+import { useLocation } from 'react-router-dom'
 
 import { calculateGranulesPerOrder, calculateOrderCount } from '../../util/orderCount'
 import { commafy } from '../../util/commafy'
@@ -9,25 +9,39 @@ import { stringify } from '../../util/url/url'
 
 import EDSCModalContainer from '../../containers/EDSCModalContainer/EDSCModalContainer'
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
-import { locationPropType } from '../../util/propTypes/location'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import {
+  getProjectCollectionsMetadata,
+  getProjectCollectionsRequiringChunking
+} from '../../zustand/selectors/project'
+import { isModalOpen, setOpenModalFunction } from '../../zustand/selectors/ui'
+
+import { MODAL_NAMES } from '../../constants/modalNames'
+
+import { useCreateRetrieval } from '../../hooks/useCreateRetrieval'
 
 import './ChunkedOrderModal.scss'
 
-const ChunkedOrderModal = ({
-  isOpen,
-  location,
-  onToggleChunkedOrderModal,
-  onSubmitRetrieval,
-  projectCollectionsMetadata,
-  projectCollectionsRequiringChunking
-}) => {
+const ChunkedOrderModal = () => {
+  const location = useLocation()
+  const isOpen = useEdscStore((state) => isModalOpen(state, MODAL_NAMES.CHUNKED_ORDER))
+  const setOpenModal = useEdscStore(setOpenModalFunction)
+  const projectCollectionsMetadata = useEdscStore(getProjectCollectionsMetadata)
+  const projectCollectionsRequiringChunking = useEdscStore(getProjectCollectionsRequiringChunking)
+
+  const { createRetrieval } = useCreateRetrieval()
+
+  if (!isOpen) return null
+
   const onModalClose = () => {
-    onToggleChunkedOrderModal(false)
+    setOpenModal(null)
   }
 
   const onClickContinue = () => {
-    onToggleChunkedOrderModal(false)
-    onSubmitRetrieval()
+    setOpenModal(null)
+
+    createRetrieval()
   }
 
   // Remove focused collection from back button params
@@ -43,7 +57,7 @@ const ChunkedOrderModal = ({
       className="chunked-order-modal__action chunked-order-modal__action--secondary"
       bootstrapVariant="primary"
       type="button"
-      icon={FaArrowCircleLeft}
+      icon={ArrowCircleLeft}
       label="Refine your search"
       onClick={onModalClose}
       to={
@@ -76,7 +90,7 @@ const ChunkedOrderModal = ({
               selectedAccessMethod
             } = projectCollection
 
-            const { hits: granuleCount } = granules
+            const { count: granuleCount } = granules
 
             const granulesPerOrder = calculateGranulesPerOrder(
               accessMethods,
@@ -155,15 +169,6 @@ const ChunkedOrderModal = ({
       onSecondaryAction={onModalClose}
     />
   )
-}
-
-ChunkedOrderModal.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  location: locationPropType.isRequired,
-  onSubmitRetrieval: PropTypes.func.isRequired,
-  onToggleChunkedOrderModal: PropTypes.func.isRequired,
-  projectCollectionsMetadata: PropTypes.shape({}).isRequired,
-  projectCollectionsRequiringChunking: PropTypes.shape({}).isRequired
 }
 
 export default ChunkedOrderModal

@@ -1,33 +1,86 @@
 import React, { useEffect, useState } from 'react'
-import PropTypes from 'prop-types'
-
+import { useMutation } from '@apollo/client'
 import validator from '@rjsf/validator-ajv8'
 import Form from '@rjsf/core'
 
+import { getApplicationConfig } from '../../../../../sharedUtils/config'
 import schema from '../../../../../schemas/sitePreferencesSchema.json'
 import uiSchema from '../../../../../schemas/sitePreferencesUISchema.json'
+
 import Button from '../Button/Button'
 import PreferencesRadioField from './PreferencesRadioField'
 import PreferencesNumberField from './PreferencesNumberField'
 import PreferencesMultiSelectField from './PreferencesMultiSelectField'
 
+import useEdscStore from '../../zustand/useEdscStore'
+import { getSitePreferences } from '../../zustand/selectors/user'
+
+import UPDATE_PREFERENCES from '../../operations/mutations/updatePreferences'
+
+import addToast from '../../util/addToast'
+import { DISPLAY_NOTIFICATION_TYPE } from '../../constants/displayNotificationType'
+
 import './PreferencesForm.scss'
+
+// Utility to hide the homeSearchMode preference until NLP search is enabled
+const removeHomeSearchMode = (preferences) => {
+  const remainingPreferences = { ...preferences }
+  delete remainingPreferences.homeSearchMode
+
+  return remainingPreferences
+}
 
 /**
  * Renders the Preferences form
  */
-const PreferencesForm = (props) => {
-  const { preferences, onUpdatePreferences } = props
-  const {
-    isSubmitting,
-    preferences: formDataProps
-  } = preferences
+const PreferencesForm = () => {
+  const { nlpSearch } = getApplicationConfig()
+  const isNlpEnabled = nlpSearch === 'true'
+  const formSchema = isNlpEnabled ? schema : {
+    ...schema,
+    properties: removeHomeSearchMode(schema.properties)
+  }
+  const formUiSchema = isNlpEnabled ? uiSchema : removeHomeSearchMode(uiSchema)
 
-  const [formData, setFormData] = useState(formDataProps)
+  const sitePreferences = useEdscStore(getSitePreferences)
+  const setSitePreferences = useEdscStore((state) => state.user.setSitePreferences)
+  const handleError = useEdscStore((state) => state.errors.handleError)
+
+  const [formData, setFormData] = useState(sitePreferences)
 
   useEffect(() => {
-    setFormData(formDataProps)
-  }, [formDataProps])
+    setFormData(sitePreferences)
+  }, [sitePreferences])
+
+  const [updatePreferencesMutation, { loading }] = useMutation(UPDATE_PREFERENCES)
+
+  const handleSubmit = async ({ formData: newFormData }) => {
+    updatePreferencesMutation({
+      variables: {
+        preferences: isNlpEnabled ? newFormData : removeHomeSearchMode(newFormData)
+      },
+      onCompleted: (data) => {
+        const { updatePreferences: updatedUser } = data
+        const { sitePreferences: updatedPreferences } = updatedUser
+
+        setSitePreferences(updatedPreferences)
+
+        addToast('Preferences saved!', {
+          appearance: 'success',
+          autoDismiss: true
+        })
+      },
+      onError: (error) => {
+        handleError({
+          error,
+          action: 'updatePreferences',
+          resource: 'preferences',
+          requestObject: null,
+          notificationType: DISPLAY_NOTIFICATION_TYPE.TOAST
+        })
+      }
+    })
+  }
 
   const onChange = (data) => {
     const { formData: newFormData } = data
@@ -39,15 +92,6 @@ const PreferencesForm = (props) => {
     multiSelect: PreferencesMultiSelectField,
     number: PreferencesNumberField,
     radio: PreferencesRadioField
-  }
-
-  const validate = (formDataObject, errors) => {
-    // Projections that aren't geographic have a zoom limit of 4
-    if (formDataObject.mapView.projection !== 'epsg4326' && formDataObject.mapView.zoom > 4) {
-      errors.mapView.zoom.addError('should be less than or equal to 4')
-    }
-
-    return errors
   }
 
   const transformErrors = (errors) => errors.map((error) => {
@@ -64,14 +108,13 @@ const PreferencesForm = (props) => {
       <Form
         idPrefix="preferences-form"
         fields={fields}
-        formData={formData}
+        formData={isNlpEnabled ? formData : removeHomeSearchMode(formData)}
         liveValidate
         onChange={onChange}
-        onSubmit={onUpdatePreferences}
-        schema={schema}
+        onSubmit={handleSubmit}
+        schema={formSchema}
         transformErrors={transformErrors}
-        uiSchema={uiSchema}
-        validate={validate}
+        uiSchema={formUiSchema}
         validator={validator}
       >
         <div>
@@ -80,7 +123,7 @@ const PreferencesForm = (props) => {
             label="Submit"
             type="submit"
             bootstrapVariant="primary"
-            spinner={isSubmitting}
+            spinner={loading}
           >
             Submit
           </Button>
@@ -88,14 +131,6 @@ const PreferencesForm = (props) => {
       </Form>
     </div>
   )
-}
-
-PreferencesForm.propTypes = {
-  onUpdatePreferences: PropTypes.func.isRequired,
-  preferences: PropTypes.shape({
-    isSubmitting: PropTypes.bool,
-    preferences: PropTypes.shape({})
-  }).isRequired
 }
 
 export default PreferencesForm

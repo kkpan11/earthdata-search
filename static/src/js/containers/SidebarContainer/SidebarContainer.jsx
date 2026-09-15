@@ -1,26 +1,28 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { withRouter } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 
 import { isPath } from '../../util/isPath'
-import { locationPropType } from '../../util/propTypes/location'
 
 import Sidebar from '../../components/Sidebar/Sidebar'
+import { routes } from '../../constants/routes'
 
 export const SidebarContainer = ({
   children,
-  location,
-  panels,
-  headerChildren
+  panels = null,
+  headerChildren = null
 }) => {
-  const sidebarVisible = isPath(location.pathname, [
-    '/search',
-    '/search/granules',
-    '/search/subscriptions',
-    '/projects',
-    '/search/granules/collection-details',
-    '/search/granules/granule-details',
-    '/search/granules/subscriptions'
+  const location = useLocation()
+  const { pathname } = location
+
+  const sidebarVisible = isPath(pathname, [
+    routes.SEARCH,
+    routes.GRANULES,
+    routes.COLLECTION_SUBSCRIPTIONS,
+    routes.PROJECT,
+    routes.COLLECTION_DETAILS,
+    routes.GRANULE_DETAILS,
+    routes.GRANULE_SUBSCRIPTIONS
   ])
 
   return (
@@ -34,16 +36,10 @@ export const SidebarContainer = ({
   )
 }
 
-SidebarContainer.defaultProps = {
-  panels: null,
-  headerChildren: null
-}
-
 SidebarContainer.propTypes = {
   children: PropTypes.node.isRequired,
-  location: locationPropType.isRequired,
   panels: PropTypes.node,
   headerChildren: PropTypes.node
 }
 
-export default withRouter(SidebarContainer)
+export default SidebarContainer

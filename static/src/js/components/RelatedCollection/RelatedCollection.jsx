@@ -1,19 +1,25 @@
 import React from 'react'
+import { useLocation } from 'react-router-dom'
 import { PropTypes } from 'prop-types'
-
 import { parse } from 'qs'
 
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
 
 import { stringify } from '../../util/url/url'
+import { metricsRelatedCollection } from '../../util/metrics/metricsRelatedCollection'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { routes } from '../../constants/routes'
 
 export const RelatedCollection = ({
-  className,
-  location,
-  onFocusedCollectionChange,
-  onMetricsRelatedCollection,
+  className = '',
   relatedCollection
 }) => {
+  const location = useLocation()
+  const setCollectionId = useEdscStore(
+    (state) => state.collection.setCollectionId
+  )
+
   const { id, title } = relatedCollection
   const params = parse(
     location.search,
@@ -32,17 +38,17 @@ export const RelatedCollection = ({
       type="link"
       onClick={
         () => {
-          onMetricsRelatedCollection({
+          metricsRelatedCollection({
             collectionId: id,
             type: 'view'
           })
 
-          onFocusedCollectionChange(id)
+          setCollectionId(id)
         }
       }
       to={
         {
-          pathname: '/search/granules',
+          pathname: routes.GRANULES,
           search: stringify({
             ...params,
             p
@@ -55,17 +61,8 @@ export const RelatedCollection = ({
   )
 }
 
-RelatedCollection.defaultProps = {
-  className: ''
-}
-
 RelatedCollection.propTypes = {
   className: PropTypes.string,
-  location: PropTypes.shape({
-    search: PropTypes.string
-  }).isRequired,
-  onFocusedCollectionChange: PropTypes.func.isRequired,
-  onMetricsRelatedCollection: PropTypes.func.isRequired,
   relatedCollection: PropTypes.shape({
     id: PropTypes.string,
     title: PropTypes.string

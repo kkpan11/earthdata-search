@@ -9,6 +9,16 @@
 		"granuleListView"
   ],
 	"properties": {
+    "homeSearchMode": {
+      "$id": "#/properties/homeSearchMode",
+      "type": "string",
+      "title": "Preferred Home Search Mode",
+      "description": "Choose the default search mode when opening Earthdata Search.",
+      "enum": [
+        "nlp",
+        "traditional"
+      ]
+    },
 		"collectionSort": {
 			"$id": "#/properties/collectionSort",
 			"type": "string",
@@ -19,15 +29,9 @@
 				"default",
 				"-score",
 				"-usage_score",
+        "-create-data-date",
 				"start_date",
 				"-ongoing"
-			],
-			"enumNames": [
-				"Default",
-				"Relevance",
-				"Usage",
-				"Start Date",
-				"End Date"
 			]
 		},
 		"granuleSort": {
@@ -42,13 +46,6 @@
 				"start_date",
 				"-end_date",
 				"end_date"
-			],
-			"enumNames": [
-				"Default",
-				"Start Date, Newest First",
-				"Start Date, Oldest First",
-				"End Date, Newest First",
-				"End Date, Oldest First"
 			]
 		},
 		"panelState": {
@@ -62,12 +59,6 @@
 				"collapsed",
 				"open",
 				"fullWidth"
-			],
-			"enumNames": [
-				"Default",
-				"Collapsed",
-				"Open",
-				"Full Width"
 			]
 		},
 		"collectionListView": {
@@ -80,11 +71,6 @@
 				"default",
 				"list",
 				"table"
-			],
-			"enumNames": [
-				"Default",
-				"List",
-				"Table"
 			]
 		},
 		"granuleListView": {
@@ -97,11 +83,6 @@
 				"default",
 				"list",
 				"table"
-			],
-			"enumNames": [
-				"Default",
-				"List",
-				"Table"
 			]
     },
     "mapView": {
@@ -130,7 +111,7 @@
           "type": "number",
           "title": "Zoom",
           "minimum": 0,
-          "maximum": 7,
+          "maximum": 21,
           "default": 2
         },
         "projection": {
@@ -141,48 +122,66 @@
             "epsg4326",
             "epsg3413",
             "epsg3031"
-          ],
-          "enumNames": [
-            "Geographic",
-            "Arctic",
-            "Antarctic"
           ]
         },
         "baseLayer": {
           "type": "string",
           "title": "Base Layer",
-          "default": "blueMarble",
+          "default": "worldImagery",
           "enum": [
-            "blueMarble",
+            "worldImagery",
             "trueColor",
             "landWaterMap"
-          ],
-          "enumNames": [
-            "Blue Marble",
-            "Corrected Reflectance (True Color)",
-            "Land / Water Map"
           ]
         },
         "overlayLayers": {
           "type": "array",
           "title": "Overlay Layers",
-          "default": ["referenceFeatures", "referenceLabels"],
+          "default": ["bordersRoads", "placeLabels"],
           "items": {
             "type": "string",
             "enum": [
-              "referenceFeatures",
+              "bordersRoads",
               "coastlines",
-              "referenceLabels"
-            ],
-            "enumNames": [
-              "Borders and Roads",
-              "Coastlines",
-              "Place Labels"
+              "placeLabels"
             ]
           },
           "uniqueItems": true
         }
       }
     }
-	}
+	},
+  "if": {
+    "properties": {
+      "mapView": {
+        "properties": {
+          "projection": {
+            "const": "epsg4326"
+          }
+        }
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "mapView": {
+        "properties": {
+          "zoom": {
+            "maximum": 21
+          }
+        }
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "mapView": {
+        "properties": {
+          "zoom": {
+            "maximum": 12
+          }
+        }
+      }
+    }
+  }
 }

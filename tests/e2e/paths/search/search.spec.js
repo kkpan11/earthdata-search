@@ -3,6 +3,8 @@ import { test, expect } from 'playwright-test-coverage'
 import { commafy } from '../../../../static/src/js/util/commafy'
 import { pluralize } from '../../../../static/src/js/util/pluralize'
 
+import { setupTests } from '../../../support/setupTests'
+
 import awsCloudBody from './__mocks__/aws_cloud.body.json'
 import commonBody from './__mocks__/common.body.json'
 import commonHeaders from './__mocks__/common.headers.json'
@@ -29,7 +31,16 @@ import temporalBody from './__mocks__/temporal.body.json'
 import temporalRecurringBody from './__mocks__/temporal_recurring.body.json'
 import tilingSystemBody from './__mocks__/tiling_system.body.json'
 
+const screenshotClip = {
+  x: 950,
+  y: 90,
+  width: 405,
+  height: 640
+}
+
 const defaultCmrPageSize = 20
+
+const keywordInputPlaceholderText = /type to search for data/i
 
 /**
  * Test that the provided facet group is expanded and the others not
@@ -79,6 +90,13 @@ const testResultsSize = async (page, cmrHits) => {
 }
 
 test.describe('Path /search', () => {
+  test.beforeEach(async ({ page, context }) => {
+    await setupTests({
+      context,
+      page
+    })
+  })
+
   test.describe('When the path is loaded without any url params', () => {
     test('loads correctly', async ({ page }) => {
       const cmrHits = 8098
@@ -86,7 +104,7 @@ test.describe('Path /search', () => {
       await page.route('**/search/collections.json', (route, request) => {
         if (request.method() === 'POST') {
           const body = request.postData()
-          expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+          expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
           route.fulfill({
             body: JSON.stringify(commonBody),
@@ -104,7 +122,7 @@ test.describe('Path /search', () => {
       await testResultsSize(page, cmrHits)
 
       // Keyword input is empty
-      await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+      await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
       // Ensure facet group bodies are shown correctly
       await testFacetGroupExistence(page, 'features')
@@ -118,7 +136,7 @@ test.describe('Path /search', () => {
       await page.route('**/search/collections.json', (route, request) => {
         if (request.method() === 'POST') {
           const body = request.postData()
-          expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&keyword=modis*&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+          expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&keyword=modis*&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
           route.fulfill({
             body: JSON.stringify(keywordBody),
@@ -136,7 +154,7 @@ test.describe('Path /search', () => {
       await testResultsSize(page, cmrHits)
 
       // Keyword input is populated
-      await expect(page.getByTestId('keyword-search-input')).toHaveValue('modis')
+      await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('modis')
 
       // Ensure facet group bodies are shown correctly
       await testFacetGroupExistence(page, 'features')
@@ -151,7 +169,7 @@ test.describe('Path /search', () => {
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&options[temporal][limit_to_granules]=true&page_num=1&page_size=20&temporal=2020-01-01T00:00:00.000Z,2021-01-01T23:59:59.999Z&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&options[temporal][limit_to_granules]=true&page_num=1&page_size=20&temporal=2020-01-01T00:00:00.000Z,2021-01-01T23:59:59.999Z&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
             route.fulfill({
               body: JSON.stringify(temporalBody),
@@ -169,7 +187,7 @@ test.describe('Path /search', () => {
         await testResultsSize(page, cmrHits)
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -187,7 +205,7 @@ test.describe('Path /search', () => {
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&options[temporal][limit_to_granules]=true&page_num=1&page_size=20&temporal=2000-01-01T00:00:00.000Z,2021-01-31T23:59:59.999Z,1,31&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&options[temporal][limit_to_granules]=true&page_num=1&page_size=20&temporal=2000-01-01T00:00:00.000Z,2021-01-31T23:59:59.999Z,1,31&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
             route.fulfill({
               body: JSON.stringify(temporalRecurringBody),
@@ -205,7 +223,7 @@ test.describe('Path /search', () => {
         await testResultsSize(page, cmrHits)
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -220,13 +238,13 @@ test.describe('Path /search', () => {
 
   test.describe('When the path is loaded with a spatial query', () => {
     test.describe('When the spatial query is a point', () => {
-      test('loads with the spatial query applied', async ({ page }) => {
+      test('loads with the spatial query applied @screenshot', async ({ page }) => {
         const cmrHits = 5079
 
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&point[]=65.44171,4.33676&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&point[]=65.44171,4.33676&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
             route.fulfill({
               body: JSON.stringify(spatialPointBody),
@@ -238,32 +256,38 @@ test.describe('Path /search', () => {
           }
         })
 
-        await page.goto('/search?sp[0]=65.44171%2C4.33676')
+        const initialMapPromise = page.waitForResponse(/World_Imagery\/MapServer\/tile\/2/)
+        await page.goto('/search?sp[0]=65.44171%2C4.33676&long=65.44171')
+
+        // Wait for the map to load
+        await initialMapPromise
 
         // Ensure the correct number of results were loaded
         await testResultsSize(page, cmrHits)
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
 
         await expect(page.getByTestId('spatial-display_point')).toHaveValue('4.33676,65.44171')
 
-        // Test leaflet has drawn the shape correctly
-        await expect(page.locator('.leaflet-marker-pane img')).toHaveAttribute('style', 'margin-left: -12px; margin-top: -41px; width: 25px; height: 41px; transform: translate3d(1165px, 386px, 0px); z-index: 386;')
+        // Draws the spatial on the map
+        await expect(page).toHaveScreenshot('point.png', {
+          clip: screenshotClip
+        })
       })
     })
 
     test.describe('When the spatial query is a polygon', () => {
-      test('loads with the spatial query applied', async ({ page }) => {
+      test('loads with the spatial query applied @screenshot', async ({ page }) => {
         const cmrHits = 5133
 
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&polygon[]=64.87748,1.3704,59.34354,-9.21839,78.35163,-11.89902,64.87748,1.3704&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&polygon[]=64.87748,1.3704,59.34354,-9.21839,78.35163,-11.89902,64.87748,1.3704&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
             route.fulfill({
               body: JSON.stringify(spatialPolygonBody),
@@ -275,32 +299,38 @@ test.describe('Path /search', () => {
           }
         })
 
-        await page.goto('/search?polygon[0]=64.87748%2C1.3704%2C59.34354%2C-9.21839%2C78.35163%2C-11.89902%2C64.87748%2C1.3704')
+        const initialMapPromise = page.waitForResponse(/World_Imagery\/MapServer\/tile\/2/)
+        await page.goto('/search?polygon[0]=64.87748%2C1.3704%2C59.34354%2C-9.21839%2C78.35163%2C-11.89902%2C64.87748%2C1.3704&long=66')
+
+        // Wait for the map to load
+        await initialMapPromise
 
         // Ensure the correct number of results were loaded
         await testResultsSize(page, cmrHits)
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
 
         await expect(page.getByTestId('spatial-display_polygon')).toHaveText('3 Points')
 
-        // Test leaflet has drawn the shape correctly
-        await expect(page.locator('.leaflet-interactive')).toHaveAttribute('d', 'M1161 407L1122 483L1257 502L1161 407z')
+        // Draws the spatial on the map
+        await expect(page).toHaveScreenshot('polygon.png', {
+          clip: screenshotClip
+        })
       })
     })
 
     test.describe('When the spatial query is a circle', () => {
-      test('loads with the spatial query applied', async ({ page }) => {
+      test('loads with the spatial query applied @screenshot', async ({ page }) => {
         const cmrHits = 5080
 
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&circle[]=62.18209,2.22154,100000&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&circle[]=62.18209,2.22154,100000&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
             route.fulfill({
               body: JSON.stringify(spatialCircleBody),
@@ -312,13 +342,17 @@ test.describe('Path /search', () => {
           }
         })
 
-        await page.goto('/search?circle[0]=62.18209%2C2.22154%2C100000')
+        const initialMapPromise = page.waitForResponse(/World_Imagery\/MapServer\/tile\/2/)
+        await page.goto('/search?circle[0]=62.18209%2C2.22154%2C100000&long=62')
+
+        // Wait for the map to load
+        await initialMapPromise
 
         // Ensure the correct number of results were loaded
         await testResultsSize(page, cmrHits)
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -326,19 +360,21 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('spatial-display_circle-center')).toHaveValue('2.22154,62.18209')
         await expect(page.getByTestId('spatial-display_circle-radius')).toHaveValue('100000')
 
-        // Test leaflet has drawn the shape correctly
-        await expect(page.locator('.leaflet-interactive')).toHaveAttribute('d', 'M1136.1837511111112,401.20238222222224a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 ')
+        // Draws the spatial on the map
+        await expect(page).toHaveScreenshot('circle.png', {
+          clip: screenshotClip
+        })
       })
     })
 
     test.describe('When the spatial query is a bounding box', () => {
-      test('loads with the spatial query applied', async ({ page }) => {
+      test('loads with the spatial query applied @screenshot', async ({ page }) => {
         const cmrHits = 5209
 
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&bounding_box[]=5.02679,0.99949,32.8678,26.17555&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&bounding_box[]=5.02679,0.99949,32.8678,26.17555&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
             route.fulfill({
               body: JSON.stringify(spatialBoundingBoxBody),
@@ -350,13 +386,17 @@ test.describe('Path /search', () => {
           }
         })
 
-        await page.goto('/search?sb[0]=5.02679%2C0.99949%2C32.8678%2C26.17555')
+        const initialMapPromise = page.waitForResponse(/World_Imagery\/MapServer\/tile\/2/)
+        await page.goto('/search?sb[0]=5.02679%2C0.99949%2C32.8678%2C26.17555&long=19')
+
+        // Wait for the map to load
+        await initialMapPromise
 
         // Ensure the correct number of results were loaded
         await testResultsSize(page, cmrHits)
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -364,13 +404,15 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('spatial-display_southwest-point')).toHaveValue('0.99949,5.02679')
         await expect(page.getByTestId('spatial-display_northeast-point')).toHaveValue('26.17555,32.8678')
 
-        // Test leaflet has drawn the shape correctly
-        await expect(page.locator('.leaflet-interactive')).toHaveAttribute('d', 'M736 410L736 231L934 231L934 410L736 410z')
+        // Draws the spatial on the map
+        await expect(page).toHaveScreenshot('box.png', {
+          clip: screenshotClip
+        })
       })
     })
 
     test.describe('When the spatial query is a shapefile', () => {
-      test('loads with the spatial query applied', async ({ page }) => {
+      test('loads with the spatial query applied @screenshot', async ({ page }) => {
         const cmrHits = 5133
 
         // Retrieve the shapefile from lambda
@@ -407,9 +449,9 @@ test.describe('Path /search', () => {
 
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
-            // Const body = request.postData()
             // TODO: This intercept is called twice, the first time is cancelled because a new request is launched after the shapefile polygon is added. How do we only run this expect on the second run?
-            // expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&polygon[]=59.34354,-9.21839,78.35163,-11.89902,64.87748,1.3704,59.34354,-9.21839&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            // const body = request.postData()
+            // expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&polygon[]=59.34354,-9.21839,78.35163,-11.89902,64.87748,1.3704,59.34354,-9.21839&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
             route.fulfill({
               body: JSON.stringify(spatialPolygonBody),
@@ -421,16 +463,20 @@ test.describe('Path /search', () => {
           }
         })
 
-        await page.goto('/search?sf=123')
+        const initialMapPromise = page.waitForResponse(/World_Imagery\/MapServer\/tile\/2/)
+        await page.goto('/search?polygon[0]=64.87748%2C1.3704%2C59.34354%2C-9.21839%2C78.35163%2C-11.89902%2C64.87748%2C1.3704&sf=123&sfs[0]=0&long=60')
+
+        // Wait for the map to load
+        await initialMapPromise
 
         // Ensure the correct number of results were loaded
         await testResultsSize(page, cmrHits)
 
         // URL has the polygon added from the shapefile
-        await expect(page).toHaveURL('search?polygon[0]=59.34354%2C-9.21839%2C78.35163%2C-11.89902%2C64.87748%2C1.3704%2C59.34354%2C-9.21839&sf=123&sfs[0]=0')
+        await expect(page).toHaveURL('search?polygon[0]=64.87748%2C1.3704%2C59.34354%2C-9.21839%2C78.35163%2C-11.89902%2C64.87748%2C1.3704&sf=123&sfs[0]=0&long=60')
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -438,8 +484,10 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('spatial-display_shapefile-name')).toHaveText('test.geojson')
         await expect(page.getByTestId('filter-stack-item__hint')).toHaveText('1 shape selected')
 
-        // Test leaflet has drawn the shape correctly
-        await expect(page.locator('.leaflet-interactive').first()).toHaveAttribute('d', 'M1161 407L1122 483L1257 502L1161 407z')
+        // Draws the spatial on the map
+        await expect(page).toHaveScreenshot('shapefile.png', {
+          clip: screenshotClip
+        })
       })
     })
   })
@@ -452,7 +500,7 @@ test.describe('Path /search', () => {
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('cloud_hosted=true&has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('cloud_hosted=true&has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
             route.fulfill({
               body: JSON.stringify(awsCloudBody),
@@ -475,7 +523,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -489,7 +537,7 @@ test.describe('Path /search', () => {
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&service_type[]=esi&service_type[]=opendap&service_type[]=harmony&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&service_type[]=esi&service_type[]=opendap&service_type[]=harmony&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
             route.fulfill({
               body: JSON.stringify(customizableBody),
@@ -512,7 +560,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -526,7 +574,7 @@ test.describe('Path /search', () => {
         await page.route('**/search/collections.json', (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score&tag_key[]=edsc.extra.serverless.gibs')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date&tag_key[]=edsc.extra.serverless.gibs')
 
             route.fulfill({
               body: JSON.stringify(mapImageryBody),
@@ -549,7 +597,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -562,10 +610,13 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 1
 
-        await page.route('**/search/collections.json', (route, request) => {
+        await page.route('**/search/collections.json', async (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&science_keywords_h[0][topic]=Aerosols&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&science_keywords_h[0][topic]=Aerosols&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+            // Delay the response to be more realistic to CMR
+            await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
             route.fulfill({
               body: JSON.stringify(keywordsBody),
@@ -591,7 +642,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -608,10 +659,13 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 108
 
-        await page.route('**/search/collections.json', (route, request) => {
+        await page.route('**/search/collections.json', async (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&platforms_h[0][basis]=Aircraft&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&platforms_h[0][basis]=Aircraft&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+            // Delay the response to be more realistic to CMR
+            await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
             route.fulfill({
               body: JSON.stringify(platformsBody),
@@ -637,7 +691,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -654,10 +708,13 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 104
 
-        await page.route('**/search/collections.json', (route, request) => {
+        await page.route('**/search/collections.json', async (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+            // Delay the response to be more realistic to CMR
+            await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
             route.fulfill({
               body: JSON.stringify(instrumentsBody),
@@ -683,7 +740,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -700,10 +757,13 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 128
 
-        await page.route('**/search/collections.json', (route, request) => {
+        await page.route('**/search/collections.json', async (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&data_center_h[]=Alaska Satellite Facility&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&data_center_h[]=Alaska Satellite Facility&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+            // Delay the response to be more realistic to CMR
+            await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
             route.fulfill({
               body: JSON.stringify(organizationsBody),
@@ -729,7 +789,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -746,10 +806,13 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 175
 
-        await page.route('**/search/collections.json', (route, request) => {
+        await page.route('**/search/collections.json', async (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&project_h[]=ABoVE&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&project_h[]=ABoVE&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+            // Delay the response to be more realistic to CMR
+            await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
             route.fulfill({
               body: JSON.stringify(projectsBody),
@@ -775,7 +838,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -792,10 +855,13 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 50
 
-        await page.route('**/search/collections.json', (route, request) => {
+        await page.route('**/search/collections.json', async (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&processing_level_id_h[]=0 - Raw Data&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&processing_level_id_h[]=0 - Raw Data&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+            // Delay the response to be more realistic to CMR
+            await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
             route.fulfill({
               body: JSON.stringify(processingLevelsBody),
@@ -821,7 +887,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -838,10 +904,13 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 5
 
-        await page.route('**/search/collections.json', (route, request) => {
+        await page.route('**/search/collections.json', async (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&granule_data_format_h[]=ArcGIS&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&granule_data_format_h[]=ArcGIS&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+            // Delay the response to be more realistic to CMR
+            await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
             route.fulfill({
               body: JSON.stringify(dataFormatBody),
@@ -867,7 +936,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -884,10 +953,13 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 69
 
-        await page.route('**/search/collections.json', (route, request) => {
+        await page.route('**/search/collections.json', async (route, request) => {
           if (request.method() === 'POST') {
             const body = request.postData()
-            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score&two_d_coordinate_system_name[]=CALIPSO')
+            expect(body).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date&two_d_coordinate_system_name[]=CALIPSO')
+
+            // Delay the response to be more realistic to CMR
+            await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
             route.fulfill({
               body: JSON.stringify(tilingSystemBody),
@@ -913,7 +985,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -930,9 +1002,12 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 41
 
-        await page.route('**/search/collections.json', (route) => {
+        await page.route('**/search/collections.json', async (route) => {
           const req = route.request()
-          expect(req.postData()).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&horizontal_data_resolution_range[]=0 to 1 meter&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+          expect(req.postData()).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&horizontal_data_resolution_range[]=0 to 1 meter&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+          // Delay the response to be more realistic to CMR
+          await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
           route.fulfill({
             body: JSON.stringify(horizontalDataResolutionBody),
@@ -957,7 +1032,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -974,9 +1049,12 @@ test.describe('Path /search', () => {
       test('loads with the facet applied', async ({ page }) => {
         const cmrHits = 11
 
-        await page.route('**/search/collections.json', (route) => {
+        await page.route('**/search/collections.json', async (route) => {
           const req = route.request()
-          expect(req.postData()).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&latency[]=1 to 3 hours&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+          expect(req.postData()).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&latency[]=1 to 3 hours&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+          // Delay the response to be more realistic to CMR
+          await new Promise((resolve) => { setTimeout(resolve, 1000) })
 
           route.fulfill({
             body: JSON.stringify(latencyBody),
@@ -1001,7 +1079,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -1022,7 +1100,7 @@ test.describe('Path /search', () => {
 
         await page.route('**/search/collections.json', (route) => {
           const req = route.request()
-          expect(req.postData()).toBe('include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=-score')
+          expect(req.postData()).toBe('include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=-score&sort_key[]=-create-data-date')
 
           route.fulfill({
             body: JSON.stringify(noGranulesBody),
@@ -1044,7 +1122,7 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
@@ -1062,7 +1140,7 @@ test.describe('Path /search', () => {
 
         await page.route('**/search/collections.json', (route) => {
           const req = route.request()
-          expect(req.postData()).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&consortium[]=EOSDIS&sort_key[]=has_granules_or_cwic&sort_key[]=-score')
+          expect(req.postData()).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&consortium[]=EOSDIS&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
 
           route.fulfill({
             body: JSON.stringify(nonEosdisBody),
@@ -1084,13 +1162,53 @@ test.describe('Path /search', () => {
         await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
 
         // Keyword input is empty
-        await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
         // Ensure facet group bodies are shown correctly
         await testFacetGroupExistence(page, 'features')
 
         // Ensure the correct checkbox is checked
         await expect(page.getByTestId('input_non-eosdis')).toBeChecked()
+      })
+    })
+  })
+
+  test.describe('Includes Inactive Collections', () => {
+    test.describe('When the path is loaded with the ic=t param', () => {
+      test('loads with the checkbox selected', async ({ page }) => {
+        const cmrHits = 7704
+
+        await page.route('**/search/collections.json', (route) => {
+          const req = route.request()
+          expect(req.postData()).toBe('has_granules_or_cwic=true&include_facets=v2&include_granule_counts=true&include_has_granules=true&include_non_operational=true&include_tags=edsc.*,opensearch.granule.osdd&page_num=1&page_size=20&sort_key[]=has_granules_or_cwic&sort_key[]=-score&sort_key[]=-create-data-date')
+
+          route.fulfill({
+            body: JSON.stringify(nonEosdisBody),
+            headers: {
+              ...commonHeaders,
+              'cmr-hits': cmrHits
+            }
+          })
+        })
+
+        await page.goto('/search?ic=t')
+
+        // Ensure the correct number of results were loaded
+        await testResultsSize(page, cmrHits)
+
+        // Ensure that the correct feature facets are selected
+        await expect(page.getByTestId('facet_item-available-in-earthdata-cloud')).not.toBeChecked()
+        await expect(page.getByTestId('facet_item-customizable')).not.toBeChecked()
+        await expect(page.getByTestId('facet_item-map-imagery')).not.toBeChecked()
+
+        // Keyword input is empty
+        await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
+
+        // Ensure facet group bodies are shown correctly
+        await testFacetGroupExistence(page, 'features')
+
+        // Ensure the correct checkbox is checked
+        await expect(page.getByRole('checkbox', { name: 'Include inactive collections' })).toBeChecked()
       })
     })
   })
@@ -1118,7 +1236,7 @@ test.describe('Path /search', () => {
       await expect(page.getByTestId('panel-group-header__heading-meta-text')).toHaveText('Showing 20 of 6,209 matching collections')
 
       // Keyword input is empty
-      await expect(page.getByTestId('keyword-search-input')).toHaveValue('')
+      await expect(page.getByRole('textbox', { name: keywordInputPlaceholderText })).toHaveValue('')
 
       // Ensure facet group bodies are shown correctly
       await testFacetGroupExistence(page, 'features')

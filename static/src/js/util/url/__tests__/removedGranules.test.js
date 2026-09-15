@@ -4,10 +4,11 @@ import { emptyDecodedResult } from './url.mocks'
 
 import * as deployedEnvironment from '../../../../../../sharedUtils/deployedEnvironment'
 import * as getApplicationConfig from '../../../../../../sharedUtils/config'
+import { initialGranuleQuery } from '../collectionsEncoders'
 
 beforeEach(() => {
-  jest.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
-  jest.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
+  vi.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
+  vi.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
     defaultPortal: 'default'
   }))
 })
@@ -26,19 +27,19 @@ describe('url#decodeUrlParams', () => {
                 granules: {
                   removedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
                 },
-                isVisible: true
+                isVisible: true,
+                selectedAccessMethod: undefined
               }
             }
           }
         },
         query: {
+          ...emptyDecodedResult.query,
           collection: {
             ...emptyDecodedResult.query.collection,
             byId: {
               collectionId: {
-                granules: {
-                  pageNum: 1
-                }
+                granules: initialGranuleQuery
               }
             }
           }
@@ -60,19 +61,19 @@ describe('url#decodeUrlParams', () => {
                 granules: {
                   removedGranuleIds: ['12345', '56789']
                 },
-                isVisible: true
+                isVisible: true,
+                selectedAccessMethod: undefined
               }
             }
           }
         },
         query: {
+          ...emptyDecodedResult.query,
           collection: {
             ...emptyDecodedResult.query.collection,
             byId: {
               collectionId: {
-                granules: {
-                  pageNum: 1
-                }
+                granules: initialGranuleQuery
               }
             }
           }
@@ -88,7 +89,9 @@ describe('url#decodeUrlParams', () => {
 describe('url#encodeUrlQuery', () => {
   test('does not encode collections if no collections exist', () => {
     const props = {
-      hasGranulesOrCwic: true,
+      collectionsQuery: {
+        hasGranulesOrCwic: true
+      },
       pathname: '/path/here',
       focusedCollection: 'collectionId'
     }
@@ -98,7 +101,9 @@ describe('url#encodeUrlQuery', () => {
 
   test('does not encode collections if no focusedCollection exist', () => {
     const props = {
-      hasGranulesOrCwic: true,
+      collectionsQuery: {
+        hasGranulesOrCwic: true
+      },
       pathname: '/path/here',
       focusedCollection: ''
     }
@@ -110,7 +115,9 @@ describe('url#encodeUrlQuery', () => {
     describe('CMR removed granules', () => {
       test('does not encode removed granules if no removed granules exist', () => {
         const props = {
-          hasGranulesOrCwic: true,
+          collectionsQuery: {
+            hasGranulesOrCwic: true
+          },
           pathname: '/path/here',
           focusedCollection: 'collectionId'
         }
@@ -125,17 +132,17 @@ describe('url#encodeUrlQuery', () => {
               isOpenSearch: false
             }
           },
-          hasGranulesOrCwic: true,
+          collectionsQuery: {
+            hasGranulesOrCwic: true
+          },
           pathname: '/path/here',
           focusedCollection: 'collectionId',
-          project: {
-            collections: {
-              allIds: ['collectionId'],
-              byId: {
-                collectionId: {
-                  granules: {
-                    removedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
-                  }
+          projectCollections: {
+            allIds: ['collectionId'],
+            byId: {
+              collectionId: {
+                granules: {
+                  removedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
                 }
               }
             }
@@ -149,7 +156,9 @@ describe('url#encodeUrlQuery', () => {
     describe('CWIC removed granules', () => {
       test('does not encode removed granules if no removed granules exist', () => {
         const props = {
-          hasGranulesOrCwic: true,
+          collectionsQuery: {
+            hasGranulesOrCwic: true
+          },
           pathname: '/path/here',
           focusedCollection: 'collectionId'
         }
@@ -163,17 +172,17 @@ describe('url#encodeUrlQuery', () => {
               isOpenSearch: true
             }
           },
-          hasGranulesOrCwic: true,
+          collectionsQuery: {
+            hasGranulesOrCwic: true
+          },
           pathname: '/path/here',
           focusedCollection: 'collectionId',
-          project: {
-            collections: {
-              allIds: ['collectionId'],
-              byId: {
-                collectionId: {
-                  granules: {
-                    removedGranuleIds: ['12345', '56789']
-                  }
+          projectCollections: {
+            allIds: ['collectionId'],
+            byId: {
+              collectionId: {
+                granules: {
+                  removedGranuleIds: ['12345', '56789']
                 }
               }
             }
@@ -193,17 +202,17 @@ describe('url#encodeUrlQuery', () => {
             isOpenSearch: false
           }
         },
-        hasGranulesOrCwic: true,
+        collectionsQuery: {
+          hasGranulesOrCwic: true
+        },
         pathname: '/path/here',
         focusedCollection: '',
-        project: {
-          collections: {
-            allIds: ['collectionId'],
-            byId: {
-              collectionId: {
-                granules: {
-                  removedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
-                }
+        projectCollections: {
+          allIds: ['collectionId'],
+          byId: {
+            collectionId: {
+              granules: {
+                removedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
               }
             }
           }
@@ -222,17 +231,17 @@ describe('url#encodeUrlQuery', () => {
             isOpenSearch: false
           }
         },
-        hasGranulesOrCwic: true,
+        collectionsQuery: {
+          hasGranulesOrCwic: true
+        },
         pathname: '/path/here',
         focusedCollection: 'collectionId',
-        project: {
-          collections: {
-            allIds: ['collectionId'],
-            byId: {
-              collectionId: {
-                granules: {
-                  removedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
-                }
+        projectCollections: {
+          allIds: ['collectionId'],
+          byId: {
+            collectionId: {
+              granules: {
+                removedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
               }
             }
           }

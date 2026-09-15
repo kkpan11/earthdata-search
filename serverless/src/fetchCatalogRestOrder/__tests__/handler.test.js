@@ -3,18 +3,14 @@ import mockKnex from 'mock-knex'
 import nock from 'nock'
 import * as getSystemToken from '../../util/urs/getSystemToken'
 import * as getDbConnection from '../../util/database/getDbConnection'
-import * as getEarthdataConfig from '../../../../sharedUtils/config'
 import fetchCatalogRestOrder from '../handler'
 
 let dbTracker
 
 beforeEach(() => {
-  jest.clearAllMocks()
+  vi.spyOn(getSystemToken, 'getSystemToken').mockImplementation(() => 'mocked-system-token')
 
-  jest.spyOn(getSystemToken, 'getSystemToken').mockImplementation(() => 'mocked-system-token')
-  jest.spyOn(getEarthdataConfig, 'getSecretEarthdataConfig').mockImplementation(() => ({ secret: 'jwt-secret' }))
-
-  jest.spyOn(getDbConnection, 'getDbConnection').mockImplementationOnce(() => {
+  vi.spyOn(getDbConnection, 'getDbConnection').mockImplementationOnce(() => {
     const dbCon = knex({
       client: 'pg',
       debug: false

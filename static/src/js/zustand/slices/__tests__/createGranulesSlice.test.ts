@@ -1,0 +1,282 @@
+import nock from 'nock'
+
+import useEdscStore from '../../useEdscStore'
+
+// @ts-expect-error This file does not have types
+import * as getClientId from '../../../../../../sharedUtils/getClientId'
+// @ts-expect-error This file does not have types
+import * as getEarthdataConfig from '../../../../../../sharedUtils/config'
+
+// @ts-expect-error This file does not have types
+import OpenSearchGranuleRequest from '../../../util/request/openSearchGranuleRequest'
+
+describe('createGranulesSlice', () => {
+  test('sets the default state', () => {
+    const zustandState = useEdscStore.getState()
+    const { granules } = zustandState
+
+    expect(granules).toEqual({
+      granules: {
+        collectionConceptId: null,
+        count: null,
+        isLoaded: false,
+        isLoading: false,
+        loadTime: 0,
+        items: []
+      },
+      getGranules: expect.any(Function)
+    })
+  })
+
+  describe('getGranules', () => {
+    beforeEach(() => {
+      vi.spyOn(getClientId, 'getClientId').mockImplementationOnce(() => ({ client: 'eed-edsc-test-serverless-client' }))
+
+      vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementationOnce(() => ({
+        cmrHost: 'https://cmr.example.com',
+        graphQlHost: 'https://graphql.example.com',
+        opensearchRoot: 'https://cmr.example.com'
+      }))
+    })
+
+    test('calls the API to get granules', async () => {
+      nock(/cmr/)
+        .post(/granules/)
+        .reply(200, {
+          feed: {
+            updated: '2019-03-27T20:21:14.705Z',
+            id: 'https://cmr.sit.earthdata.nasa.gov:443/search/granules.json?echo_collection_id=collectionId',
+            title: 'ECHO granule metadata',
+            entry: [{
+              mockGranuleData: 'goes here'
+            }]
+          }
+        }, {
+          'cmr-hits': '1'
+        })
+
+      useEdscStore.setState((state) => {
+        state.collection.collectionId = 'collectionId'
+        state.errors.handleError = vi.fn()
+        state.user.edlToken = 'mock-token'
+        state.ui.map.setDisplaySpatialMbrWarning = vi.fn()
+      })
+
+      const { granules, errors } = useEdscStore.getState()
+      await granules.getGranules()
+
+      const {
+        granules: updatedGranules,
+        ui
+      } = useEdscStore.getState()
+
+      expect(updatedGranules.granules).toEqual({
+        collectionConceptId: 'collectionId',
+        count: 1,
+        isLoaded: true,
+        isLoading: false,
+        items: [{
+          isOpenSearch: false,
+          mockGranuleData: 'goes here',
+          spatial: null
+        }],
+        loadTime: expect.any(Number)
+      })
+
+      expect(ui.map.setDisplaySpatialMbrWarning).toHaveBeenCalledTimes(1)
+      expect(ui.map.setDisplaySpatialMbrWarning).toHaveBeenCalledWith(false)
+
+      expect(errors.handleError).toHaveBeenCalledTimes(0)
+    })
+
+    test('substitutes MBR for polygon in opensearch granule searches', async () => {
+      const cwicRequestMock = vi.spyOn(OpenSearchGranuleRequest.prototype, 'search')
+
+      nock(/localhost/)
+        .post(/opensearch\/granules/)
+        .reply(200, '<feed><opensearch:totalResults>1</opensearch:totalResults><entry><title type="text">CWIC Granule</title><id>12345</id><updated>2020-06-09T23:59:59Z</updated></entry></feed>')
+
+      useEdscStore.setState((state) => {
+        state.collection.collectionId = 'collectionId'
+        state.collection.collectionMetadata.collectionId = {
+          conceptId: 'collectionId',
+          links: [{
+            length: '0.0KB',
+            rel: 'http://esipfed.org/ns/fedsearch/1.1/search#',
+            hreflang: 'en-US',
+            href: 'https://cwic.wgiss.ceos.org/opensearch/datasets/C1597928934-NOAA_NCEI/osdd.xml?clientId=eed-edsc-dev'
+          }]
+        }
+
+        state.query.collection.spatial = {
+          polygon: ['-77,38,-77,38,-76,38,-77,38']
+        }
+
+        state.errors.handleError = vi.fn()
+        state.user.edlToken = 'mock-token'
+        state.ui.map.setDisplaySpatialMbrWarning = vi.fn()
+      })
+
+      const { granules, errors } = useEdscStore.getState()
+      await granules.getGranules()
+
+      const {
+        granules: updatedGranules,
+        ui
+      } = useEdscStore.getState()
+
+      expect(updatedGranules.granules).toEqual({
+        count: 1,
+        collectionConceptId: 'collectionId',
+        isLoaded: true,
+        isLoading: false,
+        items: [{
+          browseFlag: false,
+          formattedTemporal: [
+            '2020-06-09 23:59:59',
+            null
+          ],
+          id: '12345',
+          collectionConceptId: 'collectionId',
+          isOpenSearch: true,
+          spatial: null,
+          timeStart: '2020-06-09T23:59:59Z',
+          title: 'CWIC Granule',
+          updated: '2020-06-09T23:59:59Z'
+        }],
+        loadTime: expect.any(Number)
+      })
+
+      expect(ui.map.setDisplaySpatialMbrWarning).toHaveBeenCalledTimes(2)
+      expect(ui.map.setDisplaySpatialMbrWarning).toHaveBeenNthCalledWith(1, false)
+      expect(ui.map.setDisplaySpatialMbrWarning).toHaveBeenNthCalledWith(2, true)
+
+      expect(errors.handleError).toHaveBeenCalledTimes(0)
+
+      expect(cwicRequestMock).toHaveBeenCalledTimes(1)
+      expect(cwicRequestMock.mock.calls[0][0].boundingBox).toEqual('-77,37.99999999999998,-76,38.00105844675541')
+    })
+
+    test('does not update the store on error', async () => {
+      nock(/cmr/)
+        .post(/granules/)
+        .reply(500)
+
+      nock(/localhost/)
+        .post(/error_logger/)
+        .reply(200)
+
+      useEdscStore.setState((state) => {
+        state.collection.collectionId = 'collectionId'
+        state.collection.collectionMetadata.collectionId = {
+          conceptId: 'collectionId'
+        }
+
+        state.errors.handleError = vi.fn()
+      })
+
+      const { granules } = useEdscStore.getState()
+      await granules.getGranules()
+
+      const { errors } = useEdscStore.getState()
+      expect(errors.handleError).toHaveBeenCalledTimes(1)
+      expect(errors.handleError).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'getGranules',
+        error: expect.any(Error),
+        resource: 'granules',
+        showAlertButton: true,
+        title: 'Something went wrong fetching granule search results'
+      }))
+    })
+
+    describe('when the collectionId matches the granules collectionConceptId', () => {
+      describe('when the collection is not OpenSearch', () => {
+        test('does not fetch granules', async () => {
+          // This test will fail if a network request is attempted.
+
+          useEdscStore.setState((state) => {
+            state.collection.collectionId = 'collectionId'
+            state.granules.granules.collectionConceptId = 'collectionId'
+            state.errors.handleError = vi.fn()
+          })
+
+          const { granules } = useEdscStore.getState()
+          await granules.getGranules()
+
+          const { errors } = useEdscStore.getState()
+          expect(errors.handleError).toHaveBeenCalledTimes(0)
+        })
+      })
+
+      describe('when the collection is OpenSearch', () => {
+        test('fetches granules', async () => {
+          nock(/localhost/)
+            .post(/opensearch\/granules/)
+            .reply(200, `<feed>
+              <totalResults>1</totalResults>
+              <entry>
+                <mockGranuleData>goes here</mockGranuleData>
+              </entry>
+            </feed>`)
+
+          useEdscStore.setState((state) => {
+            state.collection.collectionId = 'collectionId'
+            state.collection.collectionMetadata = {
+              collectionId: {
+                links: [{
+                  rel: '/search#',
+                  href: 'https://example.com/opensearch'
+                }]
+              }
+            }
+
+            state.granules.granules.collectionConceptId = 'collectionId'
+            state.errors.handleError = vi.fn()
+          })
+
+          const { granules } = useEdscStore.getState()
+          await granules.getGranules()
+
+          const { errors } = useEdscStore.getState()
+          expect(errors.handleError).toHaveBeenCalledTimes(0)
+
+          const {
+            granules: updatedGranules
+          } = useEdscStore.getState()
+
+          expect(updatedGranules.granules).toEqual({
+            collectionConceptId: 'collectionId',
+            count: 1,
+            isLoaded: true,
+            isLoading: false,
+            items: [{
+              browseFlag: false,
+              collectionConceptId: 'collectionId',
+              isOpenSearch: true,
+              mockGranuleData: 'goes here',
+              spatial: null
+            }],
+            loadTime: expect.any(Number)
+          })
+        })
+      })
+    })
+
+    describe('when collectionId is not set', () => {
+      test('does not fetch granules', async () => {
+        // This test will fail if a network request is attempted.
+
+        useEdscStore.setState((state) => {
+          state.collection.collectionId = null
+          state.errors.handleError = vi.fn()
+        })
+
+        const { granules } = useEdscStore.getState()
+        await granules.getGranules()
+
+        const { errors } = useEdscStore.getState()
+        expect(errors.handleError).toHaveBeenCalledTimes(0)
+      })
+    })
+  })
+})

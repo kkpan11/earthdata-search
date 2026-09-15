@@ -1,0 +1,156 @@
+import React, { useEffect, useState } from 'react'
+import { useQuery, ApolloError } from '@apollo/client'
+import { remove } from 'tiny-cookie'
+import { useNavigate } from 'react-router-dom'
+
+import GET_USER from '../../operations/queries/getUser'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getEdlToken, getUsername } from '../../zustand/selectors/user'
+import { getEarthdataEnvironment } from '../../zustand/selectors/earthdataEnvironment'
+
+import RedirectingAuthState from '../RedirectingAuthState/RedirectingAuthState'
+import Spinner from '../Spinner/Spinner'
+
+import { localStorageKeys } from '../../constants/localStorageKeys'
+
+interface UserLoaderProps {
+  /** The child components */
+  children: React.ReactNode
+}
+interface NetworkErrorLike {
+  /** Http Status code exposed directly on the error object */
+  statusCode?: number
+  /** Error Message from the network */
+  message?: string
+}
+
+export const UserLoader: React.FC<UserLoaderProps> = ({
+  children
+}) => {
+  const edlToken = useEdscStore(getEdlToken)
+  const setEdlToken = useEdscStore((state) => state.user.setEdlToken)
+  const setUrsProfile = useEdscStore((state) => state.user.setUrsProfile)
+  const setSitePreferences = useEdscStore((state) => state.user.setSitePreferences)
+  const setUsername = useEdscStore((state) => state.user.setUsername)
+  const earthdataEnvironment = useEdscStore(getEarthdataEnvironment)
+  const handleError = useEdscStore((state) => state.errors.handleError)
+  const username = useEdscStore(getUsername)
+
+  const navigate = useNavigate()
+
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false)
+  const [isRedirectingToSearch, setisRedirectingToSearch] = useState(false)
+
+  const isUnauthorizedError = (queryError: ApolloError) => {
+    const networkError = queryError?.networkError as NetworkErrorLike | undefined
+    const statusCode = networkError?.statusCode
+    const hasUnauthorizedMessage = /unauthorized| not authorized|forbidden|401|403/i.test(queryError?.message || '')
+
+    return statusCode === 401 || hasUnauthorizedMessage
+  }
+
+  // When the page loads, check local storage for user information
+  useEffect(() => {
+    if (edlToken) {
+      const localUser = localStorage.getItem(localStorageKeys.user)
+
+      // If the user information exists in local storage, update the state
+      if (localUser) {
+        const {
+          sitePreferences,
+          ursProfile
+        } = JSON.parse(localUser)
+
+        setSitePreferences(sitePreferences)
+        setUrsProfile(ursProfile)
+
+        // Set the preferences as loaded to unblock the rest of the application
+        setPreferencesLoaded(true)
+      }
+    }
+  }, [edlToken])
+
+  // Fetch the user data when we have an edlToken
+  const { data, error } = useQuery(GET_USER, {
+    skip: !edlToken
+  })
+
+  useEffect(() => {
+    if (error) {
+      const unauthorizedError = isUnauthorizedError(error)
+
+      // Delete the edlToken cookie
+      remove('edlToken')
+
+      // Update the store
+      setEdlToken(null)
+      setUrsProfile(null)
+
+      // Clear the user information from local storage
+      localStorage.removeItem(localStorageKeys.user)
+
+      // If not an unauthorized Error show the banner
+      if (!unauthorizedError) {
+        handleError({
+          error,
+          action: 'getUser query',
+          title: 'Something went wrong while logging in'
+        })
+      }
+
+      if (unauthorizedError) {
+        setisRedirectingToSearch(true)
+      }
+
+      // Redirect to the search page
+      navigate(`/search?ee=${earthdataEnvironment}`, { replace: true })
+    }
+  }, [error])
+
+  useEffect(() => {
+    if (data && data.user) {
+      const { user } = data
+      const {
+        sitePreferences,
+        ursProfile,
+        ursId
+      } = user
+
+      // Update the state with the user information
+      setSitePreferences(sitePreferences)
+      setUsername(ursId)
+      setUrsProfile(ursProfile)
+
+      // Save the user information to local storage
+      localStorage.setItem(localStorageKeys.user, JSON.stringify({
+        sitePreferences,
+        ursProfile
+      }))
+
+      setPreferencesLoaded(true)
+    }
+  }, [data])
+
+  if (isRedirectingToSearch) {
+    return (
+      <RedirectingAuthState />
+    )
+  }
+
+  // If the user is logged in, but doesn't have a username and preferences from either local storage
+  // or the API, show a spinner
+  if (edlToken && !username && !preferencesLoaded) {
+    return (
+      <Spinner
+        className="root__spinner spinner spinner--dots spinner--small"
+        type="dots"
+      />
+    )
+  }
+
+  // Render the child components
+  return children
+}
+
+export default UserLoader

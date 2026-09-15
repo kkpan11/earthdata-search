@@ -6,8 +6,8 @@ import * as deployedEnvironment from '../../../../../../sharedUtils/deployedEnvi
 import * as getApplicationConfig from '../../../../../../sharedUtils/config'
 
 beforeEach(() => {
-  jest.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
-  jest.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
+  vi.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
+  vi.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
     defaultPortal: 'default'
   }))
 })
@@ -44,7 +44,9 @@ describe('url#encodeUrlQuery', () => {
   describe('timelineQuery', () => {
     test('encodes timelineQuery correctly when timeline is visible', () => {
       const props = {
-        hasGranulesOrCwic: true,
+        collectionsQuery: {
+          hasGranulesOrCwic: true
+        },
         pathname: '/path/here',
         timelineQuery: {
           center: 1534577879000,
@@ -56,7 +58,9 @@ describe('url#encodeUrlQuery', () => {
 
     test('encodes timelineQuery correctly when the timeline has no center state', () => {
       const props = {
-        hasGranulesOrCwic: true,
+        collectionsQuery: {
+          hasGranulesOrCwic: true
+        },
         pathname: '/path/here',
         timelineQuery: {
           interval: 'day'
@@ -67,7 +71,9 @@ describe('url#encodeUrlQuery', () => {
 
     test('does not encode timelineQuery when timeline is not visible', () => {
       const props = {
-        hasGranulesOrCwic: true,
+        collectionsQuery: {
+          hasGranulesOrCwic: true
+        },
         pathname: '/search',
         timelineQuery: {
           center: 1534577879,

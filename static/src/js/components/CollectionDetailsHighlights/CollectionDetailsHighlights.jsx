@@ -1,5 +1,5 @@
 import React from 'react'
-import PropTypes from 'prop-types'
+import { useLocation } from 'react-router-dom'
 
 import { collectionDetailsParagraph, collectionDetailsRow } from './skeleton'
 
@@ -7,22 +7,26 @@ import Button from '../Button/Button'
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
 import Skeleton from '../Skeleton/Skeleton'
 
-import { collectionMetadataPropType } from '../../util/propTypes/collectionMetadata'
-import { locationPropType } from '../../util/propTypes/location'
+import useEdscStore from '../../zustand/useEdscStore'
+import { getCollectionsPageInfo } from '../../zustand/selectors/collections'
+import { getFocusedCollectionMetadata } from '../../zustand/selectors/collection'
+import { setOpenModalFunction } from '../../zustand/selectors/ui'
+
+import { routes } from '../../constants/routes'
+import { MODAL_NAMES } from '../../constants/modalNames'
 
 import './CollectionDetailsHighlights.scss'
 
-const granuleListTotalStyle = {
+export const granuleListTotalStyle = {
   height: '18px',
   width: '225px'
 }
 
-export const CollectionDetailsHighlights = ({
-  collectionMetadata,
-  collectionsSearch,
-  location,
-  onToggleRelatedUrlsModal
-}) => {
+export const CollectionDetailsHighlights = () => {
+  const location = useLocation()
+  const collectionMetadata = useEdscStore(getFocusedCollectionMetadata)
+  const setOpenModal = useEdscStore(setOpenModalFunction)
+
   const {
     abstract,
     doi = {},
@@ -34,7 +38,7 @@ export const CollectionDetailsHighlights = ({
   const {
     isLoaded,
     isLoading
-  } = collectionsSearch
+  } = useEdscStore(getCollectionsPageInfo)
 
   const { doiText } = doi
 
@@ -99,12 +103,12 @@ export const CollectionDetailsHighlights = ({
         <div className="collection-details-highlights__item-body">
           <div className="collection-details-highlights__item-value">
             <Button
-              className="link collection-details-highlights__related-link"
+              className="collection-details-highlights__related-link"
               type="button"
               variant="link"
               bootstrapVariant="link"
               label="View All Related URLs"
-              onClick={() => onToggleRelatedUrlsModal(true)}
+              onClick={() => setOpenModal(MODAL_NAMES.RELATED_URLS)}
             >
               View All Related URLs
             </Button>
@@ -180,7 +184,7 @@ export const CollectionDetailsHighlights = ({
           className="collection-details-header__title-link collection-details-header__title-link-icon"
           to={
             {
-              pathname: '/search/granules/collection-details',
+              pathname: routes.COLLECTION_DETAILS,
               search: location.search
             }
           }
@@ -190,16 +194,6 @@ export const CollectionDetailsHighlights = ({
       </div>
     </div>
   )
-}
-
-CollectionDetailsHighlights.propTypes = {
-  collectionMetadata: collectionMetadataPropType.isRequired,
-  collectionsSearch: PropTypes.shape({
-    isLoaded: PropTypes.bool,
-    isLoading: PropTypes.bool
-  }).isRequired,
-  location: locationPropType.isRequired,
-  onToggleRelatedUrlsModal: PropTypes.func.isRequired
 }
 
 export default CollectionDetailsHighlights

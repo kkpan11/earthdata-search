@@ -4,8 +4,6 @@ import { gibsResponse } from './mocks'
 import { constructLayerTagData } from '../constructLayerTagData'
 
 beforeEach(() => {
-  jest.clearAllMocks()
-
   // MockDate is used here to overwrite the js Date object. This allows us to
   // mock changes needed to test the moment functions
   MockDate.set('1988-09-03T10:00:00.000Z')
@@ -49,6 +47,7 @@ describe('constructLayerTagData', () => {
           geographic: true,
           geographic_resolution: '2km',
           group: 'overlays',
+          layerPeriod: 'Daily',
           match: {
             day_night_flag: 'night',
             time_end: '<=2011-10-04T00:00:00Z',
@@ -78,7 +77,15 @@ describe('constructLayerTagData', () => {
           }
         },
         data: {
+          antarctic: false,
+          antarctic_resolution: null,
+          arctic: false,
+          arctic_resolution: null,
+          format: 'png',
+          geographic: true,
+          geographic_resolution: '2km',
           group: 'overlays',
+          layerPeriod: 'Daily',
           match: {
             day_night_flag: 'day',
             time_start: '>=2002-08-30T00:00:00Z'
@@ -86,14 +93,7 @@ describe('constructLayerTagData', () => {
           product: 'AIRS_L2_Methane_400hPa_Volume_Mixing_Ratio_Day',
           source: 'Aqua / AIRS',
           title: 'Methane (L2, 400 hPa, Day)',
-          updated_at: '1988-09-03T10:00:00.000Z',
-          antarctic: false,
-          antarctic_resolution: null,
-          arctic: false,
-          arctic_resolution: null,
-          format: 'png',
-          geographic: true,
-          geographic_resolution: '2km'
+          updated_at: '1988-09-03T10:00:00.000Z'
         }
       }, {
         collection: {
@@ -110,6 +110,7 @@ describe('constructLayerTagData', () => {
           geographic: true,
           geographic_resolution: '2km',
           group: 'overlays',
+          layerPeriod: 'Daily',
           match: {
             day_night_flag: 'day',
             time_start: '>=2002-08-30T00:00:00Z'
@@ -148,6 +149,7 @@ describe('constructLayerTagData', () => {
           geographic: true,
           geographic_resolution: '2km',
           group: 'overlays',
+          layerPeriod: 'Daily',
           match: {
             day_night_flag: 'night',
             time_start: '>=2002-06-01T00:00:00Z'
@@ -186,6 +188,7 @@ describe('constructLayerTagData', () => {
           geographic: true,
           geographic_resolution: '2km',
           group: 'overlays',
+          layerPeriod: 'Daily',
           match: {
             day_night_flag: 'night',
             time_end: '<=2011-10-04T00:00:00Z'
@@ -224,6 +227,7 @@ describe('constructLayerTagData', () => {
           geographic: true,
           geographic_resolution: '2km',
           group: 'overlays',
+          layerPeriod: 'Daily',
           match: {
             time_end: '<=2011-10-04T00:00:00Z',
             time_start: '>=2002-06-01T00:00:00Z'

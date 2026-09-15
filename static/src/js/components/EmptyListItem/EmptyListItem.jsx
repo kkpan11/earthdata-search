@@ -1,7 +1,9 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import classNames from 'classnames'
-import { FaExclamationTriangle } from 'react-icons/fa'
+import {
+  AlertHighPriorityOutline
+} from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
 
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
 
@@ -14,16 +16,16 @@ import './EmptyListItem.scss'
  * @param {Node} icon - Overrides the default icon with an icon passed to EDSC Icon.
  */
 export const EmptyListItem = ({
-  className,
+  className = '',
   children,
-  icon
+  icon = null
 }) => {
   const listItemClasses = classNames(
     'empty-list-item',
     `${className}`
   )
 
-  let Icon = FaExclamationTriangle
+  let Icon = AlertHighPriorityOutline
 
   if (icon) {
     Icon = icon
@@ -31,17 +33,12 @@ export const EmptyListItem = ({
 
   return (
     <li className={listItemClasses}>
-      <EDSCIcon className="empty-list-item__icon" icon={Icon} size="1.25rem" />
+      <EDSCIcon className="empty-list-item__icon" icon={Icon} size="20" />
       <p className="empty-list-item__body">
         {children}
       </p>
     </li>
   )
-}
-
-EmptyListItem.defaultProps = {
-  className: '',
-  icon: null
 }
 
 EmptyListItem.propTypes = {

@@ -2,19 +2,16 @@ import knex from 'knex'
 import mockKnex from 'mock-knex'
 
 import getSavedAccessConfigs from '../handler'
-import * as getJwtToken from '../../util/getJwtToken'
-import * as getVerifiedJwtToken from '../../util/getVerifiedJwtToken'
+import * as getAuthorizerContext from '../../util/getAuthorizerContext'
 import * as getDbConnection from '../../util/database/getDbConnection'
 
 let dbConnectionToMock
 let dbTracker
 
 beforeEach(() => {
-  jest.clearAllMocks()
-  jest.spyOn(getJwtToken, 'getJwtToken').mockImplementation(() => 'mockJwt')
-  jest.spyOn(getVerifiedJwtToken, 'getVerifiedJwtToken').mockImplementation(() => ({ id: 1 }))
+  vi.spyOn(getAuthorizerContext, 'getAuthorizerContext').mockImplementation(() => ({ userId: 1 }))
 
-  jest.spyOn(getDbConnection, 'getDbConnection').mockImplementationOnce(() => {
+  vi.spyOn(getDbConnection, 'getDbConnection').mockImplementationOnce(() => {
     dbConnectionToMock = knex({
       client: 'pg',
       debug: false
@@ -36,6 +33,8 @@ afterEach(() => {
 
 describe('getSavedAccessConfigs', () => {
   test('does not return configuration if none exist', async () => {
+    const consoleMock = vi.spyOn(console, 'log')
+
     dbTracker.on('query', (query, step) => {
       if (step === 1) {
         query.response([])
@@ -51,6 +50,7 @@ describe('getSavedAccessConfigs', () => {
     }
 
     const result = await getSavedAccessConfigs(event, {})
+    expect(consoleMock).toHaveBeenCalledTimes(0)
 
     expect(result).toEqual({
       body: JSON.stringify({}),
@@ -65,6 +65,8 @@ describe('getSavedAccessConfigs', () => {
   })
 
   test('returns the saved access configuration with the old `form_digest`', async () => {
+    const consoleMock = vi.spyOn(console, 'log')
+
     dbTracker.on('query', (query, step) => {
       if (step === 1) {
         query.response([{
@@ -93,6 +95,8 @@ describe('getSavedAccessConfigs', () => {
     }
 
     const result = await getSavedAccessConfigs(event, {})
+    expect(consoleMock).toHaveBeenCalledTimes(1)
+    expect(consoleMock.mock.calls[0]).toEqual(['Found savedAccessConfigs for ECHO ORDERS collectionIds: collectionId'])
 
     expect(result).toEqual({
       body: JSON.stringify({
@@ -120,6 +124,8 @@ describe('getSavedAccessConfigs', () => {
   })
 
   test('returns the saved access configuration with the new `formDigest`', async () => {
+    const consoleMock = vi.spyOn(console, 'log')
+
     dbTracker.on('query', (query, step) => {
       if (step === 1) {
         query.response([{
@@ -148,6 +154,9 @@ describe('getSavedAccessConfigs', () => {
     }
 
     const result = await getSavedAccessConfigs(event, {})
+
+    expect(consoleMock).toHaveBeenCalledTimes(1)
+    expect(consoleMock.mock.calls[0]).toEqual(['Found savedAccessConfigs for ECHO ORDERS collectionIds: collectionId'])
 
     expect(result).toEqual({
       body: JSON.stringify({

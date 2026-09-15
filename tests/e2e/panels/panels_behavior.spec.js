@@ -1,5 +1,8 @@
 import { test, expect } from 'playwright-test-coverage'
+
 import singleCollection from './__mocks__/single_collection.json'
+
+import { setupTests } from '../../support/setupTests'
 
 const dragPanelToX = async (page, x) => {
   const handle = page.locator('[data-testid="panels__handle"]')
@@ -10,7 +13,12 @@ const dragPanelToX = async (page, x) => {
 }
 
 test.describe('Panel Behavior', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
+    await setupTests({
+      page,
+      context
+    })
+
     await page.route('**/search/collections.json', (route) => {
       route.fulfill({
         body: JSON.stringify(singleCollection.body),
@@ -18,7 +26,9 @@ test.describe('Panel Behavior', () => {
       })
     })
 
-    await page.goto('/')
+    const initialMapPromise = page.waitForResponse(/World_Imagery\/MapServer\/tile\/2/)
+    await page.goto('/search')
+    await initialMapPromise
   })
 
   test('is present by default on page load', async ({ page }) => {
@@ -43,10 +53,16 @@ test.describe('Panel Behavior', () => {
   test('opens and closes when using keyboard shortcuts', async ({ page }) => {
     await page.keyboard.press(']')
 
+    // Wait for the animation to complete
+    await page.waitForSelector('.panels--is-minimized', { state: 'visible' })
+
     await expect(page.locator('.panels--is-open')).toHaveCount(0)
     await expect(page.locator('.panels--is-minimized')).toHaveCount(1)
 
     await page.keyboard.press(']')
+
+    // Wait for the animation to complete
+    await page.waitForSelector('.panels--is-open', { state: 'visible' })
 
     await expect(page.locator('.panels--is-open')).toHaveCount(1)
     await expect(page.locator('.panels--is-minimized')).toHaveCount(0)
@@ -79,6 +95,6 @@ test.describe('Panel Behavior', () => {
   test('drags the panel to maximum width', async ({ page }) => {
     await dragPanelToX(page, 1500)
 
-    await expect(page.getByTestId('panels-section')).toHaveCSS('width', '1035px')
+    await expect(page.getByTestId('panels-section')).toHaveCSS('width', '907px')
   })
 })

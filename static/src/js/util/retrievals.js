@@ -7,12 +7,15 @@ import {
   extractProjectCollectionGranuleParams
 } from './granules'
 
+import { getEarthdataEnvironment } from '../zustand/selectors/earthdataEnvironment'
+
+import useEdscStore from '../zustand/useEdscStore'
 import {
-  getProjectCollections,
   getProjectCollectionsIds,
+  getProjectCollections,
   getProjectCollectionsMetadata
-} from '../selectors/project'
-import { getEarthdataEnvironment } from '../selectors/earthdataEnvironment'
+} from '../zustand/selectors/project'
+import routerHelper from '../router/router'
 
 // Limit the fields we send with the retrieval to save space in the payload
 const permittedCollectionMetadataFields = [
@@ -24,49 +27,44 @@ const permittedCollectionMetadataFields = [
   'isOpenSearch',
   'links',
   'relatedUrls',
+  'relatedCollections',
   'title',
   'shortName',
   'versionId'
 ]
 const permittedAccessMethodFields = [
   'enableConcatenateDownload',
-  'enableTemporalSubsetting',
   'enableSpatialSubsetting',
+  'enableTemporalSubsetting',
+  'formDigest',
   'maxItemsPerOrder',
   'mbr',
   'model',
   'optionDefinition',
   'rawModel',
-  'selectedVariables',
   'selectedOutputFormat',
   'selectedOutputProjection',
+  'selectedVariables',
   'supportsBoundingBoxSubsetting',
-  'supportsShapefileSubsetting',
   'supportsConcatenation',
-  'defaultConcatenation',
+  'supportsShapefileSubsetting',
   'swodlrData',
   'type',
   'url'
 ]
 
 /**
- * Prepare parameters used in submitRetrieval() based on current Redux State
- * @param {Object} state Current Redux State
+ * Prepare parameters used in submitRetrieval() based on current store state
  * @returns Parameters used in submitRetrieval()
  */
-export const prepareRetrievalParams = (state) => {
-  const {
-    authToken,
-    portal,
-    router,
-    shapefile
-  } = state
-
-  // Retrieve data from Redux using selectors
-  const collectionsMetadata = getProjectCollectionsMetadata(state)
-  const earthdataEnvironment = getEarthdataEnvironment(state)
-  const projectCollections = getProjectCollections(state)
-  const projectCollectionsIds = getProjectCollectionsIds(state)
+export const prepareRetrievalParams = () => {
+  // Retrieve data from Zustand
+  const zustandState = useEdscStore.getState()
+  const { shapefile } = zustandState
+  const earthdataEnvironment = getEarthdataEnvironment(zustandState)
+  const collectionsMetadata = getProjectCollectionsMetadata(zustandState)
+  const projectCollections = getProjectCollections(zustandState)
+  const projectCollectionsIds = getProjectCollectionsIds(zustandState)
 
   const retrievalCollections = []
 
@@ -79,7 +77,7 @@ export const prepareRetrievalParams = (state) => {
     } = projectCollection
 
     const {
-      hits: granuleCount,
+      count: granuleCount,
       allIds: allGranuleIds = [],
       byId: byGranuleId = {}
     } = granules
@@ -99,11 +97,11 @@ export const prepareRetrievalParams = (state) => {
     const returnValue = {}
 
     returnValue.id = collectionId
-    returnValue.granule_count = granuleCount
-    returnValue.granule_link_count = totalGranuleLinks
-    returnValue.collection_metadata = pick(collectionMetadata, permittedCollectionMetadataFields)
+    returnValue.granuleCount = granuleCount
+    returnValue.granuleLinkCount = totalGranuleLinks
+    returnValue.collectionMetadata = pick(collectionMetadata, permittedCollectionMetadataFields)
 
-    const extractedGranuleParams = extractProjectCollectionGranuleParams(state, collectionId)
+    const extractedGranuleParams = extractProjectCollectionGranuleParams(collectionId)
 
     const preparedParams = prepareGranuleParams(
       collectionsMetadata,
@@ -114,9 +112,9 @@ export const prepareRetrievalParams = (state) => {
 
     const { variables, selectedVariables } = accessMethods[selectedAccessMethod]
 
-    returnValue.granule_params = params
+    returnValue.granuleParams = params
 
-    returnValue.access_method = pick(
+    returnValue.accessMethod = pick(
       accessMethods[selectedAccessMethod],
       permittedAccessMethodFields
     )
@@ -131,7 +129,7 @@ export const prepareRetrievalParams = (state) => {
       })
 
       if (variableNames) {
-        returnValue.access_method.selectedVariableNames = variableNames
+        returnValue.accessMethod.selectedVariableNames = variableNames
       }
     }
 
@@ -161,7 +159,7 @@ export const prepareRetrievalParams = (state) => {
 
       if (swLat && swLng && neLat && neLng) {
         // If an MBR was returned add it to the access method before submitting to the database
-        returnValue.access_method.mbr = {
+        returnValue.accessMethod.mbr = {
           swLat,
           swLng,
           neLat,
@@ -173,10 +171,11 @@ export const prepareRetrievalParams = (state) => {
     retrievalCollections.push(returnValue)
   })
 
-  const { search } = router.location
+  const { location } = routerHelper.router.state
+  const { search } = location
   const { shapefileId, selectedFeatures } = shapefile
 
-  const { portalId } = portal
+  const { portalId } = useEdscStore.getState().portal
 
   const jsonData = {
     portalId,
@@ -186,9 +185,8 @@ export const prepareRetrievalParams = (state) => {
   }
 
   return {
-    authToken,
     collections: [...retrievalCollections],
     environment: earthdataEnvironment,
-    json_data: jsonData
+    jsondata: jsonData
   }
 }

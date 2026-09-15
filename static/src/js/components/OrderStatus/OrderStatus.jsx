@@ -1,76 +1,56 @@
 import React, { useEffect, useState } from 'react'
-import PropTypes from 'prop-types'
 import { Helmet } from 'react-helmet'
+import { useParams } from 'react-router-dom'
 
-import { FaChevronCircleRight } from 'react-icons/fa'
+import { ArrowCircleRight } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
+import ExternalLink from '../ExternalLink/ExternalLink'
 import OrderStatusList from './OrderStatusList'
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
 import RelatedCollection from '../RelatedCollection/RelatedCollection'
 import Skeleton from '../Skeleton/Skeleton'
 import Well from '../Well/Well'
 
+import { orderStatusSkeleton, orderStatusLinksSkeleton } from './skeleton'
+
+import { changePath } from '../../util/url/changePath'
 import { deployedEnvironment } from '../../../../../sharedUtils/deployedEnvironment'
 import { getEnvironmentConfig } from '../../../../../sharedUtils/config'
-import { locationPropType } from '../../util/propTypes/location'
-import { orderStatusSkeleton, orderStatusLinksSkeleton } from './skeleton'
 import { stringify } from '../../util/url/url'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getEarthdataEnvironment } from '../../zustand/selectors/earthdataEnvironment'
+
+import { routes } from '../../constants/routes'
+
+import { useGetRetrieval } from '../../hooks/useGetRetrieval'
 
 import './OrderStatus.scss'
 
 /**
  * Renders a RelatedCollection.
- * @param {Object} props - The props passed into the component.
- * @param {String} props.authToken - The accessMethods of the current collection.
- * @param {String} props.earthdataEnvironment - The accessMethods of the current collection.
- * @param {Object} props.granuleDownload - Data pertaining to the status of the granule download for a retrieval collection.
- * @param {Object} props.location - Location passed from react router.
- * @param {Object} props.match - Router match state.
- * @param {Function} props.onChangePath - Selects an access method.
- * @param {Function} props.onFetchRetrieval - Fetches a retrieval from the database.
- * @param {Function} props.onFetchRetrievalCollection - Fetches a retrieval collection from the database.
- * @param {Function} props.onFetchRetrievalCollectionGranuleLinks - Passed down to child components, method to fetch granules for a given retrieval collection.
- * @param {Function} props.onFocusedCollectionChange - Callback to change the focused collection.
- * @param {Function} props.onMetricsRelatedCollection -  Callback to capture related collection metrics.
- * @param {Function} props.onToggleAboutCSDAModal - Callback to toggle the About CSDA Modal.
-
  */
-export const OrderStatus = ({
-  authToken,
-  earthdataEnvironment,
-  granuleDownload,
-  location,
-  match,
-  onChangePath,
-  onFetchRetrieval,
-  onFetchRetrievalCollection,
-  onFetchRetrievalCollectionGranuleLinks,
-  onFetchRetrievalCollectionGranuleBrowseLinks,
-  onFocusedCollectionChange,
-  onMetricsRelatedCollection,
-  onToggleAboutCSDAModal,
-  retrieval = {}
-}) => {
-  useEffect(() => {
-    if (authToken !== '') {
-      const { params } = match
-      const { id: retrievalId } = params
-
-      onFetchRetrieval(retrievalId, authToken)
-    }
-  }, [authToken])
+const OrderStatus = () => {
+  const params = useParams()
+  const { id: retrievalId } = params
 
   const {
-    collections,
-    id,
-    isLoaded,
-    isLoading,
-    jsondata = {},
-    links = []
+    loading,
+    retrieval
+  } = useGetRetrieval()
+
+  const earthdataEnvironment = useEdscStore(getEarthdataEnvironment)
+
+  const {
+    retrievalCollections = [],
+    obfuscatedId: loadedId,
+    jsondata = {}
   } = retrieval
 
-  const { byId = {} } = collections
+  const retrievalCollectionLinks = retrievalCollections.map(
+    (retrievalCollection) => retrievalCollection.links
+  ).flat().filter(Boolean)
 
   const [filteredRelatedCollectionItems, setFilteredRelatedCollections] = useState([])
 
@@ -79,9 +59,9 @@ export const OrderStatus = ({
   useEffect(() => {
     const relatedCollectionItems = []
 
-    if (!isLoading && isLoaded) {
-      Object.values(byId).forEach((retrievalCollection) => {
-        const { collection_metadata: metadata } = retrievalCollection
+    if (!loading) {
+      retrievalCollections.forEach((retrievalCollection) => {
+        const { collectionMetadata: metadata = {} } = retrievalCollection
 
         const { relatedCollections } = metadata
 
@@ -100,60 +80,27 @@ export const OrderStatus = ({
       setFilteredRelatedCollections(relatedCollectionItems
         .sort(() => 0.5 - Math.random()).slice(0, 3))
     }
-  }, [isLoading, isLoaded])
+  }, [loading])
 
   const { source } = jsondata
-
-  let {
-    download: downloads = [],
-    opendap: opendapOrders = [],
-    echo_orders: echoOrders = [],
-    esi: esiOrders = [],
-    harmony: harmonyOrders = [],
-    swodlr: swodlrOrders = []
-  } = collections
-
-  const collectionsById = Object.values(byId)
-
-  downloads = collectionsById.filter(
-    ({ id: collectionId }) => downloads.includes(collectionId)
-  )
-
-  opendapOrders = collectionsById.filter(
-    ({ id: collectionId }) => opendapOrders.includes(collectionId)
-  )
-
-  echoOrders = collectionsById.filter(
-    ({ id: collectionId }) => echoOrders.includes(collectionId)
-  )
-
-  esiOrders = collectionsById.filter(
-    ({ id: collectionId }) => esiOrders.includes(collectionId)
-  )
-
-  harmonyOrders = collectionsById.filter(
-    ({ id: collectionId }) => harmonyOrders.includes(collectionId)
-  )
-
-  swodlrOrders = collectionsById.filter(
-    ({ id: collectionId }) => swodlrOrders.includes(collectionId)
-  )
 
   const { edscHost } = getEnvironmentConfig()
 
   const eeLink = earthdataEnvironment === deployedEnvironment() ? '' : `?ee=${earthdataEnvironment}`
 
+  const shouldShowLoading = loading
+
   const introduction = (
     <p>
       {'This page will automatically update as your orders are processed. The Download Status page can be accessed later by visiting '}
-      <a href={`${edscHost}/downloads/${id}${eeLink}`}>
-        {`${edscHost}/downloads/${id}${eeLink}`}
+      <a href={`${edscHost}${routes.DOWNLOADS}/${retrievalId}${eeLink}`}>
+        {`${edscHost}${routes.DOWNLOADS}/${retrievalId}${eeLink}`}
       </a>
       {' or the '}
       <PortalLinkContainer
         to={
           {
-            pathname: '/downloads',
+            pathname: routes.DOWNLOADS,
             search: stringify({ ee: earthdataEnvironment === deployedEnvironment() ? '' : earthdataEnvironment })
           }
         }
@@ -164,22 +111,13 @@ export const OrderStatus = ({
     </p>
   )
 
-  const allCollections = [
-    ...downloads,
-    ...opendapOrders,
-    ...echoOrders,
-    ...esiOrders,
-    ...harmonyOrders,
-    ...swodlrOrders
-  ]
-
   return (
     <>
       <Helmet>
         <title>Download Status</title>
         <meta name="title" content="Download Status" />
         <meta name="robots" content="noindex, nofollow" />
-        <link rel="canonical" href={`${edscHost}/downloads`} />
+        <link rel="canonical" href={`${edscHost}${routes.DOWNLOADS}`} />
       </Helmet>
       <div className="order-status">
         <Well className="order-status">
@@ -187,7 +125,7 @@ export const OrderStatus = ({
             <Well.Heading>Download Status</Well.Heading>
             <Well.Introduction>{introduction}</Well.Introduction>
             {
-              (isLoading && !isLoaded) && (
+              shouldShowLoading && (
                 <Skeleton
                   className="order-status__item-skeleton"
                   containerStyle={
@@ -202,27 +140,17 @@ export const OrderStatus = ({
               )
             }
             {
-              isLoaded && (
+              loadedId && (
                 <OrderStatusList
-                  authToken={authToken}
-                  collections={allCollections}
-                  earthdataEnvironment={earthdataEnvironment}
-                  granuleDownload={granuleDownload}
-                  match={match}
-                  onChangePath={onChangePath}
-                  onFetchRetrieval={onFetchRetrieval}
-                  onFetchRetrievalCollection={onFetchRetrievalCollection}
-                  onFetchRetrievalCollectionGranuleLinks={onFetchRetrievalCollectionGranuleLinks}
-                  // eslint-disable-next-line max-len
-                  onFetchRetrievalCollectionGranuleBrowseLinks={onFetchRetrievalCollectionGranuleBrowseLinks}
-                  onToggleAboutCSDAModal={onToggleAboutCSDAModal}
+                  retrievalCollections={retrievalCollections}
+                  retrievalId={retrievalId}
                 />
               )
             }
             <Well.Heading>Additional Resources and Documentation</Well.Heading>
             <Well.Section>
               {
-                isLoading && (
+                shouldShowLoading && (
                   <Skeleton
                     className="order-status__item-skeleton"
                     containerStyle={
@@ -237,39 +165,44 @@ export const OrderStatus = ({
                 )
               }
               {
-                isLoaded && (
+                loadedId && (
                   <ul className="order-status__links">
                     {
-                      links && links.length > 0 && (
-                        links.map((link, index) => {
+                      retrievalCollectionLinks && retrievalCollectionLinks.length > 0 && (
+                        retrievalCollectionLinks.map((link, index) => {
                           const {
-                            dataset_id: datasetId,
+                            title,
                             links: linkLinks
                           } = link
+
+                          if (!linkLinks) return null
 
                           return (
                             <li
                               // eslint-disable-next-line react/no-array-index-key
-                              key={`${datasetId}_${index}`}
+                              key={`${title}_${index}`}
                               className="order-status__links-item"
                             >
-                              <h3 className="order-status__links-title">{datasetId}</h3>
+                              <h3 className="order-status__links-title">{title}</h3>
                               <ul className="order-status__collection-links">
                                 {
                                   linkLinks.map((linkObject) => {
-                                    const { href } = linkObject
+                                    const {
+                                      type,
+                                      url: linkUrl
+                                    } = linkObject
 
                                     return (
                                       <li
-                                        key={href}
+                                        key={linkUrl}
                                         className="order-status__collection-links-item"
                                       >
-                                        <a
-                                          href={href}
-                                          className="order-status__collection-link"
+                                        <ExternalLink
+                                          className="link--separated"
+                                          href={linkUrl}
                                         >
-                                          {href}
-                                        </a>
+                                          {type}
+                                        </ExternalLink>
                                       </li>
                                     )
                                   })
@@ -281,7 +214,7 @@ export const OrderStatus = ({
                       )
                     }
                     {
-                      (links && links.length === 0) && (
+                      (retrievalCollectionLinks && retrievalCollectionLinks.length === 0) && (
                         <li className="order-status__links-item">
                           No additional resources provided
                         </li>
@@ -292,7 +225,7 @@ export const OrderStatus = ({
               }
             </Well.Section>
             {
-              (isLoaded && (
+              (loadedId && (
                 filteredRelatedCollectionItems && filteredRelatedCollectionItems.length > 0
               )) && (
                 <>
@@ -313,9 +246,6 @@ export const OrderStatus = ({
                                 <RelatedCollection
                                   key={`related-collection-${collectionId}`}
                                   className="collection-body__related-collection-link"
-                                  location={location}
-                                  onFocusedCollectionChange={onFocusedCollectionChange}
-                                  onMetricsRelatedCollection={onMetricsRelatedCollection}
                                   relatedCollection={relatedCollection}
                                 />
                               </li>
@@ -333,7 +263,7 @@ export const OrderStatus = ({
             <Well.Heading>Next Steps</Well.Heading>
             <ul className="order-status__footer-link-list">
               <li className="order-status__footer-link-item">
-                <EDSCIcon icon={FaChevronCircleRight} className="order-status__footer-link-icon" />
+                <EDSCIcon icon={ArrowCircleRight} className="order-status__footer-link-icon" />
                 <PortalLinkContainer
                   className="order-status__footer-link"
                   to={
@@ -342,13 +272,13 @@ export const OrderStatus = ({
                       search: source
                     }
                   }
-                  onClick={() => { onChangePath(`/search${source}`) }}
+                  onClick={() => { changePath(`/search${source}`) }}
                 >
                   Back to Earthdata Search Results
                 </PortalLinkContainer>
               </li>
               <li className="order-status__footer-link-item">
-                <EDSCIcon icon={FaChevronCircleRight} className="order-status__footer-link-icon" />
+                <EDSCIcon icon={ArrowCircleRight} className="order-status__footer-link-icon" />
                 <PortalLinkContainer
                   className="order-status__footer-link"
                   to={
@@ -357,18 +287,18 @@ export const OrderStatus = ({
                       search: stringify({ ee: earthdataEnvironment === deployedEnvironment() ? '' : earthdataEnvironment })
                     }
                   }
-                  onClick={() => { onChangePath('/search') }}
+                  onClick={() => { changePath('/search') }}
                 >
                   Start a New Earthdata Search Session
                 </PortalLinkContainer>
               </li>
               <li className="order-status__footer-link-item">
-                <EDSCIcon library="fa" icon={FaChevronCircleRight} className="order-status__footer-link-icon" />
+                <EDSCIcon library="fa" icon={ArrowCircleRight} className="order-status__footer-link-icon" />
                 <PortalLinkContainer
                   className="order-status__footer-link"
                   to={
                     {
-                      pathname: '/downloads',
+                      pathname: routes.DOWNLOADS,
                       search: stringify({ ee: earthdataEnvironment === deployedEnvironment() ? '' : earthdataEnvironment })
                     }
                   }
@@ -382,27 +312,6 @@ export const OrderStatus = ({
       </div>
     </>
   )
-}
-
-OrderStatus.propTypes = {
-  authToken: PropTypes.string.isRequired,
-  earthdataEnvironment: PropTypes.string.isRequired,
-  granuleDownload: PropTypes.shape({}).isRequired,
-  location: locationPropType.isRequired,
-  match: PropTypes.shape({
-    params: PropTypes.shape({
-      id: PropTypes.string
-    })
-  }).isRequired,
-  onChangePath: PropTypes.func.isRequired,
-  onFetchRetrieval: PropTypes.func.isRequired,
-  onFetchRetrievalCollection: PropTypes.func.isRequired,
-  onFetchRetrievalCollectionGranuleLinks: PropTypes.func.isRequired,
-  onFetchRetrievalCollectionGranuleBrowseLinks: PropTypes.func.isRequired,
-  onFocusedCollectionChange: PropTypes.func.isRequired,
-  onMetricsRelatedCollection: PropTypes.func.isRequired,
-  onToggleAboutCSDAModal: PropTypes.func.isRequired,
-  retrieval: PropTypes.shape({}).isRequired
 }
 
 export default OrderStatus

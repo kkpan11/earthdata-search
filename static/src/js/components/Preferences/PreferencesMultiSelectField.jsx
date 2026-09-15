@@ -1,8 +1,7 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import { startCase } from 'lodash-es'
-
-import { Form } from 'react-bootstrap'
+import Form from 'react-bootstrap/Form'
 
 import './PreferencesMultiSelectField.scss'
 
@@ -40,15 +39,17 @@ class PreferencesMultiSelectField extends Component {
     const {
       name: fieldName,
       formData,
-      schema
+      schema,
+      uiSchema
     } = this.props
 
     const { items } = schema
     const {
       enum: values,
-      enumNames,
       description
     } = items
+
+    const { 'ui:enumNames': enumNames } = uiSchema
 
     return (
       <div className="preferences-multi-select-field">
@@ -101,6 +102,9 @@ PreferencesMultiSelectField.propTypes = {
       enumNames: PropTypes.arrayOf(PropTypes.string),
       description: PropTypes.string
     })
+  }).isRequired,
+  uiSchema: PropTypes.shape({
+    'ui:enumNames': PropTypes.arrayOf(PropTypes.string)
   }).isRequired
 }
 

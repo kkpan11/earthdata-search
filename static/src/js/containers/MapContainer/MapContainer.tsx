@@ -1,0 +1,544 @@
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+  useLayoutEffect
+} from 'react'
+import { difference, isEmpty } from 'lodash-es'
+import { Geometry } from 'ol/geom'
+import { useLocation } from 'react-router-dom'
+import { useQuery } from '@apollo/client'
+import GET_COLORMAPS from '../../operations/queries/getColorMaps'
+
+import { eventEmitter } from '../../events/events'
+
+import Map from '../../components/Map/Map'
+
+import { isPath } from '../../util/isPath'
+import { projectionConfigs } from '../../util/map/crs'
+// @ts-expect-error The file does not have types
+import murmurhash3 from '../../util/murmurhash3'
+import hasGibsLayerForProjection from '../../util/hasGibsLayerForProjection'
+import { metricsMap } from '../../util/metrics/metricsMap'
+
+import {
+  backgroundGranulePointStyle,
+  backgroundGranuleStyle,
+  deemphisizedGranuleStyle,
+  deemphisizedGranulePointStyle,
+  granuleStyle,
+  highlightedGranuleStyle,
+  highlightedGranulePointStyle,
+  granulePointStyle
+} from '../../util/map/styles'
+
+import projectionCodes from '../../constants/projectionCodes'
+import spatialTypes from '../../constants/spatialTypes'
+import { mapEventTypes } from '../../constants/eventTypes'
+import { MODAL_NAMES } from '../../constants/modalNames'
+import { routes } from '../../constants/routes'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import {
+  getCollectionsQuerySpatial,
+  getFocusedCollectionGranuleQuery,
+  getSelectedRegionQuery
+} from '../../zustand/selectors/query'
+import { getCollectionId, getFocusedCollectionMetadata } from '../../zustand/selectors/collection'
+import { getFocusedCollectionMapLayers } from '../../zustand/selectors/map'
+import { getFocusedGranule, getGranuleId } from '../../zustand/selectors/granule'
+import { getFocusedProjectCollection } from '../../zustand/selectors/project'
+import { getGranules, getGranulesById } from '../../zustand/selectors/granules'
+import { setOpenModalFunction } from '../../zustand/selectors/ui'
+
+import type {
+  Colormap,
+  GibsLayersByCollection,
+  ImageryLayerItem,
+  ImageryLayers,
+  MapGranule,
+  ProjectionCode,
+  SpatialSearch
+} from '../../types/sharedTypes'
+
+import type { ProjectCollection, ProjectGranules } from '../../zustand/types'
+
+import './MapContainer.scss'
+
+export const MapContainer = () => {
+  const location = useLocation()
+  const { pathname } = location
+  const isProjectPage = isPath(pathname, [routes.PROJECT])
+  const isFocusedCollectionPage = isPath(pathname, [
+    routes.GRANULES,
+    routes.COLLECTION_DETAILS
+  ])
+
+  const spatialQuery = useEdscStore(getCollectionsQuerySpatial)
+
+  const {
+    boundingBox: boundingBoxSearch,
+    circle: circleSearch,
+    line: lineSearch,
+    point: pointSearch,
+    polygon: polygonSearch
+  } = spatialQuery
+
+  const {
+    displaySpatialMbrWarning,
+    drawingNewLayer,
+    map: mapProps,
+    onChangeMap,
+    onChangeQuery,
+    onClearShapefile,
+    onExcludeGranule,
+    onFetchShapefile,
+    onUpdateShapefile,
+    nlpAutoCenterPending,
+    setNlpAutoCenterPending,
+    panelsLoaded,
+    projectCollections,
+    setDrawingNewLayer,
+    setGranuleId,
+    setLayerOpacity,
+    setMapLayersOrder,
+    setStartDrawing,
+    shapefile,
+    showMbr,
+    sidebarWidth,
+    startDrawing,
+    toggleLayerVisibility
+  } = useEdscStore((state) => ({
+    displaySpatialMbrWarning: state.ui.map.displaySpatialMbrWarning,
+    drawingNewLayer: state.ui.map.drawingNewLayer,
+    map: state.map.mapView,
+    onChangeMap: state.map.setMapView,
+    onChangeQuery: state.query.changeQuery,
+    onClearShapefile: state.shapefile.clearShapefile,
+    onExcludeGranule: state.query.excludeGranule,
+    onFetchShapefile: state.shapefile.fetchShapefile,
+    onUpdateShapefile: state.shapefile.updateShapefile,
+    nlpAutoCenterPending: state.map.nlpAutoCenterPending,
+    setNlpAutoCenterPending: state.map.setNlpAutoCenterPending,
+    panelsLoaded: state.ui.panels.panelsLoaded,
+    projectCollections: state.project.collections,
+    setDrawingNewLayer: state.ui.map.setDrawingNewLayer,
+    setGranuleId: state.granule.setGranuleId,
+    setLayerOpacity: state.map.setLayerOpacity,
+    setMapLayers: state.map.setMapLayers,
+    setMapLayersOrder: state.map.setMapLayersOrder,
+    setStartDrawing: state.home.setStartDrawing,
+    shapefile: state.shapefile,
+    showMbr: state.map.showMbr,
+    sidebarWidth: state.ui.panels.sidebarWidth,
+    startDrawing: state.home.startDrawing,
+    toggleLayerVisibility: state.map.toggleLayerVisibility
+  }))
+
+  const focusedCollectionGranuleQuery = useEdscStore(getFocusedCollectionGranuleQuery)
+  const focusedCollectionId = useEdscStore(getCollectionId)
+  const focusedCollectionMetadata = useEdscStore(getFocusedCollectionMetadata)
+  const focusedGranule = useEdscStore(getFocusedGranule)
+  const focusedGranuleId = useEdscStore(getGranuleId)
+  const focusedProjectCollection = useEdscStore(getFocusedProjectCollection)
+  const granules = useEdscStore(getGranules)
+  const granulesById = useEdscStore(getGranulesById)
+  const mapLayers = useEdscStore(getFocusedCollectionMapLayers)
+  const selectedRegion = useEdscStore(getSelectedRegionQuery)
+
+  const setOpenModal = useEdscStore(setOpenModalFunction)
+
+  // Default the granuleMetadata to the granulesById. These are the granules we want to show
+  // on the search page
+  let granuleMetadata = {
+    ...granulesById
+  }
+
+  const [mapReady, setMapReady] = useState(false)
+
+  const handleCenterMapOnLoadComplete = useCallback(() => {
+    setNlpAutoCenterPending(false)
+  }, [setNlpAutoCenterPending])
+
+  useLayoutEffect(() => {
+    if (startDrawing && mapReady) {
+      if (startDrawing === 'file') {
+        setOpenModal(MODAL_NAMES.SHAPEFILE_UPLOAD)
+      } else {
+        eventEmitter.emit(mapEventTypes.DRAWSTART, startDrawing)
+      }
+    }
+  }, [startDrawing, mapReady])
+
+  const {
+    base,
+    latitude,
+    longitude,
+    overlays,
+    projection: propsProjection,
+    rotation,
+    zoom: zoomProps
+  } = mapProps
+
+  const [projection, setProjection] = useState<ProjectionCode>(propsProjection)
+  const [center, setCenter] = useState({
+    latitude,
+    longitude
+  })
+  const [zoom, setZoom] = useState(zoomProps)
+
+  // Helper function to get GIBS tags available for the current projection
+  const getLayersForProjection = useCallback(() => {
+    if (!mapLayers) return []
+
+    return mapLayers.filter((tag) => hasGibsLayerForProjection(tag, projection))
+  }, [mapLayers, projection])
+
+  const layersForProjection = getLayersForProjection()
+
+  // Extract products from map layers for the current projection
+  const products = layersForProjection.map((layer) => layer.product)
+
+  // Fetch colormaps using useQuery
+  const { data: colormapData } = useQuery(GET_COLORMAPS, {
+    variables: { products },
+    skip: products.length === 0
+  })
+  // Transform colormap query result to match the expected format
+  const colormapsMetadata: Record<string, Colormap> = useMemo(() => {
+    // Fallback to an empty object if the colormap data is not available or errors
+    if (!colormapData?.colormaps) {
+      return {}
+    }
+
+    const colormaps: Record<string, Colormap> = {}
+    colormapData.colormaps.forEach((colormap: { product: string; jsondata: Colormap }) => {
+      if (colormap.jsondata) {
+        colormaps[colormap.product] = colormap.jsondata
+      }
+    })
+
+    return colormaps
+  }, [colormapData])
+
+  // If there is a shapefileId in the store but we haven't fetched the shapefile yet, fetch it
+  useEffect(() => {
+    if (shapefile) {
+      const {
+        isLoaded,
+        isLoading,
+        shapefileId
+      } = shapefile
+
+      if (shapefileId && !isLoaded && !isLoading) onFetchShapefile(shapefileId)
+    }
+  }, [shapefile])
+
+  const nonExcludedGranules: { [key: string]: { collectionId: string; index: number } } = {}
+
+  // If the focusedGranuleId is set, add it to the nonExcludedGranules first.
+  // This is so the focused granule is always drawn on top of the other granules
+  if (focusedGranuleId && focusedGranule) {
+    nonExcludedGranules[focusedGranuleId] = {
+      collectionId: focusedCollectionId!,
+      index: 0
+    }
+  }
+
+  const {
+    items: granuleItems
+  } = granules
+
+  if (focusedCollectionId && granuleItems.length > 0) {
+    const { excludedGranuleIds = [] } = focusedCollectionGranuleQuery
+    const { isOpenSearch } = focusedCollectionMetadata
+    const allIds = granuleItems.map((item) => item.id)
+    const allGranuleIds = allIds
+
+    let granuleIds
+    if (isOpenSearch) {
+      granuleIds = allGranuleIds.filter((id) => {
+        const hashedId = murmurhash3(id).toString()
+
+        return excludedGranuleIds.indexOf(hashedId) === -1
+      })
+    } else {
+      granuleIds = difference(allGranuleIds, excludedGranuleIds)
+    }
+
+    granuleIds.forEach((granuleId) => {
+      nonExcludedGranules[granuleId] = {
+        collectionId: focusedCollectionId,
+        index: 0
+      }
+    })
+  }
+
+  // If on the project page, get the granules from the projectCollections
+  if (isProjectPage) {
+    const {
+      allIds: projectIds,
+      byId: projectById
+    } = projectCollections
+
+    // If on the project page, clear out the search granule metadata so we only
+    // show project granules
+    granuleMetadata = {}
+
+    projectIds.forEach((collectionId, index) => {
+      const {
+        granules: projectCollectionGranules,
+        isVisible: projectCollectionIsVisible
+      } = projectById[collectionId] || {}
+
+      if (!projectCollectionGranules || !projectCollectionIsVisible) return
+
+      const {
+        allIds = [],
+        byId: projectGranulesById = {}
+      } = projectCollectionGranules
+
+      // Add the project granules to granuleMetadata to be shown on the map
+      granuleMetadata = {
+        ...granuleMetadata,
+        ...projectGranulesById
+      }
+
+      allIds.forEach((granuleId) => {
+        if (focusedGranule) {
+          nonExcludedGranules[granuleId] = {
+            collectionId,
+            index
+          }
+        }
+      })
+    })
+  }
+
+  const handleProjectionSwitching = useCallback((newProjectionCode: ProjectionCode) => {
+    const Projection = Object.keys(projectionCodes).find(((key) => (
+      projectionCodes[key as keyof typeof projectionCodes] === newProjectionCode
+    )))
+
+    const projectionConfig = projectionConfigs[newProjectionCode as keyof typeof projectionConfigs]
+    const [newLongitude, newLatitude] = projectionConfig.center
+    const newZoom = projectionConfig.zoom
+
+    const newMap = {
+      latitude: newLatitude,
+      longitude: newLongitude,
+      projection: newProjectionCode,
+      zoom: newZoom
+    }
+
+    setCenter({
+      latitude: newLatitude,
+      longitude: newLongitude
+    })
+
+    setZoom(newZoom)
+    setProjection(newProjectionCode)
+
+    metricsMap(`Set Projection: ${Projection}`)
+    onChangeMap({ ...newMap })
+  }, [projection])
+
+  const handleDrawEnd = useCallback((geometry: Geometry | undefined) => {
+    if (startDrawing) {
+      eventEmitter.emit(mapEventTypes.MOVEMAP, { source: geometry })
+    }
+
+    setStartDrawing(false)
+  }, [setStartDrawing])
+
+  // Get GIBS data to pass to the map within each granule
+
+  const imageryLayers: ImageryLayers = useMemo(() => {
+    const imageryLayersObject: ImageryLayers = {
+      layerData: [],
+      toggleLayerVisibility,
+      setMapLayersOrder,
+      setLayerOpacity
+    }
+
+    // If the collection has a GIBS tag and the GIBS layer is available for the current projection, use the colormap data
+    // Get colormap data for all available GIBS tags
+    layersForProjection.forEach((layer) => {
+      const { product } = layer
+      const productColormap = colormapsMetadata[product]
+
+      imageryLayersObject.layerData.push({
+        colormap: productColormap,
+        ...layer
+      } as ImageryLayerItem)
+    })
+
+    return imageryLayersObject
+  }, [colormapsMetadata, layersForProjection])
+
+  // Create an object for GIBS layers keyed by collectionId
+  // if no layersForProjection, then return no GIBS data
+  const gibsLayersByCollection = useMemo(() => {
+    const result: GibsLayersByCollection = {}
+
+    // Check if focusedCollectionId exists and layersForProjection has elements
+    if (focusedCollectionId && layersForProjection.length > 0) {
+      result[focusedCollectionId] = layersForProjection
+    }
+
+    return result
+  }, [focusedCollectionId, layersForProjection])
+
+  // Added and removed granule ids for the focused collection are used to apply different
+  // styles to the granules. Granules that are added are drawn with a regular style, while
+  // granules that are removed are drawn with a deemphasized style.
+  const allAddedGranuleIds: string[] = []
+  const allRemovedGranuleIds: string[] = []
+
+  // If on the focusedCollectionPage and the focusedCollectionId is set, get the added and removed granule ids
+  if (isFocusedCollectionPage && focusedCollectionId && focusedCollectionId !== '') {
+    const { granules: granulesObject = {} } = focusedProjectCollection as ProjectCollection
+    const { addedGranuleIds = [], removedGranuleIds = [] } = granulesObject as ProjectGranules
+
+    allAddedGranuleIds.push(...addedGranuleIds)
+    allRemovedGranuleIds.push(...removedGranuleIds)
+  }
+
+  // Generate the granulesToDraw based on the nonExcludedGranules and the addedGranuleIds and removedGranuleIds
+  const granulesToDraw: MapGranule[] = []
+  const granuleIds = Object.keys(nonExcludedGranules)
+  if (granuleIds.length > 0) {
+    granuleIds.forEach((granuleId) => {
+      const { collectionId, index } = nonExcludedGranules[granuleId]
+      const granule = { ...granuleMetadata[granuleId] }
+
+      // If the granule hasn't been fetched yet, return
+      if (isEmpty(granule)) {
+        return
+      }
+
+      // Determine if the granule should be drawn with the regular style or the deemphasized style
+      let shouldDrawRegularStyle = true
+
+      if (allAddedGranuleIds.length > 0) {
+        shouldDrawRegularStyle = allAddedGranuleIds.includes(granuleId)
+      }
+
+      if (allRemovedGranuleIds.length > 0) {
+        shouldDrawRegularStyle = !allRemovedGranuleIds.includes(granuleId)
+      }
+
+      const {
+        formattedTemporal,
+        spatial = {}
+      } = granule
+
+      // If the granule does not have spatial, don't draw it
+      if (!spatial) return
+
+      const { geometry = {} } = spatial
+      const { type } = geometry
+
+      if (type === spatialTypes.POINT) {
+        granule.backgroundGranuleStyle = backgroundGranulePointStyle
+        granule.highlightedStyle = highlightedGranulePointStyle(index)
+        granule.granuleStyle = shouldDrawRegularStyle
+          ? granulePointStyle(index)
+          : deemphisizedGranulePointStyle(index)
+      } else {
+        granule.backgroundGranuleStyle = backgroundGranuleStyle
+        granule.highlightedStyle = highlightedGranuleStyle(index)
+        granule.granuleStyle = shouldDrawRegularStyle
+          ? granuleStyle(index)
+          : deemphisizedGranuleStyle(index)
+      }
+
+      granulesToDraw.push({
+        backgroundGranuleStyle: granule.backgroundGranuleStyle,
+        collectionId,
+        formattedTemporal,
+        granuleId,
+        granuleStyle: granule.granuleStyle,
+        highlightedStyle: granule.highlightedStyle,
+        spatial: granule.spatial,
+        time: granule.timeStart
+      })
+    })
+  }
+
+  // Create the spatial search object to pass to the map
+  const spatialSearch = useMemo<SpatialSearch>(() => ({
+    selectedRegion,
+    boundingBoxSearch,
+    circleSearch,
+    drawingNewLayer,
+    lineSearch,
+    pointSearch,
+    polygonSearch,
+    showMbr: showMbr || displaySpatialMbrWarning
+  }), [
+    selectedRegion,
+    boundingBoxSearch,
+    circleSearch,
+    displaySpatialMbrWarning,
+    drawingNewLayer,
+    lineSearch,
+    pointSearch,
+    polygonSearch,
+    projection,
+    showMbr
+  ])
+
+  const memoizedShapefile = useMemo(() => shapefile, [shapefile])
+
+  // If the panels or sidebar widths have not been calculated, don't render the map
+  // if (panelsWidth === 0 || sidebarWidth === 0) return null
+  if (!panelsLoaded || sidebarWidth === 0) return null
+
+  const mapLayersKey = Buffer.from(JSON.stringify(mapLayers)).toString('base64')
+  // Generate a key based on the granules that need to be drawn on the map, and the gibsTagProduct.
+  // `granulesKey` is used to prevent unnecessary rerenders in the Map component.
+  // Append map layers string to the granulesKey to ensure rerenders when the map layers change (Opacity, Visibility)
+  const granulesKey = Buffer.from(JSON.stringify({
+    mapLayersKey,
+    granulesToDraw: granulesToDraw.map((granule) => granule.granuleId)
+  })).toString('base64')
+
+  return (
+    <Map
+      base={base}
+      center={center}
+      focusedCollectionId={focusedCollectionId!}
+      focusedGranuleId={focusedGranuleId}
+      gibsLayersByCollection={gibsLayersByCollection}
+      granules={granulesToDraw}
+      granulesKey={granulesKey}
+      imageryLayers={imageryLayers}
+      isFocusedCollectionPage={isFocusedCollectionPage}
+      isProjectPage={isProjectPage}
+      onChangeMap={onChangeMap}
+      onChangeProjection={handleProjectionSwitching}
+      onChangeQuery={onChangeQuery}
+      onClearShapefile={onClearShapefile}
+      onDrawEnd={handleDrawEnd}
+      onExcludeGranule={onExcludeGranule}
+      onMapReady={setMapReady}
+      onToggleDrawingNewLayer={setDrawingNewLayer}
+      onToggleShapefileUploadModal={() => setOpenModal(MODAL_NAMES.SHAPEFILE_UPLOAD)}
+      onToggleTooManyPointsModal={() => setOpenModal(MODAL_NAMES.TOO_MANY_POINTS)}
+      onUpdateShapefile={onUpdateShapefile}
+      overlays={overlays}
+      centerMapOnLoad={nlpAutoCenterPending}
+      onCenterMapOnLoadComplete={handleCenterMapOnLoadComplete}
+      projectionCode={projection}
+      rotation={rotation}
+      setGranuleId={setGranuleId}
+      shapefile={memoizedShapefile}
+      spatialSearch={spatialSearch}
+      zoom={zoom}
+    />
+  )
+}
+
+export default MapContainer

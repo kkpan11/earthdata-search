@@ -6,8 +6,8 @@ import * as deployedEnvironment from '../../../../../../sharedUtils/deployedEnvi
 import * as getApplicationConfig from '../../../../../../sharedUtils/config'
 
 beforeEach(() => {
-  jest.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
-  jest.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
+  vi.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
+  vi.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
     defaultPortal: 'default'
   }))
 })
@@ -31,9 +31,11 @@ describe('url#decodeUrlParams', () => {
 describe('url#encodeUrlQuery', () => {
   test('encodes keywordSearch correctly', () => {
     const props = {
-      hasGranulesOrCwic: true,
-      pathname: '/path/here',
-      tagKey: 'test.key'
+      collectionsQuery: {
+        hasGranulesOrCwic: true,
+        tagKey: 'test.key'
+      },
+      pathname: '/path/here'
     }
     expect(encodeUrlQuery(props)).toEqual('/path/here?tag_key=test.key')
   })

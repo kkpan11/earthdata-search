@@ -1,35 +1,26 @@
 import React, { useEffect } from 'react'
-import PropTypes from 'prop-types'
 import { set } from 'tiny-cookie'
-import { connect } from 'react-redux'
 import { parse } from 'qs'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { getEnvironmentConfig } from '../../../../../sharedUtils/config'
-import { locationPropType } from '../../util/propTypes/location'
-import history from '../../util/history'
+import useEdscStore from '../../zustand/useEdscStore'
+import { routes } from '../../constants/routes'
 
-import actions from '../../actions'
-
-export const mapStateToProps = (state) => ({
-  location: state.router.location
-})
-
-export const mapDispatchToProps = (dispatch) => ({
-  onAddEarthdataDownloadRedirect:
-    (data) => dispatch(actions.addEarthdataDownloadRedirect(data))
-})
+import { getSafeRedirectUrl } from '../../util/getSafeRedirectUrl'
 
 /**
  * This class handles the authenticated redirect from our edlCallback lambda function.
- * We get the jwt and redirect path from the URL, store the jwt in a cookie and redirect
+ * We get the edlToken and redirect path from the URL, store the edlToken in a cookie and redirect
  * the user to the correct location based on where they were trying to get before logging
  * in.
  */
-export const AuthCallbackContainer = ({
-  location,
-  onAddEarthdataDownloadRedirect
-}) => {
+export const AuthCallbackContainer = () => {
+  const location = useLocation()
+  const navigate = useNavigate()
   const { edscHost } = getEnvironmentConfig()
+
+  const setRedirectUrl = useEdscStore((state) => state.earthdataDownloadRedirect.setRedirectUrl)
 
   useEffect(() => {
     const { search } = location
@@ -37,31 +28,31 @@ export const AuthCallbackContainer = ({
     const params = parse(search, { ignoreQueryPrefix: true })
     const {
       eddRedirect,
-      jwt = '',
-      accessToken,
-      redirect = '/'
+      edlToken,
+      redirect = routes.HOME
     } = params
 
     let eddRedirectUrl = eddRedirect
 
-    if (redirect.includes('earthdata-download')) {
+    if (redirect && redirect.includes('earthdata-download')) {
       eddRedirectUrl = redirect
     }
 
     // Handle EDD redirects
     if (eddRedirectUrl) {
-      const validEddRedirect = eddRedirectUrl.startsWith('earthdata-download')
+      // Validate the EDD redirect against our allow-list, returns null if invalid
+      const safeEddUrl = getSafeRedirectUrl(eddRedirectUrl, edscHost)
 
-      if (validEddRedirect) {
-        if (accessToken) eddRedirectUrl += `&token=${accessToken}`
+      if (safeEddUrl && safeEddUrl.startsWith('earthdata-download:')) {
+        let finalEddUrl = safeEddUrl
 
-        // Add the redirect information to the store
-        onAddEarthdataDownloadRedirect({
-          redirect: eddRedirectUrl
-        })
+        if (edlToken) {
+          // Append token
+          finalEddUrl += `&token=${edlToken}`
+        }
 
-        // Redirect to the edd callback
-        history.push('/earthdata-download-callback')
+        setRedirectUrl(finalEddUrl)
+        navigate(routes.EARTHDATA_DOWNLOAD_CALLBACK)
 
         return
       }
@@ -72,20 +63,19 @@ export const AuthCallbackContainer = ({
     }
 
     // Handle redirects
-    const invalidRedirectUrl = redirect !== '/' && !redirect.startsWith(edscHost)
+    const safeRedirectUrl = getSafeRedirectUrl(redirect, edscHost)
 
-    if (invalidRedirectUrl) {
-      // Redirect to an error page or a safe location if the URL is not a relative path
+    if (!safeRedirectUrl) {
       window.location.replace('/not-found')
 
       return
     }
 
-    // Set the authToken cookie
-    set('authToken', jwt)
+    // Set the edlToken cookie
+    set('edlToken', edlToken)
 
-    // Redirect the user to the correct location
-    window.location.replace(redirect)
+    // Redirect the user to the safe, validated location
+    window.location.replace(safeRedirectUrl)
   }, [])
 
   return (
@@ -93,9 +83,4 @@ export const AuthCallbackContainer = ({
   )
 }
 
-AuthCallbackContainer.propTypes = {
-  location: locationPropType.isRequired,
-  onAddEarthdataDownloadRedirect: PropTypes.func.isRequired
-}
-
-export default connect(mapStateToProps, mapDispatchToProps)(AuthCallbackContainer)
+export default AuthCallbackContainer

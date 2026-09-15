@@ -5,11 +5,15 @@ import { CSSTransition } from 'react-transition-group'
 import { getGranuleIds } from '../../util/getGranuleIds'
 import { formatGranulesList } from '../../util/formatGranulesList'
 import { eventEmitter } from '../../events/events'
-import { locationPropType } from '../../util/propTypes/location'
 
 import Spinner from '../Spinner/Spinner'
 import GranuleResultsList from './GranuleResultsList'
 import GranuleResultsTable from './GranuleResultsTable'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getFocusedCollectionGranuleQuery } from '../../zustand/selectors/query'
+import { getGranuleId } from '../../zustand/selectors/granule'
+import { getGranules } from '../../zustand/selectors/granules'
 
 import './GranuleResultsBody.scss'
 
@@ -18,38 +22,32 @@ import './GranuleResultsBody.scss'
  * @param {Object} props - The props passed into the component.
  * @param {String} props.collectionId - The focused collection ID.
  * @param {Object} props.directDistributionInformation - The collection direct distribution information.
- * @param {String} props.focusedGranuleId - The focused granule ID.
- * @param {Object} props.granuleSearchResults - Granules passed from redux store.
  * @param {Object} props.isOpenSearch - Flag set if the focused collection is a CWIC collection.
  * @param {Function} props.loadNextPage - Callback to load the next page of results.
- * @param {Object} props.location - Location passed from react router.
- * @param {Function} props.onExcludeGranule - Callback exclude a granule.
- * @param {Function} props.onFocusedGranuleChange - Callback change the focused granule.
- * @param {Function} props.onMetricsDataAccess - Metrics callback for data access events.
  * @param {Function} props.panelView - The current panel view.
  */
 const GranuleResultsBody = ({
   collectionId,
   directDistributionInformation,
-  focusedGranuleId,
-  granuleQuery,
-  granuleSearchResults,
-  granulesMetadata,
   isOpenSearch,
   loadNextPage,
-  location,
-  onAddGranuleToProjectCollection,
-  onExcludeGranule,
-  onFocusedGranuleChange,
-  onMetricsDataAccess,
-  onRemoveGranuleFromProjectCollection,
-  panelView,
-  project
+  panelView
 }) => {
+  const focusedGranuleId = useEdscStore(getGranuleId)
+  const granuleSearchResults = useEdscStore(getGranules)
+  const granuleQuery = useEdscStore(getFocusedCollectionGranuleQuery)
+  const {
+    setGranuleId,
+    projectCollections
+  } = useEdscStore((state) => ({
+    setGranuleId: state.granule.setGranuleId,
+    projectCollections: state.project.collections
+  }))
+
   const [hoveredGranuleId, setHoveredGranuleId] = useState(null)
 
   // When the map hovers over a granule
-  eventEmitter.on(`map.layer.${collectionId}.focusgranule`, (data) => {
+  eventEmitter.on(`map.layer.${collectionId}.hoverGranule`, (data) => {
     const { granule: focusedGranule } = data
 
     if (focusedGranule) {
@@ -63,16 +61,18 @@ const GranuleResultsBody = ({
   })
 
   const {
-    hits: granuleHits,
+    count: granuleHits,
     loadTime = 0,
     isLoaded,
     isLoading,
-    allIds
+    items
   } = granuleSearchResults
 
   const {
-    excludedGranuleIds = []
+    excludedGranuleIds = [],
+    readableGranuleName = ['']
   } = granuleQuery
+  const allIds = items.map((granule) => granule.id)
 
   const granuleIds = getGranuleIds({
     allIds,
@@ -81,7 +81,8 @@ const GranuleResultsBody = ({
     limit: false
   })
 
-  const { collections: projectCollections = {} } = project
+  // Filter the granule items by the granuleIds
+  const granuleItems = items.filter((granule) => granuleIds.includes(granule.id))
 
   const {
     byId: projectCollectionsById = {},
@@ -131,13 +132,17 @@ const GranuleResultsBody = ({
   const loadTimeInSeconds = (loadTime / 1000).toFixed(1)
 
   const result = useMemo(() => formatGranulesList({
-    granuleIds,
-    granulesMetadata,
+    granules: granuleItems,
     hoveredGranuleId,
     focusedGranuleId,
     isGranuleInProject,
-    isCollectionInProject
-  }), [granuleIds, granulesMetadata, focusedGranuleId, hoveredGranuleId])
+    isCollectionInProject,
+    setGranuleId
+  }), [
+    granuleItems,
+    focusedGranuleId,
+    hoveredGranuleId
+  ])
 
   const [visibleMiddleIndex, setVisibleMiddleIndex] = useState(null)
 
@@ -183,6 +188,7 @@ const GranuleResultsBody = ({
       >
         <GranuleResultsList
           collectionId={collectionId}
+          readableGranuleName={readableGranuleName}
           directDistributionInformation={directDistributionInformation}
           excludedGranuleIds={excludedGranuleIds}
           granules={granulesList}
@@ -192,12 +198,6 @@ const GranuleResultsBody = ({
           isItemLoaded={isItemLoaded}
           itemCount={itemCount}
           loadMoreItems={loadMoreItems}
-          location={location}
-          onAddGranuleToProjectCollection={onAddGranuleToProjectCollection}
-          onExcludeGranule={onExcludeGranule}
-          onFocusedGranuleChange={onFocusedGranuleChange}
-          onMetricsDataAccess={onMetricsDataAccess}
-          onRemoveGranuleFromProjectCollection={onRemoveGranuleFromProjectCollection}
           setVisibleMiddleIndex={setVisibleMiddleIndex}
           visibleMiddleIndex={visibleMiddleIndex}
         />
@@ -212,20 +212,13 @@ const GranuleResultsBody = ({
           collectionId={collectionId}
           directDistributionInformation={directDistributionInformation}
           excludedGranuleIds={excludedGranuleIds}
-          focusedGranuleId={focusedGranuleId}
           granules={granulesList}
           isOpenSearch={isOpenSearch}
           itemCount={itemCount}
           isItemLoaded={isItemLoaded}
-          location={location}
           loadMoreItems={loadMoreItems}
-          onExcludeGranule={onExcludeGranule}
-          onFocusedGranuleChange={onFocusedGranuleChange}
-          onMetricsDataAccess={onMetricsDataAccess}
           visibleMiddleIndex={visibleMiddleIndex}
           setVisibleMiddleIndex={setVisibleMiddleIndex}
-          onAddGranuleToProjectCollection={onAddGranuleToProjectCollection}
-          onRemoveGranuleFromProjectCollection={onRemoveGranuleFromProjectCollection}
           isGranuleInProject={isGranuleInProject}
           isCollectionInProject={isCollectionInProject}
         />
@@ -262,51 +255,9 @@ const GranuleResultsBody = ({
 GranuleResultsBody.propTypes = {
   collectionId: PropTypes.string.isRequired,
   directDistributionInformation: PropTypes.shape({}).isRequired,
-  focusedGranuleId: PropTypes.string.isRequired,
-  granuleQuery: PropTypes.shape({
-    excludedGranuleIds: PropTypes.arrayOf(PropTypes.string)
-  }).isRequired,
-  granuleSearchResults: PropTypes.shape({
-    allIds: PropTypes.arrayOf(PropTypes.string),
-    hits: PropTypes.number,
-    isLoaded: PropTypes.bool,
-    isLoading: PropTypes.bool,
-    loadTime: PropTypes.number
-  }).isRequired,
-  granulesMetadata: PropTypes.objectOf(
-    PropTypes.shape({
-      browseFlag: PropTypes.bool,
-      browseUrl: PropTypes.string,
-      collectionConceptId: PropTypes.string,
-      dayNightFlag: PropTypes.string,
-      formattedTemporal: PropTypes.arrayOf(PropTypes.string),
-      granuleThumbnail: PropTypes.string,
-      id: PropTypes.string.isRequired,
-      links: PropTypes.arrayOf(
-        PropTypes.shape({
-          href: PropTypes.string.isRequired,
-          inherited: PropTypes.bool,
-          rel: PropTypes.string.isRequired
-        })
-      ),
-      onlineAccessFlag: PropTypes.bool,
-      originalFormat: PropTypes.string,
-      producerGranuleId: PropTypes.string,
-      title: PropTypes.string.isRequired
-    })
-  ).isRequired,
   isOpenSearch: PropTypes.bool.isRequired,
-  location: locationPropType.isRequired,
   loadNextPage: PropTypes.func.isRequired,
-  onAddGranuleToProjectCollection: PropTypes.func.isRequired,
-  onExcludeGranule: PropTypes.func.isRequired,
-  onFocusedGranuleChange: PropTypes.func.isRequired,
-  onMetricsDataAccess: PropTypes.func.isRequired,
-  onRemoveGranuleFromProjectCollection: PropTypes.func.isRequired,
-  panelView: PropTypes.string.isRequired,
-  project: PropTypes.shape({
-    collections: PropTypes.shape({})
-  }).isRequired
+  panelView: PropTypes.string.isRequired
 }
 
 export default GranuleResultsBody

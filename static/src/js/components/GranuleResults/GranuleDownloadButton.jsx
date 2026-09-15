@@ -1,55 +1,56 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { FaDownload } from 'react-icons/fa'
-
+import { Download } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+import { useLocation } from 'react-router-dom'
 import { parse } from 'qs'
-import { Tooltip, OverlayTrigger } from 'react-bootstrap'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
 
-import { getApplicationConfig } from '../../../../../sharedUtils/config'
+import { getApplicationConfig, getEnvironmentConfig } from '../../../../../sharedUtils/config'
 
+import { changePath } from '../../util/url/changePath'
 import { commafy } from '../../util/commafy'
 import { stringify } from '../../util/url/url'
-import { locationPropType } from '../../util/propTypes/location'
+import renderTooltip from '../../util/renderTooltip'
 
 import Button from '../Button/Button'
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
 
-export const GranuleDownloadButton = (props) => {
-  const {
-    badge,
-    buttonText,
-    focusedCollectionId,
-    granuleCount,
-    granuleLimit,
-    initialLoading,
-    isCollectionInProject,
-    location,
-    onAddProjectCollection,
-    onChangePath,
-    tooManyGranules
-  } = props
+import useEdscStore from '../../zustand/useEdscStore'
+import { getEarthdataEnvironment } from '../../zustand/selectors/earthdataEnvironment'
+import { getEdlToken } from '../../zustand/selectors/user'
+
+import { routes } from '../../constants/routes'
+
+export const GranuleDownloadButton = ({
+  badge = null,
+  buttonText,
+  focusedCollectionId,
+  granuleCount = 0,
+  granuleLimit = undefined,
+  initialLoading,
+  isCollectionInProject,
+  tooManyGranules
+}) => {
+  const location = useLocation()
+
+  const edlToken = useEdscStore(getEdlToken)
+  const addProjectCollection = useEdscStore((state) => state.project.addProjectCollection)
+  const earthdataEnvironment = useEdscStore(getEarthdataEnvironment)
 
   const { disableDatabaseComponents } = getApplicationConfig()
+  const { apiHost } = getEnvironmentConfig()
 
   if (tooManyGranules) {
     return (
       <OverlayTrigger
-        placement="bottom"
+        placement="top"
         overlay={
-          (
-            <Tooltip
-              id="tooltip__granule-results-actions__download-all-button"
-              className="tooltip--large tooltip--ta-left tooltip--wide"
-            >
-              Due to significant processing times, orders for this collection are limited to
-              {' '}
-              {commafy(granuleLimit)}
-              {' '}
-              granules. Please narrow your search before downloading.
-              Contact the data provider with questions.
-              You can find contact information by clicking on the information icon.
-            </Tooltip>
-          )
+          (tooltipProps) => renderTooltip({
+            children: `Due to significant processing times, orders for this collection are limited to ${commafy(granuleLimit)} granules. Please narrow your search before downloading. Contact the data provider with questions. You can find contact information by clicking on the information icon.`,
+            className: 'granule-results-actions__download-all-tooltip',
+            id: 'tooltip__granule-results-actions__download-all-button',
+            ...tooltipProps
+          })
         }
       >
         <div>
@@ -57,8 +58,8 @@ export const GranuleDownloadButton = (props) => {
             className="granule-results-actions__download-all-button"
             dataTestId="granule-results-actions__download-all-button"
             badge={badge}
-            bootstrapVariant="secondary"
-            icon={FaDownload}
+            bootstrapVariant="primary"
+            icon={Download}
             variant="full"
             label={buttonText}
             disabled
@@ -104,50 +105,60 @@ export const GranuleDownloadButton = (props) => {
     }
   }
 
+  const stringifiedProjectParams = stringify({
+    ...params,
+    p,
+    pg
+  })
+
+  const downloadButtonProps = {
+    badge,
+    bootstrapVariant: 'primary',
+    className: 'granule-results-actions__download-all',
+    dataTestId: 'granule-results-actions__download-all-button',
+    disabled: granuleCount === 0 || initialLoading || disableDatabaseComponents === 'true',
+    icon: Download,
+    label: buttonText,
+    type: 'button',
+    variant: 'full'
+  }
+
+  if (!edlToken) {
+    const projectPath = `${window.location.protocol}//${window.location.host}${routes.PROJECTS}${stringifiedProjectParams}`
+
+    return (
+      <PortalLinkContainer
+        {...downloadButtonProps}
+        onClick={
+          () => {
+            window.location.href = `${apiHost}/login?ee=${earthdataEnvironment}&state=${encodeURIComponent(projectPath)}`
+          }
+        }
+      >
+        {buttonText}
+      </PortalLinkContainer>
+    )
+  }
+
   return (
     <PortalLinkContainer
-      className="granule-results-actions__download-all"
+      {...downloadButtonProps}
       onClick={
         () => {
-          onAddProjectCollection(focusedCollectionId)
-          onChangePath(`/projects${stringify({
-            ...params,
-            p,
-            pg
-          })}`)
+          addProjectCollection(focusedCollectionId)
+          changePath(`${routes.PROJECT}${stringifiedProjectParams}`)
         }
       }
       to={
         {
-          pathname: '/projects',
-          search: stringify({
-            ...params,
-            p,
-            pg
-          })
+          pathname: routes.PROJECT,
+          search: stringifiedProjectParams
         }
       }
     >
-      <Button
-        badge={badge}
-        bootstrapVariant="success"
-        className="granule-results-actions__download-all-button"
-        dataTestId="granule-results-actions__download-all-button"
-        disabled={granuleCount === 0 || initialLoading || (disableDatabaseComponents === 'true')}
-        icon={FaDownload}
-        label={buttonText}
-        variant="full"
-      >
-        {buttonText}
-      </Button>
+      {buttonText}
     </PortalLinkContainer>
   )
-}
-
-GranuleDownloadButton.defaultProps = {
-  badge: null,
-  granuleCount: 0,
-  granuleLimit: undefined
 }
 
 GranuleDownloadButton.propTypes = {
@@ -161,9 +172,6 @@ GranuleDownloadButton.propTypes = {
   granuleLimit: PropTypes.number,
   initialLoading: PropTypes.bool.isRequired,
   isCollectionInProject: PropTypes.bool.isRequired,
-  location: locationPropType.isRequired,
-  onAddProjectCollection: PropTypes.func.isRequired,
-  onChangePath: PropTypes.func.isRequired,
   projectCollection: PropTypes.shape({}).isRequired,
   tooManyGranules: PropTypes.bool.isRequired
 }

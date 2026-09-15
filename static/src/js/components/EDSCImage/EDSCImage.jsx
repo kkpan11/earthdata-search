@@ -14,24 +14,23 @@ import './EDSCImage.scss'
  * @param {String} props.dataTestId - An optional test id.
  * @param {String} props.className - An optional css class attribute.
  * @param {Integer} props.height - The height of the image.
- * @param {Boolean} props.isBase64Image - If this image needs to be retrieved asynchronously because a header must be passed
+ * @param {Boolean} props.resizeImage - If this image needs to be retrieved asynchronously because a header must be passed
  * @param {String} props.src - The src to be used as the src attribute on the image..
  * @param {Boolean} props.srcSet - The srcSet to be used as the srcSet attribute on the image.
  * @param {Boolean} props.useSpinner - If the spinner should be used for this Image while it is loading
  * @param {Integer} props.width - The width of the image.
  */
-export const EDSCImage = (props) => {
-  const {
-    alt,
-    className,
-    dataTestId,
-    height,
-    isBase64Image,
-    src,
-    srcSet,
-    useSpinner,
-    width
-  } = props
+export const EDSCImage = ({
+  alt,
+  className = undefined,
+  dataTestId = undefined,
+  height,
+  resizeImage = false,
+  src,
+  srcSet = undefined,
+  useSpinner = true,
+  width
+}) => {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isErrored, setIsErrored] = useState(false)
   const [base64Image, setBase64Image] = useState('')
@@ -61,7 +60,7 @@ export const EDSCImage = (props) => {
 
   useEffect(() => {
     let isMounted = true
-    if (isBase64Image && isMounted) {
+    if (resizeImage && isMounted) {
       parseScaleImageResponse()
     }
 
@@ -88,7 +87,7 @@ export const EDSCImage = (props) => {
       }
       {
         // If src is a standard image endpoint
-        !isErrored && !isBase64Image && (
+        !isErrored && !resizeImage && (
           <img
             className="edsc-image__image"
             alt={alt}
@@ -102,7 +101,7 @@ export const EDSCImage = (props) => {
         )
       }
       {
-        !isErrored && isLoaded && isBase64Image && (
+        !isErrored && isLoaded && resizeImage && (
           <img
             className="edsc-image__image"
             alt={alt}
@@ -118,20 +117,12 @@ export const EDSCImage = (props) => {
   )
 }
 
-EDSCImage.defaultProps = {
-  className: undefined,
-  dataTestId: undefined,
-  isBase64Image: false,
-  srcSet: undefined,
-  useSpinner: true
-}
-
 EDSCImage.propTypes = {
   alt: PropTypes.string.isRequired,
   className: PropTypes.string,
   dataTestId: PropTypes.string,
   height: PropTypes.number.isRequired,
-  isBase64Image: PropTypes.bool,
+  resizeImage: PropTypes.bool,
   src: PropTypes.string.isRequired,
   srcSet: PropTypes.string,
   useSpinner: PropTypes.bool,

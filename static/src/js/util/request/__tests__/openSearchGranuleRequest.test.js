@@ -8,11 +8,6 @@ import {
   singleCwicGranuleResponseWithImageStringLink
 } from './mocks'
 
-beforeEach(() => {
-  jest.restoreAllMocks()
-  jest.clearAllMocks()
-})
-
 describe('OpenSearchGranuleRequest#transformRequest', () => {
   describe('when logged out', () => {
     test('returns a basic example result correctly transformed', () => {
@@ -29,7 +24,7 @@ describe('OpenSearchGranuleRequest#transformRequest', () => {
 
   describe('when logged in', () => {
     test('returns a basic example result correctly transformed', () => {
-      const openSearchGranulesRequest = new OpenSearchGranuleRequest('authToken')
+      const openSearchGranulesRequest = new OpenSearchGranuleRequest('edlToken')
       openSearchGranulesRequest.startTime = 1576855756
 
       const transformedData = openSearchGranulesRequest.transformRequest({
@@ -50,7 +45,7 @@ describe('OpenSearchGranuleRequest#transformResponse', () => {
       .transformResponse(singleCwicGranuleResponse)
 
     const { feed } = transformedResponse
-    expect(Object.keys(feed)).toEqual(expect.arrayContaining(['entry', 'hits']))
+    expect(Object.keys(feed)).toEqual(expect.arrayContaining(['entry', 'count']))
 
     const { entry } = feed
     expect(entry).toBeInstanceOf(Array)
@@ -67,7 +62,7 @@ describe('OpenSearchGranuleRequest#transformResponse', () => {
     const { entry } = feed
 
     const granuleKeys = Object.keys(entry[0])
-    expect(granuleKeys).toEqual(expect.arrayContaining(['browse_flag', 'thumbnail']))
+    expect(granuleKeys).toEqual(expect.arrayContaining(['browseFlag', 'thumbnail']))
   })
 
   test('formats multi-granule results correctly', () => {
@@ -77,7 +72,7 @@ describe('OpenSearchGranuleRequest#transformResponse', () => {
       .transformResponse(multipleCwicGranulesResponse)
 
     const { feed } = transformedResponse
-    expect(Object.keys(feed)).toEqual(expect.arrayContaining(['entry', 'hits']))
+    expect(Object.keys(feed)).toEqual(expect.arrayContaining(['entry', 'count']))
 
     const { entry } = feed
     expect(entry).toBeInstanceOf(Array)
@@ -85,7 +80,7 @@ describe('OpenSearchGranuleRequest#transformResponse', () => {
   })
 
   test('formats multi-granule results correctly when parseXml gives empty granules', () => {
-    const mockParse = jest.fn().mockImplementation(() => ({
+    const mockParse = vi.fn().mockImplementation(() => ({
       feed: {
         entry: [{}, {}, {}, '']
       }
@@ -100,7 +95,7 @@ describe('OpenSearchGranuleRequest#transformResponse', () => {
       .transformResponse(multipleCwicGranulesResponse)
 
     const { feed } = transformedResponse
-    expect(Object.keys(feed)).toEqual(expect.arrayContaining(['entry', 'hits']))
+    expect(Object.keys(feed)).toEqual(expect.arrayContaining(['entry', 'count']))
 
     const { entry } = feed
     expect(mockParse).toHaveBeenCalledTimes(1)
@@ -129,7 +124,7 @@ describe('OpenSearchGranuleRequest#transformResponse', () => {
 
       const { feed } = transformedResponse
       const { entry } = feed
-      expect(entry[0].browse_url)
+      expect(entry[0].browseUrl)
         .toEqual('https://uops.nrsc.gov.in//imgarchive/IRS1C/LISS/1996/NOV/14/083042LG.319.jpeg')
     })
 
@@ -141,7 +136,7 @@ describe('OpenSearchGranuleRequest#transformResponse', () => {
 
       const { feed } = transformedResponse
       const { entry } = feed
-      expect(entry[0].browse_url)
+      expect(entry[0].browseUrl)
         .toEqual('https://uops.nrsc.gov.in//imgarchive/IRS1C/LISS/1996/NOV/14/083042LG.319.jpeg')
     })
   })
@@ -155,15 +150,15 @@ describe('OpenSearchGranuleRequest#search', () => {
 
     const openSearchGranulesRequest = new OpenSearchGranuleRequest()
 
-    openSearchGranulesRequest.transformRequest = jest.fn(() => {})
+    openSearchGranulesRequest.transformRequest = vi.fn(() => {})
 
     const expectedResponse = {
       feed: {
         entry: [],
-        hits: 0
+        count: 0
       }
     }
-    openSearchGranulesRequest.transformResponse = jest.fn(() => expectedResponse)
+    openSearchGranulesRequest.transformResponse = vi.fn(() => expectedResponse)
 
     await openSearchGranulesRequest.search({})
 

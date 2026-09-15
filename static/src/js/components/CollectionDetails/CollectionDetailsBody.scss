@@ -1,3 +1,6 @@
+@use '../../../css/vendor/bootstrap/configuration' as bootstrap;
+@use '../../../css/utils';
+
 .collection-details-body {
   display: flex;
   flex-direction: column;
@@ -13,7 +16,7 @@
   }
 
   &__content {
-    padding: $spacer;
+    padding: bootstrap.$spacer;
   }
 
   &__row {
@@ -31,10 +34,11 @@
   &__spatial-bounding {
     width: 360px;
     padding: 0.625rem;
+    white-space: break-spaces;
     font-size: 0.8rem;
     font-weight: 300;
-    background: #3B4856;
-    color: $color__white;
+    background: utils.$color__carbon--60;
+    color: utils.$color__spacesuit-white;
   }
 
   &__info {
@@ -52,18 +56,19 @@
 
   &__heading-tooltip {
     margin-left: 0.25rem;
-    color: $color__black--400;
+    color: utils.$color__carbon--40;
     font-size: 0.625rem;
   }
 
   &__tags {
     display: flex;
-    margin-bottom: $spacer;
+    margin-bottom: bootstrap.$spacer;
   }
 
   &__doi {
     display: inline-block;
     vertical-align: top;
+    text-decoration: none;
 
     .badge {
       display: flex;
@@ -72,7 +77,7 @@
   }
 
   &__cloud-access-title {
-    border-top: 1px solid $color__black--200;
+    border-top: 1px solid utils.$color__carbon--20;
     padding-top: 1.25rem;
   }
 
@@ -83,22 +88,12 @@
     font-weight: 700;
     font-size: .925rem;
     line-height: 1.5rem;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline !important;
-    }
 
     .collection-details-body__links--horizontal & {
       display: inline-block;
-      vertical-align: baseline;
-
-      &:hover {
-        text-decoration: underline;
-      }
 
       &:last-child {
-        padding-top:   calc($spacer / 8);
+        padding-top:   calc(bootstrap.$spacer / 8);
       }
 
       .button {
@@ -120,13 +115,15 @@
 
   &__reformatting-item-heading {
     display: flex;
-    align-items: center;
+    font-size: 0.925rem;
+    margin-bottom: 0rem;
   }
 
   &__reformatting-item-icon {
     margin: 0 0.325rem;
-    color: $color__black--400;
+    color: utils.$color__carbon--40;
     font-size: 0.625rem;
+    align-items: center;
   }
 
   &__reformatting-item-body {
@@ -135,7 +132,7 @@
   }
 
   &__keywords {
-    margin: calc($spacer / 4) 0 calc($spacer / 4);
+    margin: calc(bootstrap.$spacer / 4) 0 calc(bootstrap.$spacer / 4);
     padding: 0;
     list-style: none;
     overflow: hidden;
@@ -164,23 +161,23 @@
 
     .collapse-panel__button {
       width: 100%;
-      padding: $spacer;
+      padding: bootstrap.$spacer;
       border: 0;
-      border-top: 1px solid $color__black--200;
+      border-top: 1px solid utils.$color__carbon--20;
       background: none;
       outline: none;
-      color: $color__black--500;
+      color: utils.$color__carbon--50;
       text-align: left;
 
       &:hover {
-        color: $color__black--600;
+        color: utils.$color__carbon--60;
       }
     }
 
     .collapse-panel__panel {
-      padding: $spacer;
-      border-top: 1px solid $color__black--200;
-      background-color: $color__black--100;
+      padding: bootstrap.$spacer;
+      border-top: 1px solid utils.$color__carbon--10;
+      background-color: utils.$color__carbon--5;
     }
   }
 
@@ -201,7 +198,7 @@
   }
 
   &__cloud-access-content {
-    border: 1px solid $color__black--200;
+    border: 1px solid utils.$color__carbon--20;
     padding: 1.25rem
   }
 
@@ -218,12 +215,5 @@
   &__related-collection-link {
     font-size: 0.925rem;
     line-height: 0.925rem;
-    color: $color__blue--dark;
-
-    &:hover,
-    &:focus,
-    &:active {
-      text-decoration: underline;
-    }
   }
 }

@@ -1,8 +1,7 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import classNames from 'classnames'
-
-import { Dropdown } from 'react-bootstrap'
+import Dropdown from 'react-bootstrap/Dropdown'
 
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
 import Spinner from '../Spinner/Spinner'
@@ -20,11 +19,11 @@ import './RadioSettingDropdownItem.scss'
  * @param {String} props.title - A string to use as the title
  */
 export const RadioSettingDropdownItem = ({
-  className,
-  icon,
-  isActive,
-  inProgress,
-  onClick,
+  className = null,
+  icon = null,
+  isActive = false,
+  inProgress = false,
+  onClick = () => {},
   title
 }) => {
   const radioSettingItemClasses = classNames(
@@ -38,6 +37,7 @@ export const RadioSettingDropdownItem = ({
 
   const handleClick = () => {
     if (isActive) return
+
     onClick()
   }
 
@@ -52,7 +52,7 @@ export const RadioSettingDropdownItem = ({
         icon && !inProgress && (
           <EDSCIcon
             className="radio-setting-dropdown-item__icon"
-            size="0.75rem"
+            size="12"
             icon={icon}
           />
         )
@@ -65,14 +65,6 @@ export const RadioSettingDropdownItem = ({
       <span className="radio-setting-dropdown-item__title">{title}</span>
     </Dropdown.Item>
   )
-}
-
-RadioSettingDropdownItem.defaultProps = {
-  className: null,
-  icon: null,
-  isActive: false,
-  inProgress: false,
-  onClick: () => {}
 }
 
 RadioSettingDropdownItem.propTypes = {

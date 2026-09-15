@@ -1,7 +1,7 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import classNames from 'classnames'
-import { FaExclamationCircle } from 'react-icons/fa'
+import { AlertMediumPriority } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
 
 import EDSCAlert from '../EDSCAlert/EDSCAlert'
 
@@ -9,23 +9,24 @@ import './ProjectPanelSection.scss'
 
 /**
  * Renders ProjectPanelSection.
- * @param {Objectf} props - The props passed into the component.
+ * @param {Object} props - The props passed into the component.
  * @param {Node} props.children - The section children.
  * @param {String} props.heading - The text to be used for the section heading.
  * @param {String} props.headingLevel - A custom heading level. Defaults to 'h3'
  * @param {String} props.intro - Custom intro text.
  * @param {Boolean} props.nested - Displays the component as a nested section.
  * @param {Number} props.step - Adds a step to the heading of the component.
+ * @param {String} props.warning - Adds text to be used on the section.
  */
 export const ProjectPanelSection = ({
-  children,
-  faded,
-  heading,
-  headingLevel,
-  intro,
-  nested,
-  step,
-  warning
+  children = null,
+  faded = false,
+  heading = null,
+  headingLevel = 'h3',
+  intro = null,
+  nested = false,
+  step = null,
+  warning = ''
 }) => {
   const panelSectionClasses = classNames([
     'project-panel-section',
@@ -65,7 +66,7 @@ export const ProjectPanelSection = ({
           <EDSCAlert
             className="project-panel-section__warning"
             bootstrapVariant="warning"
-            icon={FaExclamationCircle}
+            icon={AlertMediumPriority}
           >
             {warning}
           </EDSCAlert>
@@ -73,17 +74,6 @@ export const ProjectPanelSection = ({
       }
     </div>
   )
-}
-
-ProjectPanelSection.defaultProps = {
-  children: null,
-  faded: false,
-  heading: null,
-  headingLevel: 'h3',
-  intro: null,
-  nested: false,
-  step: null,
-  warning: ''
 }
 
 ProjectPanelSection.propTypes = {

@@ -4,21 +4,19 @@ import classNames from 'classnames'
 
 import Button from '../Button/Button'
 import ProjectPanelSection from './ProjectPanelSection'
-import { Tree } from '../Tree/Tree'
+import Tree from '../Tree/Tree'
 
 import './VariableTreePanel.scss'
 
-export const VariableTreePanel = (props) => {
+export const VariableTreePanel = ({
+  accessMethods = undefined,
+  collectionId,
+  index,
+  selectedAccessMethod = undefined,
+  onUpdateSelectedVariables,
+  onViewDetails
+}) => {
   const [treeView, setTreeView] = useState('hierarchy')
-
-  const {
-    accessMethods,
-    collectionId,
-    index,
-    selectedAccessMethod,
-    onUpdateSelectedVariables,
-    onViewDetails
-  } = props
 
   if (!accessMethods || !selectedAccessMethod) {
     return (
@@ -110,11 +108,6 @@ export const VariableTreePanel = (props) => {
       }
     </ProjectPanelSection>
   )
-}
-
-VariableTreePanel.defaultProps = {
-  accessMethods: undefined,
-  selectedAccessMethod: undefined
 }
 
 VariableTreePanel.propTypes = {

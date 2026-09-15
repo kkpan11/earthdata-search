@@ -1,0 +1,186 @@
+import React from 'react'
+import { screen, within } from '@testing-library/react'
+
+import setupTest from '../../../../../../vitestConfigs/setupTest'
+
+import * as deployedEnvironment from '../../../../../../sharedUtils/deployedEnvironment'
+
+import SubscriptionsListTable from '../SubscriptionsListTable'
+import PortalLinkContainer from '../../../containers/PortalLinkContainer/PortalLinkContainer'
+
+vi.mock('../../../containers/PortalLinkContainer/PortalLinkContainer', () => ({
+  default: vi.fn((props) => (
+    // eslint-disable-next-line react/jsx-props-no-spreading
+    <mock-PortalLinkContainer {...props} aria-label={props.label} />
+  ))
+}))
+
+const mockUseDeleteSubscription = vi.fn().mockReturnValue({
+  deleteSubscription: vi.fn(),
+  loading: false
+})
+vi.mock('../../../hooks/useDeleteSubscription', () => ({
+  useDeleteSubscription: () => mockUseDeleteSubscription()
+}))
+
+const setup = setupTest({
+  Component: SubscriptionsListTable,
+  defaultProps: {
+    subscriptionsMetadata: [],
+    subscriptionType: 'collection'
+  },
+  defaultZustandState: {
+    collection: {
+      setCollectionId: vi.fn()
+    }
+  }
+})
+
+beforeEach(() => {
+  vi.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
+})
+
+describe('SubscriptionsListTable component', () => {
+  describe('when passed the correct props', () => {
+    test('renders a message when no subscriptions exist', () => {
+      setup()
+
+      expect(screen.getByText('No subscriptions to display.')).toBeInTheDocument()
+    })
+
+    test('renders a table when subscriptions exist', () => {
+      setup({
+        overrideProps: {
+          subscriptionsMetadata: [{
+            collection: {
+              conceptId: 'C100000-EDSC',
+              title: 'Mattis Justo Vulputate Ullamcorper Amet.'
+            },
+            collectionConceptId: 'C100000-EDSC',
+            creationDate: '2021-01-01',
+            conceptId: 'SUB100000-EDSC',
+            name: 'Test Subscription',
+            nativeId: 'mock-guid',
+            query: 'polygon=-18,-78,-13,-74,-16,-73,-22,-77,-18,-78',
+            revisionDate: '2021-01-02'
+          }],
+          subscriptionType: 'granule'
+        }
+      })
+
+      expect(screen.getByRole('table')).toBeInTheDocument()
+      expect(screen.getAllByRole('row')).toHaveLength(2)
+
+      const tableHeadings = screen.getAllByRole('columnheader')
+      expect(tableHeadings[0]).toHaveTextContent('Name')
+      expect(tableHeadings[1]).toHaveTextContent('Dataset')
+      expect(tableHeadings[2]).toHaveTextContent('Created')
+      expect(tableHeadings[3]).toHaveTextContent('Updated')
+      expect(tableHeadings[4]).toHaveTextContent('Actions')
+
+      const cells = screen.getAllByRole('cell')
+      expect(cells[0]).toHaveTextContent('Test Subscription')
+      expect(cells[1]).toHaveTextContent('Mattis Justo Vulputate Ullamcorper Amet.')
+      expect(cells[2]).toHaveTextContent('2021-01-01 00:00:00')
+      expect(cells[3]).toHaveTextContent('2021-01-02 00:00:00')
+      expect(within(cells[4]).getByLabelText('Edit Subscription')).toBeInTheDocument()
+      expect(within(cells[4]).getByRole('button', { name: 'Delete Subscription' })).toBeInTheDocument()
+    })
+
+    test('onHandleRemove calls deleteSubscription', async () => {
+      const { user } = setup({
+        overrideProps: {
+          subscriptionsMetadata: [{
+            collection: {
+              conceptId: 'C100000-EDSC',
+              title: 'Mattis Justo Vulputate Ullamcorper Amet.'
+            },
+            collectionConceptId: 'C100000-EDSC',
+            conceptId: 'SUB100000-EDSC',
+            name: 'Test Subscription',
+            nativeId: 'mock-guid',
+            query: 'polygon=-18,-78,-13,-74,-16,-73,-22,-77,-18,-78'
+          }],
+          subscriptionType: 'granule'
+        }
+      })
+
+      window.confirm = vi.fn().mockImplementation(() => true)
+
+      const removeButton = screen.getByRole('button', { name: 'Delete Subscription' })
+
+      await user.click(removeButton)
+
+      expect(mockUseDeleteSubscription().deleteSubscription).toHaveBeenCalledTimes(1)
+      expect(mockUseDeleteSubscription().deleteSubscription).toHaveBeenCalledWith({
+        variables: {
+          params: {
+            conceptId: 'SUB100000-EDSC',
+            nativeId: 'mock-guid'
+          }
+        }
+      })
+    })
+  })
+
+  describe('edit subscriptions button', () => {
+    test('renders a PortalLinkContainer', () => {
+      setup({
+        overrideProps: {
+          subscriptionsMetadata: [{
+            collection: {
+              conceptId: 'C100000-EDSC',
+              title: 'Mattis Justo Vulputate Ullamcorper Amet.'
+            },
+            collectionConceptId: 'C100000-EDSC',
+            conceptId: 'SUB100000-EDSC',
+            name: 'Test Subscription',
+            query: 'polygon=-18,-78,-13,-74,-16,-73,-22,-77,-18,-78'
+          }],
+          subscriptionType: 'granule',
+          onDeleteSubscription: vi.fn()
+        }
+      })
+
+      expect(PortalLinkContainer).toHaveBeenCalledTimes(1)
+      expect(PortalLinkContainer).toHaveBeenCalledWith(expect.objectContaining({
+        className: 'subscriptions-list__button',
+        label: 'Edit Subscription',
+        onClick: expect.any(Function),
+        to: {
+          pathname: '/search/granules/subscriptions',
+          search: '?p=C100000-EDSC'
+        },
+        type: 'button',
+        variant: 'naked'
+      }), {})
+    })
+
+    describe('when clicking the edit button while the subscription type is granule', () => {
+      test('calls setCollectionId', async () => {
+        const { user, zustandState } = setup({
+          overrideProps: {
+            subscriptionsMetadata: [{
+              collection: {
+                conceptId: 'C100000-EDSC',
+                title: 'Mattis Justo Vulputate Ullamcorper Amet.'
+              },
+              collectionConceptId: 'C100000-EDSC',
+              conceptId: 'SUB100000-EDSC',
+              name: 'Test Subscription',
+              query: 'polygon=-18,-78,-13,-74,-16,-73,-22,-77,-18,-78'
+            }],
+            subscriptionType: 'granule',
+            onDeleteSubscription: vi.fn()
+          }
+        })
+
+        const button = screen.getByLabelText('Edit Subscription')
+        await user.click(button)
+
+        expect(zustandState.collection.setCollectionId).toHaveBeenCalledTimes(1)
+        expect(zustandState.collection.setCollectionId).toHaveBeenCalledWith('C100000-EDSC')
+      })
+    })
+  })
+})

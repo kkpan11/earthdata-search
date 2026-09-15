@@ -23,7 +23,7 @@ import './PanelGroup.scss'
  * @param {Boolean} props.headerMetaPrimaryLoading - A flag designating the header primary loading state
  * @param {String} props.headerMetaPrimaryText - A string designating the header primary loading text
  * @param {Boolean} props.isActive -  A flag to designate the PanelGroup as active. Active PanelGroups are lifted to the highest index
- * @param {Boolean} props.isOpen - A flag to desingate the PanelGroup as open
+ * @param {Boolean} props.isOpen - A flag to designate the PanelGroup as open
  * @param {Array} props.moreActionsDropdownItems - An array of objects used to configure the more actions dropdown items
  * @param {Function} props.onChangePanel - The action to change the panel
  * @param {String} props.panelGroupId - The element to be used as the header
@@ -33,29 +33,28 @@ import './PanelGroup.scss'
  * @param {Array} props.viewsArray - The configuration for the views
 */
 export const PanelGroup = ({
-  activePanelId,
-  activeSort,
-  activeView,
-  breadcrumbs,
+  activePanelId = '0',
+  activeSort = '',
+  activeView = '',
+  breadcrumbs = [],
   children,
-  dataTestId,
-  exportsArray,
-  footer,
-  handoffLinks,
-  headerLoading,
-  headerMessage,
-  headerMetaPrimaryLoading,
-  headerMetaPrimaryText,
-  isActive,
-  isExportRunning,
-  isOpen,
-  moreActionsDropdownItems,
-  onChangePanel,
-  panelGroupId,
-  primaryHeading,
-  secondaryHeading,
-  sortsArray,
-  viewsArray
+  dataTestId = undefined,
+  exportsArray = [],
+  footer = null,
+  handoffLinks = [],
+  headerLoading = false,
+  headerMessage = null,
+  headerMetaPrimaryLoading = false,
+  headerMetaPrimaryText = null,
+  isActive = false,
+  isOpen = false,
+  moreActionsDropdownItems = [],
+  onChangePanel = null,
+  panelGroupId = '',
+  primaryHeading = null,
+  secondaryHeading = null,
+  sortsArray = [],
+  viewsArray = []
 }) => {
   const renderPanels = (child, index) => {
     if (!child) return null
@@ -99,7 +98,6 @@ export const PanelGroup = ({
         headerMessage={headerMessage}
         headerMetaPrimaryLoading={headerMetaPrimaryLoading}
         headerMetaPrimaryText={headerMetaPrimaryText}
-        isExportRunning={isExportRunning}
         moreActionsDropdownItems={moreActionsDropdownItems}
         panelGroupId={panelGroupId}
         panelGroupIsActive={isActive}
@@ -111,32 +109,6 @@ export const PanelGroup = ({
       {panels}
     </div>
   )
-}
-
-PanelGroup.defaultProps = {
-  activeSort: '',
-  activeView: '',
-  activePanelId: '0',
-  breadcrumbs: [],
-  dataTestId: undefined,
-  exportsArray: [],
-  footer: null,
-  handoffLinks: [],
-  headerMessage: null,
-  headingLink: null,
-  headerMetaPrimaryLoading: false,
-  headerMetaPrimaryText: null,
-  isActive: false,
-  isExportRunning: false,
-  isOpen: false,
-  moreActionsDropdownItems: [],
-  onChangePanel: null,
-  panelGroupId: '',
-  primaryHeading: null,
-  headerLoading: false,
-  secondaryHeading: null,
-  sortsArray: [],
-  viewsArray: []
 }
 
 PanelGroup.propTypes = {
@@ -157,13 +129,12 @@ PanelGroup.propTypes = {
   headerMetaPrimaryLoading: PropTypes.bool,
   headerMetaPrimaryText: PropTypes.string,
   isActive: PropTypes.bool,
-  isExportRunning: PropTypes.bool,
   isOpen: PropTypes.bool,
   onChangePanel: PropTypes.func,
   moreActionsDropdownItems: PropTypes.arrayOf(
     PropTypes.shape({
       title: PropTypes.string.isRequired,
-      icon: PropTypes.func.isRequired,
+      icon: PropTypes.func,
       link: PropTypes.shape({
         pathname: PropTypes.string,
         search: PropTypes.string,

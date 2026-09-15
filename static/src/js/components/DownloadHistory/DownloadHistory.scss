@@ -1,11 +1,20 @@
+@use '../../../css/vendor/bootstrap/configuration' as bootstrap;
+@use '../../../css/utils';
+
 .download-history {
+  &__retention-banner {
+    margin-top: calc(-1 * bootstrap.$spacer * 2);
+    margin-bottom: bootstrap.$spacer;
+  }
+
   &__spinner {
     margin: 0 auto;
   }
 
   &__button {
-    margin: 0 calc($spacer / 2);
-    color: $color__black--300;
+    display: inline-flex;
+    margin: 0 calc(bootstrap.$spacer / 2);
+    color: utils.$color__carbon--30;
 
     &--share {
       i {
@@ -15,23 +24,89 @@
     }
 
     &:hover {
-      color: $color__black--600;
+      color: utils.$color__carbon--60;
+    }
+  }
+
+  &__pagination-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__pagination {
+    margin: 0 auto;
+    width: auto;
+    display: inline-block;
+
+    .rc-pagination-item-active {
+      background-color: utils.$color__nasa-blue;
+      border-color: utils.$color__nasa-blue--shade;
+      color: utils.$color__spacesuit-white;
+    }
+
+    .rc-pagination-jump-next,
+    .rc-pagination-jump-prev,
+    .rc-pagination-next,
+    .rc-pagination-prev,
+    .rc-pagination-item {
+      min-width: 32px;
+      height: 32px;
+      line-height: 32px;
+      border-radius: 16px;
+    }
+
+    .rc-pagination-next,
+    .rc-pagination-prev {
+      border-color: transparent;
+      color: utils.$color__carbon--50;
+
+      &.rc-pagination-disabled {
+        color: utils.$color__carbon--20;
+      }
+
+      &:hover {
+        color: utils.$color__carbon--90;
+
+        &.rc-pagination-disabled {
+          color: utils.$color__carbon--20;
+        }
+      }
+    }
+
+    .rc-pagination-item {
+      &:hover {
+        border-color: utils.$color__carbon--30;
+        background-color: utils.$color__carbon--20;
+        color: utils.$color__carbon--50;
+
+        &.rc-pagination-item-active {
+          background-color: utils.$color__nasa-blue--shade;
+          border-color: utils.$color__nasa-blue--shade;
+          color: utils.$color__spacesuit-white;
+
+          a {
+            color: utils.$color__spacesuit-white
+          }
+        }
+
+        a {
+          color: utils.$color__carbon--50;
+        }
+      }
     }
   }
 }
 
 .download-history-table {
-  a {
-    color: $color__blue;
-
-    &:hover,
-    &:active {
-      color: $color__blue--dark;
-    }
-  }
-
   &__ago {
     white-space: nowrap;
+  }
+
+  &__expiration-warning {
+    display: inline-flex;
+    margin-left: calc(bootstrap.$spacer / 4);
+    vertical-align: middle;
   }
 
   &__actions,
@@ -44,9 +119,7 @@
   }
 
   &__actions {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    text-align: center;
   }
 
 }

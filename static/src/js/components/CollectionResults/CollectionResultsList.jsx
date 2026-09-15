@@ -43,14 +43,10 @@ innerElementType.propTypes = {
 /**
  * Renders CollectionResultsList.
  * @param {Object} props - The props passed into the component.
- * @param {Array} props.collectionsMetadata - Collections passed from redux store.
+ * @param {Array} props.collectionsMetadata - Collections passed from the store.
  * @param {Function} props.isItemLoaded - Callback to see if an item has loaded.
  * @param {Boolean} props.itemCount - The current count of rows to show.
  * @param {Function} props.loadMoreItems - Callback to load the next page of results.
- * @param {Function} props.onAddProjectCollection - Callback to add a collection to a project.
- * @param {Function} props.onRemoveCollectionFromProject - Callback to remove a collection to a project.
- * @param {Function} props.onViewCollectionDetails - Callback to show collection details route.
- * @param {Function} props.onViewCollectionGranules - Callback to show collection granules route.
  * @param {Function} props.setVisibleMiddleIndex - Callback to set the state with the current middle item.
  * @param {String} props.visibleMiddleIndex - The current middle item.
 */
@@ -59,12 +55,8 @@ export const CollectionResultsList = ({
   isItemLoaded,
   itemCount,
   loadMoreItems,
-  onAddProjectCollection,
-  onRemoveCollectionFromProject,
-  onViewCollectionDetails,
-  onViewCollectionGranules,
-  setVisibleMiddleIndex,
-  visibleMiddleIndex
+  setVisibleMiddleIndex = null,
+  visibleMiddleIndex = null
 }) => {
   const infiniteLoaderRef = useRef(null)
   const listRef = useRef(null)
@@ -137,10 +129,6 @@ export const CollectionResultsList = ({
                         windowHeight: height,
                         windowWidth: width,
                         collectionsMetadata,
-                        onAddProjectCollection,
-                        onRemoveCollectionFromProject,
-                        onViewCollectionGranules,
-                        onViewCollectionDetails,
                         isItemLoaded,
                         setSize
                       }
@@ -173,20 +161,11 @@ export const CollectionResultsList = ({
   )
 }
 
-CollectionResultsList.defaultProps = {
-  setVisibleMiddleIndex: null,
-  visibleMiddleIndex: null
-}
-
 CollectionResultsList.propTypes = {
   collectionsMetadata: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   isItemLoaded: PropTypes.func.isRequired,
   itemCount: PropTypes.number.isRequired,
   loadMoreItems: PropTypes.func.isRequired,
-  onAddProjectCollection: PropTypes.func.isRequired,
-  onRemoveCollectionFromProject: PropTypes.func.isRequired,
-  onViewCollectionDetails: PropTypes.func.isRequired,
-  onViewCollectionGranules: PropTypes.func.isRequired,
   setVisibleMiddleIndex: PropTypes.func,
   visibleMiddleIndex: PropTypes.number
 }

@@ -3,6 +3,7 @@
 .dockerignore
 .DS_Store
 .serverless
+.serverless-dist
 coverage
 dist
 Dockerfile
@@ -13,10 +14,7 @@ tmp
 # VSCode Settings
 .vscode
 
-cypress/screenshots
-cypress/videos
 overrideStatic.config.json
-cypress-coverage
 .nyc_output
 
 /test-results/
@@ -27,3 +25,10 @@ playwright-coverage
 /playwright-report/
 /playwright/.cache/
 portals/availablePortals.json
+
+elasticmq.conf
+
+*storybook.log
+
+.continue
+.env

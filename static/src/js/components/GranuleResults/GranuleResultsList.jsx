@@ -2,8 +2,6 @@ import React from 'react'
 import { PropTypes } from 'prop-types'
 import AutoSizer from 'react-virtualized-auto-sizer'
 
-import { locationPropType } from '../../util/propTypes/location'
-
 import GranuleResultsListBody from './GranuleResultsListBody'
 
 import './GranuleResultsList.scss'
@@ -21,12 +19,7 @@ import './GranuleResultsList.scss'
  * @param {Function} props.isItemLoaded - Callback to detirmine if a granule has been loaded.
  * @param {Number} props.itemCount - Number of total granule list itmes.
  * @param {Function} props.loadMoreItems - Callback to load more granules.
- * @param {Object} props.location - Location passed from react router.
- * @param {Function} props.onAddGranuleToProjectCollection - Callback to add a granule to the project.
- * @param {Function} props.onExcludeGranule - Callback to exclude a granule.
- * @param {Function} props.onFocusedGranuleChange - Callback to change the focused granule.
- * @param {Function} props.onMetricsDataAccess - Callback to record data access metrics.
- * @param {Function} props.onRemoveGranuleFromProjectCollection - Callback to remove a granule to the project.
+ * @param {Array} props.readableGranuleName - The readableGranuleName filter value
  * @param {Function} props.setVisibleMiddleIndex - Callback to set the visible middle index.
  * @param {Number} props.visibleMiddleIndex - The current visible middle index.
  */
@@ -41,14 +34,9 @@ export const GranuleResultsList = ({
   isItemLoaded,
   itemCount,
   loadMoreItems,
-  location,
-  onAddGranuleToProjectCollection,
-  onExcludeGranule,
-  onFocusedGranuleChange,
-  onMetricsDataAccess,
-  onRemoveGranuleFromProjectCollection,
-  setVisibleMiddleIndex,
-  visibleMiddleIndex
+  readableGranuleName,
+  setVisibleMiddleIndex = null,
+  visibleMiddleIndex = null
 }) => (
   <div className="granule-results-list">
     <AutoSizer style={
@@ -73,12 +61,7 @@ export const GranuleResultsList = ({
             isItemLoaded={isItemLoaded}
             itemCount={itemCount}
             loadMoreItems={loadMoreItems}
-            location={location}
-            onAddGranuleToProjectCollection={onAddGranuleToProjectCollection}
-            onExcludeGranule={onExcludeGranule}
-            onFocusedGranuleChange={onFocusedGranuleChange}
-            onMetricsDataAccess={onMetricsDataAccess}
-            onRemoveGranuleFromProjectCollection={onRemoveGranuleFromProjectCollection}
+            readableGranuleName={readableGranuleName}
             setVisibleMiddleIndex={setVisibleMiddleIndex}
             visibleMiddleIndex={visibleMiddleIndex}
             width={width}
@@ -88,11 +71,6 @@ export const GranuleResultsList = ({
     </AutoSizer>
   </div>
 )
-
-GranuleResultsList.defaultProps = {
-  setVisibleMiddleIndex: null,
-  visibleMiddleIndex: null
-}
 
 GranuleResultsList.propTypes = {
   collectionId: PropTypes.string.isRequired,
@@ -105,12 +83,7 @@ GranuleResultsList.propTypes = {
   isItemLoaded: PropTypes.func.isRequired,
   itemCount: PropTypes.number.isRequired,
   loadMoreItems: PropTypes.func.isRequired,
-  location: locationPropType.isRequired,
-  onAddGranuleToProjectCollection: PropTypes.func.isRequired,
-  onExcludeGranule: PropTypes.func.isRequired,
-  onFocusedGranuleChange: PropTypes.func.isRequired,
-  onMetricsDataAccess: PropTypes.func.isRequired,
-  onRemoveGranuleFromProjectCollection: PropTypes.func.isRequired,
+  readableGranuleName: PropTypes.arrayOf(PropTypes.string).isRequired,
   setVisibleMiddleIndex: PropTypes.func,
   visibleMiddleIndex: PropTypes.number
 }

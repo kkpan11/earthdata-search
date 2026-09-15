@@ -1,32 +1,40 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import { parse } from 'qs'
-import {
-  FaTrash,
-  FaInfoCircle,
-  FaEdit
-} from 'react-icons/fa'
+
+import { AlertInformation } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
+import { FaTrash, FaEdit } from 'react-icons/fa'
 import camelcaseKeys from 'camelcase-keys'
 import moment from 'moment'
 
 import Button from '../Button/Button'
 import { SubscriptionsQueryList } from '../SubscriptionsList/SubscriptionsQueryList'
 
-import './SubscriptionsListItem.scss'
 import { getApplicationConfig } from '../../../../../sharedUtils/config'
+
+import { MODAL_NAMES } from '../../constants/modalNames'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { setOpenModalFunction } from '../../zustand/selectors/ui'
+
+import { useDeleteSubscription } from '../../hooks/useDeleteSubscription'
+
+import './SubscriptionsListItem.scss'
 
 const dateFormat = getApplicationConfig().temporalDateFormatFull
 
-export const SubscriptionsListItem = ({
+const SubscriptionsListItem = ({
   exactlyMatchingSubscriptions,
   hasNullCmrQuery,
+  newQuery,
   subscription,
-  subscriptionType,
-  onDeleteSubscription,
-  onToggleEditSubscriptionModal
+  subscriptionType
 }) => {
+  const setOpenModal = useEdscStore(setOpenModalFunction)
+
+  const { deleteSubscription, loading } = useDeleteSubscription()
+
   const {
-    collectionConceptId,
     creationDate,
     name,
     nativeId,
@@ -46,7 +54,14 @@ export const SubscriptionsListItem = ({
     const confirmDeletion = window.confirm('Are you sure you want to remove this subscription? This action cannot be undone.')
 
     if (confirmDeletion) {
-      onDeleteSubscription(conceptId, nativeId, collectionConceptId)
+      deleteSubscription({
+        variables: {
+          params: {
+            conceptId,
+            nativeId
+          }
+        }
+      })
     }
   }
 
@@ -65,7 +80,7 @@ export const SubscriptionsListItem = ({
       <div className="subscriptions-list-item__actions">
         <Button
           className="subscriptions-list-item__action"
-          icon={FaInfoCircle}
+          icon={AlertInformation}
           bootstrapVariant="light"
           bootstrapSize="sm"
           label="Details"
@@ -98,11 +113,13 @@ export const SubscriptionsListItem = ({
           label="Edit Subscription"
           onClick={
             () => {
-              onToggleEditSubscriptionModal({
-                isOpen: true,
-                subscriptionConceptId: conceptId,
-                type: subscriptionType
-              })
+              setOpenModal(
+                MODAL_NAMES.EDIT_SUBSCRIPTION,
+                {
+                  subscription,
+                  newQuery
+                }
+              )
             }
           }
         >
@@ -115,6 +132,7 @@ export const SubscriptionsListItem = ({
           bootstrapSize="sm"
           label="Delete Subscription"
           onClick={() => onHandleRemove()}
+          spinner={loading}
         >
           Delete
         </Button>
@@ -125,13 +143,12 @@ export const SubscriptionsListItem = ({
 
 SubscriptionsListItem.propTypes = {
   hasNullCmrQuery: PropTypes.bool.isRequired,
-  onDeleteSubscription: PropTypes.func.isRequired,
-  onToggleEditSubscriptionModal: PropTypes.func.isRequired,
   exactlyMatchingSubscriptions: PropTypes.arrayOf(
     PropTypes.shape({
       conceptId: PropTypes.string
     })
   ).isRequired,
+  newQuery: PropTypes.string.isRequired,
   subscription: PropTypes.shape({
     collectionConceptId: PropTypes.string,
     creationDate: PropTypes.string,

@@ -15,7 +15,7 @@ export const getDbConnectionConfig = async () => {
       password: dbCredentials.password
     }
 
-    if (process.env.IS_OFFLINE) {
+    if (process.env.NODE_ENV === 'development') {
       const { dbHost, dbName, databasePort } = getEnvironmentConfig()
 
       return {
@@ -28,9 +28,12 @@ export const getDbConnectionConfig = async () => {
 
     connectionConfig = {
       ...configObject,
-      host: process.env.databaseEndpoint,
-      database: process.env.dbName,
-      port: process.env.databasePort
+      host: process.env.DATABASE_ENDPOINT,
+      database: process.env.DB_NAME,
+      port: process.env.DATABASE_PORT,
+      ssl: {
+        rejectUnauthorized: false // Allows self-signed certificates used by RDS
+      }
     }
   }
 

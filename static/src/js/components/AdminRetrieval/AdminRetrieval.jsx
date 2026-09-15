@@ -1,24 +1,21 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 
-import { AdminRetrievalDetails } from '../AdminRetrievalDetails/AdminRetrievalDetails'
-import { AdminPage } from '../AdminPage/AdminPage'
+import AdminRetrievalDetails from '../AdminRetrievalDetails/AdminRetrievalDetails'
+import AdminPage from '../AdminPage/AdminPage'
+import { routes } from '../../constants/routes'
 
-export const AdminRetrieval = ({
-  retrieval,
-  onRequeueOrder
-}) => (
+const AdminRetrieval = () => (
   <AdminPage
     pageTitle="Retrieval Details"
     breadcrumbs={
       [
         {
           name: 'Admin',
-          href: '/admin'
+          href: routes.ADMIN
         },
         {
           name: 'Retrievals',
-          href: '/admin/retrievals'
+          href: routes.ADMIN_RETRIEVALS
         },
         {
           name: 'Retrieval Details',
@@ -27,20 +24,8 @@ export const AdminRetrieval = ({
       ]
     }
   >
-    <AdminRetrievalDetails
-      retrieval={retrieval}
-      onRequeueOrder={onRequeueOrder}
-    />
+    <AdminRetrievalDetails />
   </AdminPage>
 )
-
-AdminRetrieval.defaultProps = {
-  retrieval: {}
-}
-
-AdminRetrieval.propTypes = {
-  retrieval: PropTypes.shape({}),
-  onRequeueOrder: PropTypes.func.isRequired
-}
 
 export default AdminRetrieval

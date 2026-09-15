@@ -1,17 +1,15 @@
 import React, { useMemo } from 'react'
 import PropTypes from 'prop-types'
 
-import {
-  Badge,
-  OverlayTrigger,
-  Tooltip
-} from 'react-bootstrap'
+import Badge from 'react-bootstrap/Badge'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
 
-import { FaCheck, FaInfoCircle } from 'react-icons/fa'
+import { AlertInformation } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
+import { Check } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 
 import { commafy } from '../../util/commafy'
-
 import { collectionMetadataPropType } from '../../util/propTypes/collectionMetadata'
+import renderTooltip from '../../util/renderTooltip'
 
 import Cell from '../EDSCTable/EDSCTableCell'
 import CollectionResultsTableHeaderCell from './CollectionResultsTableHeaderCell'
@@ -19,17 +17,14 @@ import EDSCTable from '../EDSCTable/EDSCTable'
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
 
 import './CollectionResultsTable.scss'
+
 /**
  * Renders CollectionResultsTable.
  * @param {Object} props - The props passed into the component.
- * @param {Array} props.collections - Collections passed from redux store.
+ * @param {Array} props.collections - Collections passed from the store.
  * @param {Function} props.isItemLoaded - Callback to see if an item has loaded.
  * @param {Boolean} props.itemCount - The current count of rows to show.
  * @param {Function} props.loadMoreItems - Callback to load the next page of results.
- * @param {Function} props.onAddProjectCollection - Callback to add a collection to a project.
- * @param {Function} props.onRemoveCollectionFromProject - Callback to remove a collection to a project.
- * @param {Function} props.onViewCollectionDetails - Callback to show collection details route.
- * @param {Function} props.onViewCollectionGranules - Callback to show collection granules route.
  * @param {Function} props.setVisibleMiddleIndex - Callback to set the state with the current middle item.
  * @param {String} props.visibleMiddleIndex - The current middle item.
  */
@@ -38,12 +33,8 @@ export const CollectionResultsTable = ({
   isItemLoaded,
   itemCount,
   loadMoreItems,
-  onAddProjectCollection,
-  onRemoveCollectionFromProject,
-  onViewCollectionDetails,
-  onViewCollectionGranules,
-  setVisibleMiddleIndex,
-  visibleMiddleIndex
+  setVisibleMiddleIndex = null,
+  visibleMiddleIndex = null
 }) => {
   const columns = useMemo(() => [
     {
@@ -54,11 +45,7 @@ export const CollectionResultsTable = ({
       width: '300',
       customProps: {
         cellClassName: 'collection-results-table__cell--collection',
-        collectionId: '1234',
-        onViewCollectionGranules,
-        onAddProjectCollection,
-        onRemoveCollectionFromProject,
-        onViewCollectionDetails
+        collectionId: '1234'
       }
     },
     {
@@ -125,22 +112,22 @@ export const CollectionResultsTable = ({
           id="collection-results-table-header--map-imagery"
           placement="top"
           overlay={
-            (
-              <Tooltip id="collection-results-table-header-tooltip--earthdata-cloud">
-                Available in the Earthdata Cloud
-              </Tooltip>
-            )
+            (tooltipProps) => renderTooltip({
+              children: 'Available in the Earthdata Cloud',
+              id: 'collection-results-table-header--earthdata-cloud',
+              ...tooltipProps
+            })
           }
         >
           <span>
-            <span className="mr-1">Earthdata Cloud</span>
-            <EDSCIcon icon={FaInfoCircle} size="0.625rem" />
+            <span className="me-1">Earthdata Cloud</span>
+            <EDSCIcon icon={AlertInformation} size="0.8rem" />
           </span>
         </OverlayTrigger>
       ),
       Cell: ({ value }) => (
         <div className="edsc-table-cell">
-          {value ? <EDSCIcon className="text-success" icon={FaCheck} /> : '-'}
+          {value ? <EDSCIcon className="text-success" icon={Check} /> : '-'}
         </div>
       ),
       accessor: 'cloudHosted',
@@ -155,22 +142,22 @@ export const CollectionResultsTable = ({
           id="collection-results-table-header--map-imagery"
           placement="top"
           overlay={
-            (
-              <Tooltip id="collection-results-table-header-tooltip--map-imagery">
-                Supports advanced map visualizations using the GIBS tile service
-              </Tooltip>
-            )
+            (tooltipProps) => renderTooltip({
+              children: 'Supports advanced map visualizations using the GIBS tile service',
+              id: 'collection-results-table-header--map-imagery',
+              ...tooltipProps
+            })
           }
         >
           <span>
-            <span className="mr-1">Map Imagery</span>
-            <EDSCIcon icon={FaInfoCircle} size="0.625rem" />
+            <span className="me-1">Map Imagery</span>
+            <EDSCIcon icon={AlertInformation} size="0.8rem" />
           </span>
         </OverlayTrigger>
       ),
       Cell: ({ value }) => (
         <div className="edsc-table-cell">
-          {value ? <EDSCIcon className="text-success" icon={FaCheck} /> : '-'}
+          {value ? <EDSCIcon className="text-success" icon={Check} /> : '-'}
         </div>
       ),
       accessor: 'hasMapImagery',
@@ -182,21 +169,19 @@ export const CollectionResultsTable = ({
     {
       Header: () => (
         <OverlayTrigger
-          id="collection-results-table-header--map-imagery"
+          id="collection-results-table-header--near-real-time"
           placement="top"
           overlay={
-            (
-              <Tooltip id="collection-results-table-header-tooltip--map-imagery">
-                Data is available soon after being
-                {' '}
-                acquired by the instrument on the satellite
-              </Tooltip>
-            )
+            (tooltipProps) => renderTooltip({
+              children: 'Data is available soon after being acquired by the instrument on the satellite',
+              id: 'collection-results-table-header--near-real-time',
+              ...tooltipProps
+            })
           }
         >
           <span>
-            <span className="mr-1">Near Real Time</span>
-            <EDSCIcon icon={FaInfoCircle} size="0.625rem" />
+            <span className="me-1">Near Real Time</span>
+            <EDSCIcon icon={AlertInformation} size="0.8rem" />
           </span>
         </OverlayTrigger>
       ),
@@ -210,7 +195,7 @@ export const CollectionResultsTable = ({
             {
               value
                 ? (
-                  <Badge variant="light">{nrtLabel}</Badge>
+                  <Badge text="bg-light">{nrtLabel}</Badge>
                 )
                 : '-'
             }
@@ -227,7 +212,7 @@ export const CollectionResultsTable = ({
       Header: 'Spatial Subsetting',
       Cell: ({ value }) => (
         <div className="edsc-table-cell">
-          {value ? <EDSCIcon className="text-success" icon={FaCheck} /> : '-'}
+          {value ? <EDSCIcon className="text-success" icon={Check} /> : '-'}
         </div>
       ),
       accessor: 'hasSpatialSubsetting',
@@ -240,7 +225,7 @@ export const CollectionResultsTable = ({
       Header: 'Temporal Subsetting',
       Cell: ({ value }) => (
         <div className="edsc-table-cell">
-          {value ? <EDSCIcon className="text-success" icon={FaCheck} /> : '-'}
+          {value ? <EDSCIcon className="text-success" icon={Check} /> : '-'}
         </div>
       ),
       accessor: 'hasTemporalSubsetting',
@@ -253,7 +238,7 @@ export const CollectionResultsTable = ({
       Header: 'Variable Subsetting',
       Cell: ({ value }) => (
         <div className="edsc-table-cell">
-          {value ? <EDSCIcon className="text-success" icon={FaCheck} /> : '-'}
+          {value ? <EDSCIcon className="text-success" icon={Check} /> : '-'}
         </div>
       ),
       accessor: 'hasVariables',
@@ -266,7 +251,7 @@ export const CollectionResultsTable = ({
       Header: 'Transformation',
       Cell: ({ value }) => (
         <div className="edsc-table-cell">
-          {value ? <EDSCIcon className="text-success" icon={FaCheck} /> : '-'}
+          {value ? <EDSCIcon className="text-success" icon={Check} /> : '-'}
         </div>
       ),
       accessor: 'hasTransforms',
@@ -279,7 +264,7 @@ export const CollectionResultsTable = ({
       Header: 'Reformatting',
       Cell: ({ value }) => (
         <div className="edsc-table-cell">
-          {value ? <EDSCIcon className="text-success" icon={FaCheck} /> : '-'}
+          {value ? <EDSCIcon className="text-success" icon={Check} /> : '-'}
         </div>
       ),
       accessor: 'hasFormats',
@@ -292,7 +277,7 @@ export const CollectionResultsTable = ({
       Header: 'Combine',
       Cell: ({ value }) => (
         <div className="edsc-table-cell">
-          {value ? <EDSCIcon className="text-success" icon={FaCheck} /> : '-'}
+          {value ? <EDSCIcon className="text-success" icon={Check} /> : '-'}
         </div>
       ),
       accessor: 'hasCombine',
@@ -325,11 +310,6 @@ export const CollectionResultsTable = ({
   )
 }
 
-CollectionResultsTable.defaultProps = {
-  setVisibleMiddleIndex: null,
-  visibleMiddleIndex: null
-}
-
 CollectionResultsTable.propTypes = {
   collectionsMetadata: PropTypes.arrayOf(
     collectionMetadataPropType
@@ -337,10 +317,6 @@ CollectionResultsTable.propTypes = {
   isItemLoaded: PropTypes.func.isRequired,
   itemCount: PropTypes.number.isRequired,
   loadMoreItems: PropTypes.func.isRequired,
-  onAddProjectCollection: PropTypes.func.isRequired,
-  onRemoveCollectionFromProject: PropTypes.func.isRequired,
-  onViewCollectionDetails: PropTypes.func.isRequired,
-  onViewCollectionGranules: PropTypes.func.isRequired,
   setVisibleMiddleIndex: PropTypes.func,
   visibleMiddleIndex: PropTypes.number
 }

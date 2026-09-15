@@ -2,14 +2,15 @@ import React from 'react'
 import { PropTypes } from 'prop-types'
 import classNames from 'classnames'
 import abbreviate from 'number-abbreviate'
+import { Settings, XCircled } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 import {
-  FaCog,
+  AlertInformation,
+  AlertMediumPriority
+} from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
+import {
   FaEye,
   FaEyeSlash,
-  FaExclamationCircle,
-  FaInfoCircle,
-  FaMap,
-  FaTimesCircle
+  FaMap
 } from 'react-icons/fa'
 
 import { projectCollectionItemHeader, projectCollectionItemFooter } from './skeleton'
@@ -26,7 +27,10 @@ import MoreActionsDropdown from '../MoreActionsDropdown/MoreActionsDropdown'
 import MoreActionsDropdownItem from '../MoreActionsDropdown/MoreActionsDropdownItem'
 import Skeleton from '../Skeleton/Skeleton'
 
+import useEdscStore from '../../zustand/useEdscStore'
+
 import './ProjectCollectionItem.scss'
+import { getCollectionsQuery } from '../../zustand/selectors/query'
 
 /**
  * Renders ProjectCollectionItem.
@@ -34,36 +38,42 @@ import './ProjectCollectionItem.scss'
  * @param {Object} props.collection - CMR metadata of the collection.
  * @param {Object} props.color - Color assigned to the collection based on its location in the project list.
  * @param {Object} props.isPanelActive - Whether or not the panel for the collection is active.
- * @param {Function} props.onRemoveCollectionFromProject - Function called when a collection is removed from the project.
- * @param {Function} props.onToggleCollectionVisibility - Function called when visibility of the collection is toggled.
  * @param {Function} props.onSetActivePanel - Function called when an active panel is set.
  * @param {Function} props.onSetActivePanelSection - Callback to set the active panel.
- * @param {Function} props.onUpdateFocusedCollection - Callback to set the focused collection ID.
  * @param {Object} props.projectCollection - Collection from project.byId
- * @param {Object} props.collectionsQuery - Search values from query.collection
  */
 const ProjectCollectionItem = ({
   activePanelSection,
-  collectionMetadata,
   collectionCount,
   collectionId,
-  collectionsQuery,
+  collectionMetadata,
   color,
   index,
   isPanelActive,
-  map,
-  onRemoveCollectionFromProject,
   onSetActivePanel,
   onSetActivePanelSection,
-  onToggleCollectionVisibility,
   onTogglePanels,
-  onUpdateFocusedCollection,
-  onViewCollectionDetails,
-  onViewCollectionGranules,
   projectCollection
 }) => {
+  const {
+    mapView,
+    removeProjectCollection,
+    setCollectionId,
+    toggleCollectionVisibility,
+    viewCollectionDetails,
+    viewCollectionGranules
+  } = useEdscStore((state) => ({
+    mapView: state.map.mapView,
+    removeProjectCollection: state.project.removeProjectCollection,
+    setCollectionId: state.collection.setCollectionId,
+    toggleCollectionVisibility: state.project.toggleCollectionVisibility,
+    viewCollectionDetails: state.collection.viewCollectionDetails,
+    viewCollectionGranules: state.collection.viewCollectionGranules
+  }))
+  const collectionsQuery = useEdscStore(getCollectionsQuery)
+
   const handleToggleCollectionVisibility = (event) => {
-    onToggleCollectionVisibility(collectionId)
+    toggleCollectionVisibility(collectionId)
     event.preventDefault()
   }
 
@@ -74,11 +84,14 @@ const ProjectCollectionItem = ({
 
   const {
     isOpenSearch,
-    title,
-    id: conceptId
+    title
   } = collectionMetadata
 
-  const { hits: granuleCount, isLoaded, singleGranuleSize } = granules
+  const {
+    count: granuleCount,
+    isLoaded,
+    singleGranuleSize
+  } = granules
 
   const totalSize = convertSize(granuleCount * singleGranuleSize)
 
@@ -97,7 +110,7 @@ const ProjectCollectionItem = ({
   const handoffLinks = getHandoffLinks({
     collectionMetadata,
     collectionQuery: collectionsQuery,
-    map
+    map: mapView
   })
 
   return (
@@ -123,8 +136,9 @@ const ProjectCollectionItem = ({
                 label={`${title} Collection Details`}
                 onClick={
                   () => {
+                    // If the panel is closed open it when user selects a collection in project
                     onTogglePanels(true)
-                    onUpdateFocusedCollection(conceptId)
+                    setCollectionId(collectionId)
                     onSetActivePanelSection('1')
                   }
                 }
@@ -133,14 +147,17 @@ const ProjectCollectionItem = ({
                   {title}
                 </h3>
               </Button>
-              <MoreActionsDropdown handoffLinks={handoffLinks} alignRight>
+              <MoreActionsDropdown
+                handoffLinks={handoffLinks}
+                align="end"
+              >
                 <MoreActionsDropdownItem
                   className="project-collections-item__more-actions-item project-collections-item__more-actions-remove"
-                  icon={FaTimesCircle}
+                  icon={XCircled}
                   title="Remove"
                   onClick={
                     () => {
-                      onRemoveCollectionFromProject(collectionId)
+                      removeProjectCollection(collectionId)
 
                       // If removing the first collection in the list
                       if (index === 0) {
@@ -159,15 +176,15 @@ const ProjectCollectionItem = ({
                 />
                 <MoreActionsDropdownItem
                   className="project-collections-item__more-actions-item project-collections-item__more-actions-collection-details"
-                  icon={FaInfoCircle}
+                  icon={AlertInformation}
                   title="Collection Details"
-                  onClick={() => onViewCollectionDetails(collectionId)}
+                  onClick={() => viewCollectionDetails(collectionId)}
                 />
                 <MoreActionsDropdownItem
                   className="project-collections-item__more-actions-item project-collections-item__more-actions-granules"
                   icon={FaMap}
                   title="View Granules"
-                  onClick={() => onViewCollectionGranules(collectionId)}
+                  onClick={() => viewCollectionGranules(collectionId)}
                 />
                 <MoreActionsDropdownItem
                   className="project-collections-item__more-actions-item project-collections-item__more-actions-vis"
@@ -202,19 +219,20 @@ const ProjectCollectionItem = ({
             <div className="project-collections-item__footer">
               {
                 !isValid && (
-                  <EDSCIcon className="project-collections-item__status project-collections-item__status--invalid" icon={FaExclamationCircle} />
+                  <EDSCIcon className="project-collections-item__status project-collections-item__status--invalid" icon={AlertMediumPriority} />
                 )
               }
               <Button
                 className="project-collections-item__more-options-button"
                 variant="link"
                 bootstrapVariant="link"
-                icon={FaCog}
+                icon={Settings}
                 label="Edit options"
                 onClick={
                   () => {
-                    onUpdateFocusedCollection(conceptId)
-                    onSetActivePanelSection('0')
+                    setCollectionId(collectionId)
+                    onSetActivePanel(`0.${index}.0`)
+                    // If the panel is closed open it when user selects edit options for a collection
                     onTogglePanels(true)
                   }
                 }
@@ -244,22 +262,15 @@ ProjectCollectionItem.propTypes = {
   collectionCount: PropTypes.number.isRequired,
   collectionId: PropTypes.string.isRequired,
   collectionMetadata: collectionMetadataPropType.isRequired,
-  collectionsQuery: PropTypes.shape({}).isRequired,
   color: PropTypes.string.isRequired,
   index: PropTypes.number.isRequired,
   isPanelActive: PropTypes.bool.isRequired,
-  map: PropTypes.shape({}).isRequired,
-  onRemoveCollectionFromProject: PropTypes.func.isRequired,
   onSetActivePanel: PropTypes.func.isRequired,
   onSetActivePanelSection: PropTypes.func.isRequired,
-  onToggleCollectionVisibility: PropTypes.func.isRequired,
   onTogglePanels: PropTypes.func.isRequired,
-  onUpdateFocusedCollection: PropTypes.func.isRequired,
-  onViewCollectionDetails: PropTypes.func.isRequired,
-  onViewCollectionGranules: PropTypes.func.isRequired,
   projectCollection: PropTypes.shape({
     granules: PropTypes.shape({
-      hits: PropTypes.number,
+      count: PropTypes.number,
       isLoaded: PropTypes.bool,
       singleGranuleSize: PropTypes.number
     }),

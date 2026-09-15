@@ -1,0 +1,718 @@
+import useEdscStore from '../../useEdscStore'
+
+describe('createFacetParamsSlice', () => {
+  test('sets the default state', () => {
+    const zustandState = useEdscStore.getState()
+    const { facetParams } = zustandState
+
+    expect(facetParams).toEqual({
+      featureFacets: {
+        availableInEarthdataCloud: false,
+        customizable: false,
+        mapImagery: false
+      },
+      cmrFacets: {},
+      viewAllFacets: {},
+      addCmrFacetFromAutocomplete: expect.any(Function),
+      applyViewAllFacets: expect.any(Function),
+      resetFacetParams: expect.any(Function),
+      setCmrFacets: expect.any(Function),
+      setFeatureFacets: expect.any(Function),
+      setViewAllFacets: expect.any(Function),
+      triggerViewAllFacets: expect.any(Function)
+    })
+  })
+
+  describe('resetFacetParams', () => {
+    test('resets facetParams to initial state', () => {
+      const zustandState = useEdscStore.getState()
+      const { facetParams } = zustandState
+      const { resetFacetParams } = facetParams
+      resetFacetParams()
+
+      const updatedState = useEdscStore.getState()
+      const { facetParams: updatedFacetParams } = updatedState
+      expect(updatedFacetParams).toEqual({
+        featureFacets: {
+          availableInEarthdataCloud: false,
+          customizable: false,
+          mapImagery: false
+        },
+        cmrFacets: {},
+        viewAllFacets: {},
+        addCmrFacetFromAutocomplete: expect.any(Function),
+        applyViewAllFacets: expect.any(Function),
+        resetFacetParams: expect.any(Function),
+        setCmrFacets: expect.any(Function),
+        setFeatureFacets: expect.any(Function),
+        setViewAllFacets: expect.any(Function),
+        triggerViewAllFacets: expect.any(Function)
+      })
+    })
+  })
+
+  describe('addCmrFacetFromAutocomplete', () => {
+    test('adds a facet to cmrFacets', () => {
+      const zustandState = useEdscStore.getState()
+      const { facetParams } = zustandState
+      const { addCmrFacetFromAutocomplete } = facetParams
+      addCmrFacetFromAutocomplete({
+        science_keywords_h: {
+          topic: 'Agriculture',
+          term: 'Soils'
+        }
+      })
+
+      const updatedState = useEdscStore.getState()
+      const { facetParams: updatedFacetParams } = updatedState
+
+      expect(updatedFacetParams.cmrFacets).toEqual({
+        science_keywords_h: [{
+          topic: 'Agriculture',
+          term: 'Soils'
+        }]
+      })
+    })
+  })
+
+  describe('applyViewAllFacets', () => {
+    test('applies viewAllFacets to cmrFacets', () => {
+      const zustandState = useEdscStore.getState()
+      const { facetParams } = zustandState
+      const { applyViewAllFacets } = facetParams
+
+      // Set initial viewAllFacets
+      useEdscStore.setState((state) => {
+        state.facetParams.setCmrFacets = vi.fn()
+        state.facetParams.viewAllFacets.instrument_h = ['AIRS']
+        state.query.changeQuery = vi.fn()
+
+        state.facets.viewAllFacets.resetState = vi.fn()
+        state.ui.modals.setOpenModal = vi.fn()
+      })
+
+      // Apply the viewAllFacets
+      applyViewAllFacets()
+
+      const updatedState = useEdscStore.getState()
+      const {
+        facetParams: updatedFacetParams,
+        facets,
+        ui
+      } = updatedState
+
+      expect(updatedFacetParams.setCmrFacets).toHaveBeenCalledTimes(1)
+      expect(updatedFacetParams.setCmrFacets).toHaveBeenCalledWith({
+        instrument_h: ['AIRS']
+      })
+
+      expect(ui.modals.setOpenModal).toHaveBeenCalledTimes(1)
+      expect(ui.modals.setOpenModal).toHaveBeenCalledWith(null)
+
+      expect(facets.viewAllFacets.resetState).toHaveBeenCalledTimes(1)
+      expect(facets.viewAllFacets.resetState).toHaveBeenCalledWith()
+    })
+
+    test('clears viewAllFacets after applying them', () => {
+      const zustandState = useEdscStore.getState()
+      const { facetParams } = zustandState
+      const { applyViewAllFacets } = facetParams
+
+      // Set initial viewAllFacets
+      useEdscStore.setState((state) => {
+        state.facetParams.setCmrFacets = vi.fn()
+        state.facetParams.viewAllFacets = {
+          instrument_h: ['AIRS'],
+          data_center_h: ['NASA']
+        }
+
+        state.query.changeQuery = vi.fn()
+      })
+
+      // Apply the viewAllFacets
+      applyViewAllFacets()
+
+      const updatedState = useEdscStore.getState()
+      const {
+        facetParams: updatedFacetParams
+      } = updatedState
+
+      // ViewAllFacets should be cleared after applying
+      expect(updatedFacetParams.viewAllFacets).toEqual({})
+    })
+  })
+
+  describe('setFeatureFacets', () => {
+    test('updates featureFacets', () => {
+      useEdscStore.setState((state) => {
+        state.collections.getCollections = vi.fn()
+        state.query.changeQuery = vi.fn()
+      })
+
+      const zustandState = useEdscStore.getState()
+      const { facetParams } = zustandState
+      const { setFeatureFacets } = facetParams
+      setFeatureFacets({ availableInEarthdataCloud: true })
+
+      const updatedState = useEdscStore.getState()
+      const {
+        facetParams: updatedFacetParams,
+        query
+      } = updatedState
+
+      expect(updatedFacetParams.featureFacets).toEqual({
+        availableInEarthdataCloud: true,
+        customizable: false,
+        mapImagery: false
+      })
+
+      expect(query.changeQuery).toHaveBeenCalledTimes(1)
+      expect(query.changeQuery).toHaveBeenCalledWith({
+        collection: {
+          pageNum: 1
+        }
+      })
+    })
+  })
+
+  describe('setCmrFacets', () => {
+    describe('when setting science keywords', () => {
+      describe('when the facet is being applied', () => {
+        test('updates cmrFacets', () => {
+          useEdscStore.setState((state) => {
+            state.collections.getCollections = vi.fn()
+            state.query.changeQuery = vi.fn()
+          })
+
+          const zustandState = useEdscStore.getState()
+          const { facetParams } = zustandState
+          const { setCmrFacets } = facetParams
+          setCmrFacets(
+            {
+              science_keywords_h: [
+                {
+                  topic: 'Agriculture'
+                }
+              ]
+            }
+          )
+
+          const updatedState = useEdscStore.getState()
+          const {
+            facetParams: updatedFacetParams,
+            query
+          } = updatedState
+
+          expect(updatedFacetParams.cmrFacets).toEqual({
+            science_keywords_h: [{ topic: 'Agriculture' }]
+          })
+
+          expect(query.changeQuery).toHaveBeenCalledTimes(1)
+          expect(query.changeQuery).toHaveBeenCalledWith({
+            collection: {
+              pageNum: 1
+            }
+          })
+        })
+
+        describe('when the facet is being removed', () => {
+          test('updates cmrFacets', () => {
+            useEdscStore.setState((state) => {
+              state.collections.getCollections = vi.fn()
+              state.query.changeQuery = vi.fn()
+            })
+
+            const zustandState = useEdscStore.getState()
+            const { facetParams } = zustandState
+            const { setCmrFacets } = facetParams
+            setCmrFacets(
+              {
+                science_keywords_h: []
+              }
+            )
+
+            const updatedState = useEdscStore.getState()
+            const {
+              facetParams: updatedFacetParams,
+              query
+            } = updatedState
+
+            expect(updatedFacetParams.cmrFacets).toEqual({
+              science_keywords_h: []
+            })
+
+            expect(query.changeQuery).toHaveBeenCalledTimes(1)
+            expect(query.changeQuery).toHaveBeenCalledWith({
+              collection: {
+                pageNum: 1
+              }
+            })
+          })
+        })
+      })
+    })
+
+    describe('when setting platforms', () => {
+      test('updates cmrFacets', () => {
+        useEdscStore.setState((state) => {
+          state.collections.getCollections = vi.fn()
+          state.query.changeQuery = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setCmrFacets } = facetParams
+        setCmrFacets(
+          {
+            platforms_h: [
+              {
+                basis: 'Land-based+Platforms'
+              }
+            ]
+          }
+        )
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          query
+        } = updatedState
+
+        expect(updatedFacetParams.cmrFacets).toEqual({
+          platforms_h: [{ basis: 'Land-based+Platforms' }]
+        })
+
+        expect(query.changeQuery).toHaveBeenCalledTimes(1)
+        expect(query.changeQuery).toHaveBeenCalledWith({
+          collection: {
+            pageNum: 1
+          }
+        })
+      })
+    })
+
+    describe('when setting instruments', () => {
+      test('updates cmrFacets', () => {
+        useEdscStore.setState((state) => {
+          state.collections.getCollections = vi.fn()
+          state.query.changeQuery = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setCmrFacets } = facetParams
+        setCmrFacets(
+          {
+            instrument_h: ['AIRS']
+          }
+        )
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          query
+        } = updatedState
+
+        expect(updatedFacetParams.cmrFacets).toEqual({
+          instrument_h: ['AIRS']
+        })
+
+        expect(query.changeQuery).toHaveBeenCalledTimes(1)
+        expect(query.changeQuery).toHaveBeenCalledWith({
+          collection: {
+            pageNum: 1
+          }
+        })
+      })
+    })
+
+    describe('when setting organizations', () => {
+      test('updates cmrFacets', () => {
+        useEdscStore.setState((state) => {
+          state.collections.getCollections = vi.fn()
+          state.query.changeQuery = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setCmrFacets } = facetParams
+        setCmrFacets(
+          {
+            data_center_h: ['Alaska+Satellite+Facility']
+          }
+        )
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          query
+        } = updatedState
+
+        expect(updatedFacetParams.cmrFacets).toEqual({
+          data_center_h: ['Alaska+Satellite+Facility']
+        })
+
+        expect(query.changeQuery).toHaveBeenCalledTimes(1)
+        expect(query.changeQuery).toHaveBeenCalledWith({
+          collection: {
+            pageNum: 1
+          }
+        })
+      })
+    })
+
+    describe('when setting projects', () => {
+      test('updates cmrFacets', () => {
+        useEdscStore.setState((state) => {
+          state.collections.getCollections = vi.fn()
+          state.query.changeQuery = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setCmrFacets } = facetParams
+        setCmrFacets(
+          {
+            project_h: ['ABoVE']
+          }
+        )
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          query
+        } = updatedState
+
+        expect(updatedFacetParams.cmrFacets).toEqual({
+          project_h: ['ABoVE']
+        })
+
+        expect(query.changeQuery).toHaveBeenCalledTimes(1)
+        expect(query.changeQuery).toHaveBeenCalledWith({
+          collection: {
+            pageNum: 1
+          }
+        })
+      })
+    })
+
+    describe('when setting processing level id', () => {
+      test('updates cmrFacets', () => {
+        useEdscStore.setState((state) => {
+          state.collections.getCollections = vi.fn()
+          state.query.changeQuery = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setCmrFacets } = facetParams
+        setCmrFacets(
+          {
+            processing_level_id_h: ['0+-+Raw+Data']
+          }
+        )
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          query
+        } = updatedState
+
+        expect(updatedFacetParams.cmrFacets).toEqual({
+          processing_level_id_h: ['0+-+Raw+Data']
+        })
+
+        expect(query.changeQuery).toHaveBeenCalledTimes(1)
+        expect(query.changeQuery).toHaveBeenCalledWith({
+          collection: {
+            pageNum: 1
+          }
+        })
+      })
+    })
+
+    describe('when setting data format', () => {
+      test('updates cmrFacets', () => {
+        useEdscStore.setState((state) => {
+          state.collections.getCollections = vi.fn()
+          state.query.changeQuery = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setCmrFacets } = facetParams
+        setCmrFacets(
+          {
+            granule_data_format_h: ['ASCII']
+          }
+        )
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          query
+        } = updatedState
+
+        expect(updatedFacetParams.cmrFacets).toEqual({
+          granule_data_format_h: ['ASCII']
+        })
+
+        expect(query.changeQuery).toHaveBeenCalledTimes(1)
+        expect(query.changeQuery).toHaveBeenCalledWith({
+          collection: {
+            pageNum: 1
+          }
+        })
+      })
+    })
+
+    describe('when setting tiling system', () => {
+      test('updates cmrFacets', () => {
+        useEdscStore.setState((state) => {
+          state.collections.getCollections = vi.fn()
+          state.query.changeQuery = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setCmrFacets } = facetParams
+        setCmrFacets(
+          {
+            two_d_coordinate_system_name: ['CALIPSO']
+          }
+        )
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          query
+        } = updatedState
+
+        expect(updatedFacetParams.cmrFacets).toEqual({
+          two_d_coordinate_system_name: ['CALIPSO']
+        })
+
+        expect(query.changeQuery).toHaveBeenCalledTimes(1)
+        expect(query.changeQuery).toHaveBeenCalledWith({
+          collection: {
+            pageNum: 1
+          }
+        })
+      })
+    })
+
+    describe('when setting horizontal data resolution', () => {
+      test('updates cmrFacets', () => {
+        useEdscStore.setState((state) => {
+          state.collections.getCollections = vi.fn()
+          state.query.changeQuery = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setCmrFacets } = facetParams
+        setCmrFacets(
+          {
+            horizontal_data_resolution_range: ['0+to+1+meter']
+          }
+        )
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          query
+        } = updatedState
+
+        expect(updatedFacetParams.cmrFacets).toEqual({
+          horizontal_data_resolution_range: ['0+to+1+meter']
+        })
+
+        expect(query.changeQuery).toHaveBeenCalledTimes(1)
+        expect(query.changeQuery).toHaveBeenCalledWith({
+          collection: {
+            pageNum: 1
+          }
+        })
+      })
+    })
+
+    describe('when setting latency', () => {
+      test('updates cmrFacets', () => {
+        useEdscStore.setState((state) => {
+          state.collections.getCollections = vi.fn()
+          state.query.changeQuery = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setCmrFacets } = facetParams
+        setCmrFacets(
+          {
+            latency: ['1+to+3+hours']
+          }
+        )
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          query
+        } = updatedState
+
+        expect(updatedFacetParams.cmrFacets).toEqual({
+          latency: ['1+to+3+hours']
+        })
+
+        expect(query.changeQuery).toHaveBeenCalledTimes(1)
+        expect(query.changeQuery).toHaveBeenCalledWith({
+          collection: {
+            pageNum: 1
+          }
+        })
+      })
+    })
+  })
+
+  describe('setViewAllFacets', () => {
+    describe('when setting instruments', () => {
+      test('updates viewAllFacets', () => {
+        useEdscStore.setState((state) => {
+          state.facets.viewAllFacets.getViewAllFacets = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setViewAllFacets } = facetParams
+        setViewAllFacets({
+          instrument_h: ['AIRS']
+        }, 'instrument_h')
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          facets
+        } = updatedState
+
+        expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledTimes(1)
+        expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledWith('instrument_h')
+
+        expect(updatedFacetParams.viewAllFacets).toEqual({
+          instrument_h: ['AIRS']
+        })
+      })
+    })
+
+    describe('when setting organizations', () => {
+      test('updates viewAllFacets', () => {
+        useEdscStore.setState((state) => {
+          state.facets.viewAllFacets.getViewAllFacets = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setViewAllFacets } = facetParams
+        setViewAllFacets({
+          data_center_h: ['Alaska+Satellite+Facility']
+        }, 'data_center_h')
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          facets
+        } = updatedState
+
+        expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledTimes(1)
+        expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledWith('data_center_h')
+
+        expect(updatedFacetParams.viewAllFacets).toEqual({
+          data_center_h: ['Alaska+Satellite+Facility']
+        })
+      })
+    })
+
+    describe('when setting projects', () => {
+      test('updates viewAllFacets', () => {
+        useEdscStore.setState((state) => {
+          state.facets.viewAllFacets.getViewAllFacets = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setViewAllFacets } = facetParams
+        setViewAllFacets({
+          project_h: ['ABoVE']
+        }, 'project_h')
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          facets
+        } = updatedState
+
+        expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledTimes(1)
+        expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledWith('project_h')
+
+        expect(updatedFacetParams.viewAllFacets).toEqual({
+          project_h: ['ABoVE']
+        })
+      })
+    })
+
+    describe('when setting data format', () => {
+      test('updates viewAllFacets', () => {
+        useEdscStore.setState((state) => {
+          state.facets.viewAllFacets.getViewAllFacets = vi.fn()
+        })
+
+        const zustandState = useEdscStore.getState()
+        const { facetParams } = zustandState
+        const { setViewAllFacets } = facetParams
+        setViewAllFacets({
+          granule_data_format_h: ['ASCII']
+        }, 'granule_data_format_h')
+
+        const updatedState = useEdscStore.getState()
+        const {
+          facetParams: updatedFacetParams,
+          facets
+        } = updatedState
+
+        expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledTimes(1)
+        expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledWith('granule_data_format_h')
+
+        expect(updatedFacetParams.viewAllFacets).toEqual({
+          granule_data_format_h: ['ASCII']
+        })
+      })
+    })
+  })
+
+  describe('triggerViewAllFacets', () => {
+    test('triggers the View All Facets modal', () => {
+      const zustandState = useEdscStore.getState()
+      const { facetParams } = zustandState
+      const { triggerViewAllFacets } = facetParams
+
+      useEdscStore.setState((state) => {
+        state.facetParams.cmrFacets.instrument_h = ['AIRS']
+        state.facets.viewAllFacets.getViewAllFacets = vi.fn()
+      })
+
+      // Trigger the View All Facets modal for instruments
+      triggerViewAllFacets('instrument_h')
+
+      // Check that the viewAllFacets state is set to the current cmrFacets
+      const updatedState = useEdscStore.getState()
+      const {
+        facetParams: updatedFacetParams,
+        facets
+      } = updatedState
+
+      expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledTimes(1)
+      expect(facets.viewAllFacets.getViewAllFacets).toHaveBeenCalledWith('instrument_h')
+
+      expect(updatedFacetParams.viewAllFacets).toEqual({
+        instrument_h: ['AIRS']
+      })
+    })
+  })
+})

@@ -1,15 +1,18 @@
 import React, { PureComponent, Children } from 'react'
 import { PropTypes } from 'prop-types'
 import classNames from 'classnames'
-
-import { Overlay, Tooltip } from 'react-bootstrap'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
 
 import { PanelSection } from './PanelSection'
 import { PanelGroup } from './PanelGroup'
 
-import history from '../../util/history'
 import { getPanelSizeMap } from '../../util/getPanelSizeMap'
 import { triggerKeyboardShortcut } from '../../util/triggerKeyboardShortcut'
+import renderTooltip from '../../util/renderTooltip'
+
+import useEdscStore from '../../zustand/useEdscStore'
+
+import routerHelper from '../../router/router'
 
 import './Panels.scss'
 
@@ -58,8 +61,8 @@ export class Panels extends PureComponent {
     this.onWindowResize = this.onWindowResize.bind(this)
     this.onWindowKeyUp = this.onWindowKeyUp.bind(this)
     this.onPanelHandleClickOrKeypress = this.onPanelHandleClickOrKeypress.bind(this)
-    this.onPanelHandleMouseOver = this.onPanelHandleMouseOver.bind(this)
-    this.onPanelHandleMouseOut = this.onPanelHandleMouseOut.bind(this)
+    this.onPanelHandleMouseEnter = this.onPanelHandleMouseEnter.bind(this)
+    this.onPanelHandleMouseLeave = this.onPanelHandleMouseLeave.bind(this)
     this.onUpdate = this.onUpdate.bind(this)
     this.disableHandleClickEvent = this.disableHandleClickEvent.bind(this)
     this.enableHandleClickEvent = this.enableHandleClickEvent.bind(this)
@@ -68,7 +71,7 @@ export class Panels extends PureComponent {
   componentDidMount() {
     window.addEventListener('resize', this.onWindowResize, { capture: true })
     window.addEventListener('keyup', this.onWindowKeyUp, { capture: true })
-    this.browserHistoryUnlisten = history.listen(this.onWindowResize)
+    this.browserHistoryUnlisten = routerHelper.router.subscribe(this.onWindowResize)
 
     const maxWidth = this.calculateMaxWidth()
 
@@ -77,6 +80,14 @@ export class Panels extends PureComponent {
     })
 
     this.updateResponsiveClassNames()
+
+    // When the component mounts call setPanelsWidth to set the initial width
+    const zustandState = useEdscStore.getState()
+    const { ui } = zustandState
+    const { panels } = ui
+    const { setPanelsWidth, setPanelsLoaded } = panels
+    setPanelsWidth(this.width)
+    setPanelsLoaded(true)
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -172,6 +183,16 @@ export class Panels extends PureComponent {
         show: !show,
         willMinimize: show
       })
+
+      // Update the panels width to the new total width
+      const currentWidth = this.width
+      const panelWidth = show ? 0 : currentWidth
+
+      const zustandState = useEdscStore.getState()
+      const { ui } = zustandState
+      const { panels } = ui
+      const { setPanelsWidth } = panels
+      setPanelsWidth(panelWidth)
     }
 
     triggerKeyboardShortcut({
@@ -186,7 +207,7 @@ export class Panels extends PureComponent {
     onChangePanel(panelId)
   }
 
-  onPanelHandleMouseOver() {
+  onPanelHandleMouseEnter() {
     const { show } = this.state
 
     const nextHandleTooltipState = show ? 'Collapse' : 'Expand'
@@ -201,7 +222,7 @@ export class Panels extends PureComponent {
     }, 0)
   }
 
-  onPanelHandleMouseOut() {
+  onPanelHandleMouseLeave() {
     // Clear the timeout in case the tooltip state has not yet been updated.
     clearTimeout(this.handleTooltipCancelTimeout)
 
@@ -211,6 +232,11 @@ export class Panels extends PureComponent {
   }
 
   onPanelHandleClickOrKeypress(event) {
+    const zustandState = useEdscStore.getState()
+    const { ui } = zustandState
+    const { panels } = ui
+    const { setPanelsWidth } = panels
+
     const { show } = this.state
     const {
       type,
@@ -232,6 +258,12 @@ export class Panels extends PureComponent {
         dragging: false,
         handleToolipVisible: false
       })
+
+      // Update the panels width to the new total width
+      const currentWidth = this.width
+      const panelWidth = show ? 0 : currentWidth
+
+      setPanelsWidth(panelWidth)
     } else {
       this.setState({
         handleToolipVisible: false
@@ -372,6 +404,7 @@ export class Panels extends PureComponent {
     } = this.props
 
     const {
+      maxWidth,
       minWidth
     } = this.state
 
@@ -380,6 +413,11 @@ export class Panels extends PureComponent {
       clickStartX,
       clickStartWidth
     } = this
+
+    const zustandState = useEdscStore.getState()
+    const { ui } = zustandState
+    const { panels } = ui
+    const { setPanelsWidth } = panels
 
     // Only change the state when the user finishes a drag. Click events
     // will fire this function, but they should not fire the dragend events.
@@ -394,6 +432,12 @@ export class Panels extends PureComponent {
 
       // Close the panel if its current with is smaller than the minWidth minus the threshold
       const panelShouldClose = (newWidth < (minWidth - this.minimizeThreshold))
+
+      // Set the panelsWidth to the sidebar width plus the newWidth if it falls between the min and max widths.
+      // This ensures the panel width is correct if they overdrag the panel but don't collapse it, or overdrag
+      // the panel past their browser to the right.
+      const finalPanelWidth = Math.min(Math.max(minWidth, newWidth), maxWidth)
+      setPanelsWidth(panelShouldClose ? 0 : finalPanelWidth)
 
       if (panelShouldClose) {
         this.setState({
@@ -496,9 +540,8 @@ export class Panels extends PureComponent {
     if (routeWrapper) {
       const routeWrapperWidth = routeWrapper.offsetWidth
 
-      // Set the maxWidth to the available space minus the width of the
-      // map tools.
-      return routeWrapperWidth - 55
+      // Subtracting from the available space to ensure the user menu/login button and map tools remain visible at the maximum panel width
+      return routeWrapperWidth - 165
     }
 
     // If for some reason the elements are not available in the DOM, set
@@ -517,6 +560,9 @@ export class Panels extends PureComponent {
     if (!panelSectionProps.panelSectionId) panelSectionProps.panelSectionId = `${index}`
     panelSectionProps.isOpen = !!(panelSectionProps.panelSectionId === activePanelSectionId)
     panelSectionProps.isActive = !!(panelSectionProps.panelSectionId === activePanelSectionId)
+
+    // If the panelSection is not active, do not render it
+    if (!panelSectionProps.isActive) return null
 
     const panelGroups = Children.map(children, (childValue, childIndex) => {
       const panelGroupProps = { ...childValue.props }
@@ -591,52 +637,40 @@ export class Panels extends PureComponent {
       >
         {
           draggable && (
-            <>
+            <OverlayTrigger
+              show={handleToolipVisible}
+              placement="right"
+              overlay={
+                (tooltipProps) => renderTooltip({
+                  children: (
+                    <>
+                      {`${handleTooltipState} panel`}
+                      <span className="keyboard-shortcut">
+                        {keyboardShortcuts.togglePanel}
+                      </span>
+                    </>
+                  ),
+                  className: 'panels__handle-tooltip panels__handle-tooltip--collapse',
+                  id: 'panel-handle-tooltip',
+                  ...tooltipProps
+                })
+              }
+            >
               <div
-                className="panels__handle"
+                className="panels__handle link"
                 data-testid="panels__handle"
                 aria-label={`${handleTooltipState} panel (${keyboardShortcuts.togglePanel})`}
                 role="button"
                 tabIndex="0"
-                ref={
-                  (node) => {
-                    this.node = node
-                  }
-                }
                 onMouseDown={this.onMouseDown}
                 onClick={this.onPanelHandleClickOrKeypress}
                 onKeyDown={this.onPanelHandleClickOrKeypress}
-                onMouseOver={this.onPanelHandleMouseOver}
-                onFocus={this.onPanelHandleMouseOver}
-                onMouseOut={this.onPanelHandleMouseOut}
-                onBlur={this.onPanelHandleMouseOut}
+                onMouseEnter={this.onPanelHandleMouseEnter}
+                onFocus={this.onPanelHandleMouseEnter}
+                onMouseLeave={this.onPanelHandleMouseLeave}
+                onBlur={this.onPanelHandleMouseLeave}
               />
-              <Overlay
-                target={this.node}
-                show={handleToolipVisible}
-                placement="right"
-              >
-                {
-                  (props) => {
-                    const tooltipProps = props
-                    delete tooltipProps.show
-
-                    return (
-                      <Tooltip
-                        {...tooltipProps}
-                        id="panel-handle-tooltip"
-                        className="panels__handle-tooltip panels__handle-tooltip--collapse"
-                      >
-                        {`${handleTooltipState} panel`}
-                        <span className="keyboard-shortcut">
-                          {keyboardShortcuts.togglePanel}
-                        </span>
-                      </Tooltip>
-                    )
-                  }
-                }
-              </Overlay>
-            </>
+            </OverlayTrigger>
           )
         }
         <div

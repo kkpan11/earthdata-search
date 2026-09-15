@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import PropTypes from 'prop-types'
+import { useLocation } from 'react-router-dom'
 import moment from 'moment'
 
 import Dropdown from 'react-bootstrap/Dropdown'
@@ -8,6 +9,13 @@ import { getApplicationConfig } from '../../../../../sharedUtils/config'
 
 import TemporalSelectionDropdownMenu from './TemporalSelectionDropdownMenu'
 import TemporalSelectionDropdownToggle from './TemporalSelectionDropdownToggle'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getCollectionsQueryTemporal } from '../../zustand/selectors/query'
+
+import { routes } from '../../constants/routes'
+
+import { metricsTemporalFilter } from '../../util/metrics/metricsTemporalFilter'
 
 import './TemporalSelectionDropdown.scss'
 
@@ -20,15 +28,14 @@ import './TemporalSelectionDropdown.scss'
  * Component representing the temporal selection dropdown
  */
 const TemporalSelectionDropdown = ({
-  allowRecurring,
-  onChangeQuery,
-  temporalSearch
+  allowRecurring = true,
+  searchParams = {}
 }) => {
+  const changeQuery = useEdscStore((state) => state.query.changeQuery)
+  const temporalSearch = useEdscStore(getCollectionsQueryTemporal)
   const {
     startDate = '',
     endDate = '',
-    recurringDayStart = '',
-    recurringDayEnd = '',
     isRecurring = false
   } = temporalSearch
 
@@ -37,70 +44,82 @@ const TemporalSelectionDropdown = ({
   const [temporal, setTemporal] = useState({
     startDate,
     endDate,
-    recurringDayStart,
-    recurringDayEnd,
     isRecurring
   })
+  const [datesSelected, setDatesSelected] = useState({
+    start: false,
+    end: false
+  })
+
+  const location = useLocation()
+  const { pathname } = location
+  const isHomePage = pathname === routes.HOME
 
   useEffect(() => {
     setTemporal(temporalSearch)
+
+    setDatesSelected({
+      start: !!temporalSearch.startDate,
+      end: !!temporalSearch.endDate
+    })
   }, [temporalSearch])
 
   /**
-   * Toggles state of open
+   * Toggles state of open to show or hide the dropdown
    */
   const onToggleOpen = () => {
     setOpen(!open)
   }
 
   /**
-   * Sets the current start and end dates values in the Redux store
+   * Sets the current start and end dates values in the store
    */
   const onApplyClick = () => {
-    const {
-      endDate: existingEndDate,
-      isRecurring: existingIsRecurring,
-      startDate: existingStartDate
-    } = temporal
-
-    const newTemporal = {
-      startDate: existingStartDate,
-      endDate: existingEndDate,
-      isRecurring: existingIsRecurring
-    }
-
-    if (existingIsRecurring) {
-      newTemporal.recurringDayStart = `${moment(existingStartDate).utc().dayOfYear()}`
-
-      // Use the start year to calculate the end day of year. This avoids leap years potentially causing day mismatches
-      const startYear = moment(existingStartDate).utc().year()
-      newTemporal.recurringDayEnd = `${moment(existingEndDate).utc().year(startYear).dayOfYear()}`
-    }
-
-    onChangeQuery({
-      collection: {
-        temporal: newTemporal
-      }
+    metricsTemporalFilter({
+      type: 'Apply Temporal Filter',
+      value: JSON.stringify(temporal)
     })
+
+    const newParams = {
+      collection: {
+        temporal
+      }
+    }
+
+    if (isHomePage) {
+      if (searchParams.q) {
+        newParams.collection.keyword = searchParams.q
+      }
+    }
+
+    changeQuery(newParams)
 
     setOpen(false)
   }
 
   /**
-   * Clears the current temporal values internally and within the Redux store
+   * Clears the current temporal values internally and within the store
    */
   const onClearClick = () => {
+    setDatesSelected({
+      start: false,
+      end: false
+    })
+
     setTemporal({
       startDate: '',
       endDate: '',
-      recurringDayStart: '',
-      recurringDayEnd: '',
       isRecurring: false
     })
 
     setOpen(false)
 
-    onChangeQuery({
+    metricsTemporalFilter({
+      type: 'Clear Temporal Filter',
+      value: {}
+    })
+
+    changeQuery({
       collection: {
         temporal: {}
       }
@@ -114,10 +133,72 @@ const TemporalSelectionDropdown = ({
     const { target } = e
     const { checked: isChecked } = target
 
-    setTemporal({
-      ...temporal,
-      isRecurring: isChecked
+    metricsTemporalFilter({
+      type: 'Set Recurring',
+      value: isChecked
     })
+
+    try {
+      if (isChecked) {
+        const {
+          startDate: existingStartDate,
+          endDate: existingEndDate
+        } = temporal
+        const { minimumTemporalDateString, temporalDateFormatFull } = getApplicationConfig()
+        const minDate = moment(minimumTemporalDateString, temporalDateFormatFull)
+
+        // When both dates exist and are in the same year, adjust start to min year
+        if (existingStartDate && existingEndDate) {
+          const startYear = moment(existingStartDate).utc().year()
+          const endYear = moment(existingEndDate).utc().year()
+          if (startYear === endYear) {
+            setTemporal({
+              ...temporal,
+              isRecurring: isChecked,
+              startDate: moment(existingStartDate).utc().year(minDate.year()).toISOString(),
+              endDate: existingEndDate
+            })
+
+            return
+          }
+        }
+
+        // When only start date exists and is in current year, use full range
+        if (existingStartDate && !existingEndDate) {
+          const startYear = moment.utc(existingStartDate).year()
+          const currentYear = moment().utc().year()
+          if (startYear === currentYear) {
+            setTemporal({
+              ...temporal,
+              isRecurring: isChecked,
+              startDate: moment(existingStartDate).utc().year(minDate.year()).toISOString(),
+              endDate: moment().utc().endOf('day').toISOString()
+            })
+
+            return
+          }
+        }
+
+        setTemporal({
+          ...temporal,
+          isRecurring: isChecked,
+          startDate: existingStartDate || minDate.utc().startOf('year').toISOString(),
+          endDate: existingEndDate || moment.utc().endOf('day').toISOString()
+        })
+
+        return
+      }
+
+      setTemporal({
+        ...temporal,
+        isRecurring: isChecked
+      })
+    } catch {
+      setTemporal({
+        ...temporal,
+        isRecurring: isChecked
+      })
+    }
   }
 
   /**
@@ -165,12 +246,26 @@ const TemporalSelectionDropdown = ({
   /**
    * Set the startDate prop
    * @param {moment} newStartDate - The moment object representing the startDate
+   * @param {moment} shouldCallMetrics - Flag to determine if we want to submit metrics
+   * @param {moment} metricType - Type of metric for temporal filter
    */
-  const setStartDate = (newStartDate) => {
+  const setStartDate = (newStartDate, shouldCallMetrics, metricType) => {
     const {
       isRecurring: existingIsRecurring,
       startDate: existingStartDate
     } = temporal
+
+    setDatesSelected((prev) => ({
+      ...prev,
+      start: true
+    }))
+
+    if (shouldCallMetrics) {
+      metricsTemporalFilter({
+        type: `Set Start Date - ${metricType}`,
+        value: newStartDate.toISOString()
+      })
+    }
 
     if (existingIsRecurring) {
       const applicationConfig = getApplicationConfig()
@@ -181,22 +276,36 @@ const TemporalSelectionDropdown = ({
       newStartDate.year(startDateObject.year())
     }
 
-    setTemporal({
-      ...temporal,
+    setTemporal((prevTemporal) => ({
+      ...prevTemporal,
       // eslint-disable-next-line no-underscore-dangle
       startDate: newStartDate.isValid() ? newStartDate.toISOString() : newStartDate._i
-    })
+    }))
   }
 
   /**
    * Set the endDate prop
    * @param {moment} newEndDate - The moment object representing the endDate
+   * @param {moment} shouldCallMetrics - Flag to determine if we want to submit metrics
+   * @param {moment} metricType - Type of metric for temporal filter
    */
-  const setEndDate = (newEndDate) => {
+  const setEndDate = (newEndDate, shouldCallMetrics, metricType) => {
     const {
       endDate: existingEndDate,
       isRecurring: existingIsRecurring
     } = temporal
+
+    setDatesSelected((prev) => ({
+      ...prev,
+      end: true
+    }))
+
+    if (shouldCallMetrics) {
+      metricsTemporalFilter({
+        type: `Set End Date - ${metricType}`,
+        value: newEndDate.toISOString()
+      })
+    }
 
     if (existingIsRecurring) {
       const applicationConfig = getApplicationConfig()
@@ -207,11 +316,11 @@ const TemporalSelectionDropdown = ({
       newEndDate.year(endDateObject.year())
     }
 
-    setTemporal({
-      ...temporal,
+    setTemporal((prevTemporal) => ({
+      ...prevTemporal,
       // eslint-disable-next-line no-underscore-dangle
       endDate: newEndDate.isValid() ? newEndDate.toISOString() : newEndDate._i
-    })
+    }))
   }
 
   return (
@@ -223,11 +332,23 @@ const TemporalSelectionDropdown = ({
             allowRecurring={allowRecurring}
             disabled={disabled}
             onApplyClick={onApplyClick}
-            onChangeQuery={onChangeQuery}
             onChangeRecurring={onChangeRecurring}
             onClearClick={onClearClick}
             onInvalid={onInvalid}
             onRecurringToggle={onRecurringToggle}
+            onSliderChange={
+              (value) => {
+                const { min, max } = value
+                setTemporal({
+                  ...temporal,
+                  startDate: moment(temporal.startDate).utc().year(min).toISOString(),
+                  endDate: moment(temporal.endDate).utc().year(max).toISOString()
+                })
+              }
+            }
+            displayStartDate={datesSelected.start ? temporal.startDate : ''}
+            displayEndDate={datesSelected.end ? temporal.endDate : ''}
+            isHomePage={isHomePage}
             onValid={onValid}
             setEndDate={setEndDate}
             setStartDate={setStartDate}
@@ -239,20 +360,10 @@ const TemporalSelectionDropdown = ({
   )
 }
 
-TemporalSelectionDropdown.defaultProps = {
-  allowRecurring: true,
-  temporalSearch: {}
-}
-
 TemporalSelectionDropdown.propTypes = {
   allowRecurring: PropTypes.bool,
-  onChangeQuery: PropTypes.func.isRequired,
-  temporalSearch: PropTypes.shape({
-    endDate: PropTypes.string,
-    isRecurring: PropTypes.bool,
-    recurringDayEnd: PropTypes.string,
-    recurringDayStart: PropTypes.string,
-    startDate: PropTypes.string
+  searchParams: PropTypes.shape({
+    q: PropTypes.string
   })
 }
 

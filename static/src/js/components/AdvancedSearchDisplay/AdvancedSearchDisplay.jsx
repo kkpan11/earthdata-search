@@ -1,74 +1,54 @@
-import React, { PureComponent } from 'react'
-import PropTypes from 'prop-types'
-import { isEmpty, isObject } from 'lodash-es'
-import { FaSlidersH } from 'react-icons/fa'
+import React from 'react'
+import { isEmpty } from 'lodash-es'
+import { Filter } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 
 import AdvancedSearchDisplayEntry from './AdvancedSearchDisplayEntry'
 import FilterStackItem from '../FilterStack/FilterStackItem'
 import FilterStackContents from '../FilterStack/FilterStackContents'
 
+import useEdscStore from '../../zustand/useEdscStore'
+
 import './AdvancedSearchDisplay.scss'
 
-class AdvancedSearchDisplay extends PureComponent {
-  render() {
-    const {
-      advancedSearch,
-      onUpdateAdvancedSearch,
-      onChangeQuery
-    } = this.props
+const AdvancedSearchDisplay = () => {
+  const changeQuery = useEdscStore((state) => state.query.changeQuery)
+  const selectedRegion = useEdscStore((state) => state.query.selectedRegion)
 
-    const advancedSearchFiltersApplied = Object.values(advancedSearch).filter((value) => {
-      if (isObject(value)) {
-        return !isEmpty(value)
-      }
+  const selectedRegionApplied = !isEmpty(selectedRegion)
 
-      return !!value
-    }).length
+  if (!selectedRegionApplied) return null
 
-    if (advancedSearchFiltersApplied === 0) return null
+  const valueToDisplay = '(1 applied)'
 
-    const valueToDisplay = `(${advancedSearchFiltersApplied} applied)`
-
-    return (
-      <FilterStackItem
-        icon={FaSlidersH}
-        title="Advanced Search"
-        onRemove={
-          () => {
-            onUpdateAdvancedSearch({})
-            onChangeQuery({
-              collection: {
-                spatial: {}
-              }
-            })
-          }
+  return (
+    <FilterStackItem
+      icon={Filter}
+      title="Advanced Search"
+      onRemove={
+        () => {
+          changeQuery({
+            collection: {
+              spatial: {}
+            },
+            selectedRegion: {}
+          })
         }
-      >
-        <FilterStackContents
-          body={
-            (
-              <AdvancedSearchDisplayEntry>
-                <span className="advanced-search-display__text">
-                  {valueToDisplay}
-                </span>
-              </AdvancedSearchDisplayEntry>
-            )
-          }
-          title="Advanced Search"
-        />
-      </FilterStackItem>
-    )
-  }
-}
-
-AdvancedSearchDisplay.defaultProps = {
-  advancedSearch: {}
-}
-
-AdvancedSearchDisplay.propTypes = {
-  advancedSearch: PropTypes.shape({}),
-  onUpdateAdvancedSearch: PropTypes.func.isRequired,
-  onChangeQuery: PropTypes.func.isRequired
+      }
+    >
+      <FilterStackContents
+        body={
+          (
+            <AdvancedSearchDisplayEntry>
+              <span className="advanced-search-display__text">
+                {valueToDisplay}
+              </span>
+            </AdvancedSearchDisplayEntry>
+          )
+        }
+        title="Advanced Search"
+      />
+    </FilterStackItem>
+  )
 }
 
 export default AdvancedSearchDisplay

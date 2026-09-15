@@ -24,13 +24,12 @@ const normalizeSizeValues = (obj) => mapValues(obj, (value) => {
  * @param {array} props.shapes - An array of objects defining the individual skeleton shapes.
  */
 export const Skeleton = ({
-  className,
-  dataTestId,
+  className = '',
   containerStyle,
   shapes,
-  variant
+  variant = null
 }) => {
-  const shapeElements = shapes.map((shape, i) => {
+  const shapeElements = shapes.map((shape, index) => {
     let item = null
     const key = uniqueId('skeleton_key_')
     const styles = normalizeSizeValues(shape)
@@ -39,7 +38,8 @@ export const Skeleton = ({
       item = (
         <div
           key={key}
-          className={`skeleton__item skeleton__item-${i}`}
+          className={`skeleton__item skeleton__item-${index}`}
+          data-testid={`${styles['data-testid']}-${index}`}
           style={
             {
               top: styles.top,
@@ -48,6 +48,28 @@ export const Skeleton = ({
               width: styles.width,
               height: styles.height,
               borderRadius: styles.radius
+            }
+          }
+        >
+          <span className="skeleton__item-inner" />
+        </div>
+      )
+    }
+
+    if (styles.shape === 'circle') {
+      item = (
+        <div
+          key={key}
+          className={`skeleton__item skeleton__item-${index}`}
+          data-testid={`${styles['data-testid']}-${index}`}
+          style={
+            {
+              top: styles.top,
+              left: styles.left,
+              right: styles.right,
+              width: styles.width,
+              height: styles.height,
+              borderRadius: '50%'
             }
           }
         >
@@ -72,7 +94,7 @@ export const Skeleton = ({
   return (
     <div
       className={classes}
-      data-testid={dataTestId}
+      data-testid="skeleton"
       style={{ ...normalizedStyles }}
     >
       <div
@@ -84,15 +106,8 @@ export const Skeleton = ({
   )
 }
 
-Skeleton.defaultProps = {
-  className: '',
-  dataTestId: undefined,
-  variant: null
-}
-
 Skeleton.propTypes = {
   className: PropTypes.string,
-  dataTestId: PropTypes.string,
   containerStyle: PropTypes.shape({}).isRequired,
   shapes: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   variant: PropTypes.string

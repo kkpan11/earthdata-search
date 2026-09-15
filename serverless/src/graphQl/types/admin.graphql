@@ -1,0 +1,207 @@
+type AdminPreferencesEntry {
+  "Preference value"
+  value: String
+
+  "Percentage of users who selected this preference"
+  percentage: String
+
+  "Count of users who selected this preference"
+  count: String
+}
+
+type AdminPreferencesMetrics {
+  "Top panel preferences"
+  panelState: [AdminPreferencesEntry]
+
+  "Collection List View preferences"
+  collectionListView: [AdminPreferencesEntry]
+
+  "Collection Sort preferences"
+  collectionSort: [AdminPreferencesEntry]
+
+  "Granule Sort preferences"
+  granuleSort: [AdminPreferencesEntry]
+
+  "Granule List View preferences"
+  granuleListView: [AdminPreferencesEntry]
+
+  "Zoom preferences"
+  zoom: [AdminPreferencesEntry]
+
+  "Latitude preferences"
+  latitude: [AdminPreferencesEntry]
+
+  "Longitude preferences"
+  longitude: [AdminPreferencesEntry]
+
+  "Projection preferences"
+  projection: [AdminPreferencesEntry]
+
+  "Overlay Layers preferences"
+  overlayLayers: [AdminPreferencesEntry]
+
+  "Base Layer preferences"
+  baseLayer: [AdminPreferencesEntry]
+}
+
+type AdminProject {
+  "ID of the project"
+  id: Int
+
+  "Obfuscated ID of the project"
+  obfuscatedId: String!
+
+  "Name of the project"
+  name: String
+
+  "Path of the project"
+  path: String!
+
+  "Timestamp of when the project was created"
+  createdAt: DateTime
+
+  "Timestamp of when the project was last updated"
+  updatedAt: DateTime!
+
+  "User who created the project"
+  user: User
+}
+
+type AdminProjects {
+  "List of projects"
+  adminProjects: [AdminProject]
+
+  "Pagination information"
+  pageInfo: PageInfo
+
+  "Total count of projects"
+  count: Int
+}
+
+type AdminRetrievals {
+  "List of retrievals"
+  adminRetrievals: [Retrieval]
+
+  "Pagination information"
+  pageInfo: PageInfo
+
+  "Total count of retrievals"
+  count: Int
+}
+
+type AdminRetrievalsMetrics {
+  "Metrics for each access method type"
+  retrievalMetricsByAccessType: [AccessMethodMetrics!]
+
+  "Information about multi-collection retrievals"
+  multiCollectionResponse: [MultiCollectionRetrieval!]
+}
+
+type AccessMethodMetrics {
+  "The type of access method used"
+  accessMethodType: String
+
+  "The total number of times this access method has been used"
+  totalTimesAccessMethodUsed: String
+
+  "The average number of granules per retrieval using this access method"
+  averageGranuleCount: String
+
+  "The average number of granule links per retrieval"
+  averageGranuleLinkCount: String
+
+  "The total number of granules retrieved using this access method"
+  totalGranulesRetrieved: String
+
+  "The maximum number of granule links in a single retrieval"
+  maxGranuleLinkCount: Int
+
+  "The minimum number of granule links in a single retrieval"
+  minGranuleLinkCount: Int
+}
+
+type MultiCollectionRetrieval {
+  "The count of collections in this retrieval"
+  collectionCount: Int
+
+  "Obfuscated Id based on retrieval Id"
+  obfuscatedId: String
+
+  "The ID of the retrieval"
+  retrievalId: Int
+}
+
+type Query {
+  "Checks if the user is authorized for admin functionality"
+  adminIsAuthorized: Boolean
+
+  "Retrieves admin preferences metrics"
+  adminPreferencesMetrics: AdminPreferencesMetrics
+
+  "Retrieves admin project information"
+  adminProject(
+    "Obfuscated ID to filter by"
+    obfuscatedId: String!
+  ): AdminProject
+
+  "Retrieves projects"
+  adminProjects(
+    "Sets the number of projects to return"
+    limit: Int
+
+    "Offset for pagination"
+    offset: Int
+
+    "Set the order of the results"
+    sortKey: String
+
+    "URS ID to filter by"
+    ursId: String
+
+    "Obfuscated ID to filter by"
+    obfuscatedId: String
+  ): AdminProjects
+
+  "Retrieves admin retrieval information"
+  adminRetrieval(
+    "Obfuscated ID to filter by"
+    obfuscatedId: String!
+  ): Retrieval
+
+  "Retrieves retrievals"
+  adminRetrievals(
+    "Sets the number of retrievals to return"
+    limit: Int
+
+    "Offset for pagination"
+    offset: Int
+
+    "Set the order of the results"
+    sortKey: String
+
+    "URS ID to filter by"
+    ursId: String
+
+    "Obfuscated ID to filter by"
+    obfuscatedId: String
+
+    "Collection ID to filter by"
+    retrievalCollectionId: Int
+  ): AdminRetrievals
+
+  "Retrieves admin retrievals metrics"
+  adminRetrievalsMetrics(
+    "Start date for the metrics query"
+    startDate: DateTime
+
+    "End date for the metrics query"
+    endDate: DateTime!
+  ): AdminRetrievalsMetrics
+}
+
+type Mutation {
+  "Requeues an order"
+  adminRequeueOrder(
+    retrievalOrderId: Int!
+  ): Boolean
+}

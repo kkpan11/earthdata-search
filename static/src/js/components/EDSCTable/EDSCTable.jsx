@@ -1,4 +1,3 @@
-/* eslint-disable react/jsx-props-no-spreading */
 import React, {
   createContext,
   forwardRef,
@@ -72,6 +71,7 @@ const innerElementType = forwardRef(({ children, ...rest }, ref) => {
                     return (
                       <div
                         key={key}
+                        // eslint-disable-next-line react/jsx-props-no-spreading
                         {...headerGroupRest}
                         style={trStyle}
                         className="edsc-table__tr"
@@ -94,6 +94,7 @@ const innerElementType = forwardRef(({ children, ...rest }, ref) => {
                             return (
                               <div
                                 key={headerKey}
+                                // eslint-disable-next-line react/jsx-props-no-spreading
                                 {...headerRest}
                                 className={thClassNames}
                               >
@@ -109,6 +110,7 @@ const innerElementType = forwardRef(({ children, ...rest }, ref) => {
               </div>
               <div
                 ref={ref}
+                // eslint-disable-next-line react/jsx-props-no-spreading
                 {...tableBodyRest}
                 style={tableBodyStyle}
                 className="edsc-table__tbody"
@@ -134,6 +136,7 @@ innerElementType.displayName = 'EDSCTableInnerElement'
  * @param {Object} props - The props passed into the component.
  * @param {Array} props.columns - The column settings.
  * @param {Array} props.data - The collection data.
+ * @param {Array} props.focusedItem - The item in focus (granule).
  * @param {String} props.id - A unique id to pass the table.
  * @param {Function} props.isItemLoaded - Callback to see if an item has loaded.
  * @param {Object} props.initialTableState - The initial state to be passed to react-table.
@@ -141,7 +144,7 @@ innerElementType.displayName = 'EDSCTableInnerElement'
  * @param {Function} props.loadMoreItems - Callback to load the next page of results.
  * @param {Function} props.initialRowStateAccessor - initialRowStateAccessor to be passed to react-table.
  * @param {Function} props.rowClassNamesFromRowState - Callback to determine the classnames of a row based on its state.
- * @param {Function} props.rowTitleFromRowState - Callback to determine the title attribute of a row based on its state.
+ * @param {Function} props.rowLabelFromRowState - Callback to determine the title attribute of a row based on its state.
  * @param {Function} props.onRowClick - Callback for onRowClick.
  * @param {Function} props.onRowMouseEnter - Callback for onRowMouseEnter.
  * @param {Function} props.onRowMouseLeave - Callback for onRowMouseLeave.
@@ -154,24 +157,25 @@ innerElementType.displayName = 'EDSCTableInnerElement'
 const EDSCTable = ({
   columns,
   data,
+  focusedItem = '',
   id,
-  isItemLoaded,
-  itemCount,
-  loadMoreItems,
-  rowTestId,
-  setVisibleMiddleIndex,
-  striped,
-  visibleMiddleIndex,
-  initialRowStateAccessor,
-  initialTableState,
-  rowClassNamesFromRowState,
-  rowTitleFromRowState,
-  onRowClick,
-  onRowMouseEnter,
-  onRowMouseLeave,
-  onRowMouseUp,
-  onRowFocus,
-  onRowBlur
+  initialRowStateAccessor = null,
+  initialTableState = {},
+  isItemLoaded = null,
+  itemCount = null,
+  loadMoreItems = null,
+  onRowBlur = null,
+  onRowClick = null,
+  onRowFocus = null,
+  onRowMouseEnter = null,
+  onRowMouseLeave = null,
+  onRowMouseUp = null,
+  rowClassNamesFromRowState = null,
+  rowLabelFromRowState = null,
+  rowTestId = null,
+  setVisibleMiddleIndex = null,
+  striped = false,
+  visibleMiddleIndex = null
 }) => {
   const tableClassName = classNames([
     'edsc-table',
@@ -199,9 +203,20 @@ const EDSCTable = ({
   useEffect(() => {
   }, [visibleMiddleIndex])
 
+  // When a user clicks on a granule on the map, it will scroll to that granule in the GranuleResultsTable
+  useEffect(() => {
+    if (focusedItem) {
+      const itemIndex = data.findIndex((item) => item.id === focusedItem)
+      if (itemIndex && listRef && listRef.current) {
+        listRef.current.scrollToItem(itemIndex, 'center')
+      }
+    }
+  }, [focusedItem])
+
   const options = {}
 
   if (initialRowStateAccessor) options.initialRowStateAccessor = initialRowStateAccessor
+
   if (!isEmpty(initialTableState)) options.initialState = initialTableState
 
   const {
@@ -305,12 +320,14 @@ const EDSCTable = ({
       })
 
       let rowClassesFromState = []
-      const rowTitleFromState = {
-        title: undefined
+      const rowLabelFromState = {
+        ariaLabel: undefined
       }
 
       if (rowClassNamesFromRowState) rowClassesFromState = rowClassNamesFromRowState(row.state)
-      if (rowTitleFromRowState) rowTitleFromState.title = rowTitleFromRowState(row.state)
+      if (rowLabelFromRowState) {
+        rowLabelFromState.ariaLabel = rowLabelFromRowState(row.state)
+      }
 
       const { style: rowStyle, ...rowRest } = rowProps
 
@@ -364,6 +381,7 @@ const EDSCTable = ({
       return (
         <React.Fragment key={key}>
           <div
+            // eslint-disable-next-line react/jsx-props-no-spreading
             {...rowRest}
             style={
               {
@@ -373,9 +391,11 @@ const EDSCTable = ({
             }
             className={rowClasses}
             data-testid={rowTestId}
+            // eslint-disable-next-line react/jsx-props-no-spreading
             {...rowEvents}
+            // eslint-disable-next-line react/jsx-props-no-spreading
             {...focusableProps}
-            {...rowTitleFromState}
+            aria-labelledby={rowLabelFromState.ariaLabel}
           >
             {
               row.cells.map((cell) => {
@@ -395,7 +415,12 @@ const EDSCTable = ({
                 ])
 
                 return (
-                  <div key={cellKey} {...rest} className={tdClassNames}>
+                  <div
+                    key={cellKey}
+                    // eslint-disable-next-line react/jsx-props-no-spreading
+                    {...rest}
+                    className={tdClassNames}
+                  >
                     {cell.render('Cell')}
                   </div>
                 )
@@ -411,7 +436,12 @@ const EDSCTable = ({
   const tableProps = getTableProps()
 
   return (
-    <div {...tableProps} id={id} className={tableClassName}>
+    <div
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...tableProps}
+      id={id}
+      className={tableClassName}
+    >
       <AutoSizer style={
         {
           position: 'relative',
@@ -491,30 +521,10 @@ const EDSCTable = ({
   )
 }
 
-EDSCTable.defaultProps = {
-  initialRowStateAccessor: null,
-  initialTableState: {},
-  isItemLoaded: null,
-  isLoading: null,
-  itemCount: null,
-  loadMoreItems: null,
-  onRowBlur: null,
-  onRowClick: null,
-  onRowFocus: null,
-  onRowMouseEnter: null,
-  onRowMouseLeave: null,
-  onRowMouseUp: null,
-  rowClassNamesFromRowState: null,
-  rowTitleFromRowState: null,
-  rowTestId: null,
-  setVisibleMiddleIndex: null,
-  striped: false,
-  visibleMiddleIndex: null
-}
-
 EDSCTable.propTypes = {
   columns: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
   data: PropTypes.arrayOf(PropTypes.shape({})).isRequired,
+  focusedItem: PropTypes.string,
   id: PropTypes.string.isRequired,
   initialRowStateAccessor: PropTypes.func,
   initialTableState: PropTypes.shape({}),
@@ -529,7 +539,7 @@ EDSCTable.propTypes = {
   onRowMouseLeave: PropTypes.func,
   onRowMouseUp: PropTypes.func,
   rowClassNamesFromRowState: PropTypes.func,
-  rowTitleFromRowState: PropTypes.func,
+  rowLabelFromRowState: PropTypes.func,
   rowTestId: PropTypes.string,
   setVisibleMiddleIndex: PropTypes.func,
   striped: PropTypes.bool,

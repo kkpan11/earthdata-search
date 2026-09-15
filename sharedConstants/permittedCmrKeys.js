@@ -17,6 +17,7 @@ export const collectionRequestPermittedCmrKeys = [
   'include_facets',
   'include_granule_counts',
   'include_has_granules',
+  'include_non_operational',
   'include_tags',
   'include_tags',
   'instrument_h',
@@ -43,6 +44,7 @@ export const collectionRequestPermittedCmrKeys = [
   'standard_product',
   'tag_key',
   'temporal',
+  'tool_concept_id',
   'two_d_coordinate_system_name'
 ]
 

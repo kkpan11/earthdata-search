@@ -11,9 +11,16 @@ import { FaAngleDoubleDown, FaAngleDoubleUp } from 'react-icons/fa'
 import Button from '../Button/Button'
 
 import { getColorByIndex } from '../../util/colors'
-import { timelineIntervals } from '../../util/timeline'
+import { timelineIntervalZooms, calculateTimelineParams } from '../../util/timeline'
 import { triggerKeyboardShortcut } from '../../util/triggerKeyboardShortcut'
 import getObjectKeyByValue from '../../util/object'
+import { metricsTimeline } from '../../util/metrics/metricsTimeline'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getCollectionsQueryTemporal } from '../../zustand/selectors/query'
+import { setOpenModalFunction } from '../../zustand/selectors/ui'
+
+import { MODAL_NAMES } from '../../constants/modalNames'
 
 import './Timeline.scss'
 
@@ -22,40 +29,92 @@ const earliestStart = '1960-01-01'
 export const Timeline = ({
   collectionMetadata,
   isOpen,
-  onChangeQuery,
-  onChangeTimelineQuery,
-  onMetricsTimeline,
-  onToggleOverrideTemporalModal,
   onToggleTimeline,
   pathname,
   projectCollectionsIds,
-  showOverrideModal,
-  temporalSearch,
-  timeline
+  showOverrideModal
 }) => {
-  const { query } = timeline
-  const { center: propsCenter } = query
-  const [center, setCenter] = useState(propsCenter || new Date().getTime())
+  const setOpenModal = useEdscStore(setOpenModalFunction)
+  const temporalSearch = useEdscStore(getCollectionsQueryTemporal)
+  const {
+    changeQuery,
+    timelineIntervals,
+    timelineQuery,
+    onChangeTimelineQuery
+  } = useEdscStore((state) => ({
+    changeQuery: state.query.changeQuery,
+    timelineIntervals: state.timeline.intervals,
+    timelineQuery: state.timeline.query,
+    onChangeTimelineQuery: state.timeline.setQuery
+  }))
 
+  const currentDate = new Date().getTime()
+  const collectionConceptId = Object.keys(collectionMetadata)[0]
   const isProjectPage = pathname.indexOf('projects') > -1
+  const [isMetadataLoaded, setIsMetadataLoaded] = useState(false)
+  const [isInitialSetup, setIsInitialSetup] = useState(true)
+  const [zoomLevel, setZoomLevel] = useState(5)
+  const [center, setCenter] = useState(currentDate)
+
+  // Refs for tracking the timer container and the previous height so we can trigger a resize event
   const containerRef = useRef()
-  const previousHeight = useRef(0)
+
+  // When pathname has changed, we want redo the initial setup
+  useEffect(() => {
+    setIsMetadataLoaded(false)
+    setIsInitialSetup(true)
+  }, [pathname])
 
   useEffect(() => {
-    if (containerRef.current) {
-      const { height: elementHeight } = containerRef.current.getBoundingClientRect()
+    if (!collectionMetadata) return
+    if (isMetadataLoaded) return
 
-      // If the current height of the element is different than the previous render,
-      // dispatch a resize event to set the size of the leaflet tools
-      if (elementHeight !== previousHeight.current) window.dispatchEvent(new Event('resize'))
+    if (isProjectPage) {
+      // Check if all project collections have metadata
+      const hasAllMetadata = projectCollectionsIds.every((conceptId) => {
+        const metadata = collectionMetadata[conceptId]
 
-      previousHeight.current = elementHeight
+        return metadata?.timeStart
+      })
+      setIsMetadataLoaded(hasAllMetadata)
+    } else {
+      // Check if single collection has metadata
+      const metadata = collectionMetadata[collectionConceptId]
+      setIsMetadataLoaded(!!metadata?.timeStart)
+    }
+  }, [
+    collectionConceptId,
+    collectionMetadata,
+    isProjectPage,
+    projectCollectionsIds
+  ])
+
+  useEffect(() => {
+    if (!isInitialSetup) {
+      return
     }
 
-    return () => {
-      window.dispatchEvent(new Event('resize'))
+    // If we have metadata, calculate the appropriate zoom and center
+    if (isMetadataLoaded) {
+      const { initialCenter: newCenter, zoomLevel: numericZoom } = calculateTimelineParams({
+        isProjectPage,
+        projectCollectionsIds,
+        collectionMetadata,
+        collectionConceptId,
+        currentDate
+      })
+
+      setCenter(newCenter)
+      setZoomLevel(numericZoom)
+      setIsInitialSetup(false)
+
+      onChangeTimelineQuery({
+        ...timelineQuery,
+        center: newCenter,
+        interval: getObjectKeyByValue(timelineIntervalZooms, numericZoom)
+      })
     }
-  }, [containerRef.current])
+  }, [isMetadataLoaded, isInitialSetup])
 
   // Show the override temporal modal if temporal and focused exist and showOverrideModal is true
   useEffect(() => {
@@ -63,11 +122,10 @@ export const Timeline = ({
       endDate: temporalEnd,
       startDate: temporalStart
     } = temporalSearch
-    const { query: newQuery } = timeline
     const {
       end: focusedEnd,
       start: focusedStart
-    } = newQuery
+    } = timelineQuery
 
     if (
       showOverrideModal
@@ -76,7 +134,7 @@ export const Timeline = ({
       && focusedStart
       && focusedEnd
     ) {
-      onToggleOverrideTemporalModal(true)
+      setOpenModal(MODAL_NAMES.OVERRIDE_TEMPORAL)
     }
   }, [pathname])
 
@@ -115,16 +173,16 @@ export const Timeline = ({
   }, [])
 
   // Metrics methods
-  const handleArrowKeyPan = () => onMetricsTimeline('Left/Right Arrow Pan')
-  const handleButtonPan = () => onMetricsTimeline('Button Pan')
-  const handleButtonZoom = () => onMetricsTimeline('Button Zoom')
-  const handleDragPan = () => onMetricsTimeline('Dragging Pan')
-  const handleFocusedClick = () => onMetricsTimeline('Click Label')
-  const handleScrollPan = () => onMetricsTimeline('Scroll Pan')
-  const handleScrollZoom = () => onMetricsTimeline('Scroll Zoom')
+  const handleArrowKeyPan = () => metricsTimeline('Left/Right Arrow Pan')
+  const handleButtonPan = () => metricsTimeline('Button Pan')
+  const handleButtonZoom = () => metricsTimeline('Button Zoom')
+  const handleDragPan = () => metricsTimeline('Dragging Pan')
+  const handleFocusedClick = () => metricsTimeline('Click Label')
+  const handleScrollPan = () => metricsTimeline('Scroll Pan')
+  const handleScrollZoom = () => metricsTimeline('Scroll Zoom')
 
   /**
-   * Callback for the timeline moving, updates the timeline query in redux
+   * Callback for the timeline moving, updates the timeline query in the store
    */
   const handleTimelineMoveEnd = ({
     center: newCenter,
@@ -140,37 +198,34 @@ export const Timeline = ({
     const newQuery = {
       center: newCenter,
       endDate: endDate.toISOString(),
-      interval: getObjectKeyByValue(timelineIntervals, zoom.toString()),
+      interval: getObjectKeyByValue(timelineIntervalZooms, zoom),
       startDate: startDate.toISOString()
     }
-
-    // TODO moving the timeline is causing a new timeline request - should only call if the timelineRange is changed
 
     onChangeTimelineQuery(newQuery)
     setCenter(newCenter)
   }
 
   /**
-   * Handles temporal being created by the timeline, updates the query in redux
+   * Handles temporal being created by the timeline, updates the query in the store
    */
   const handleTemporalSet = ({ temporalEnd, temporalStart }) => {
-    onMetricsTimeline('Created Temporal')
+    metricsTimeline('Created Temporal')
 
     if (temporalStart && temporalEnd) {
       // If focused exists and we are on the project page, show the modal
       if (showOverrideModal) {
-        const { query: timelineQuery } = timeline
         const {
           start: focusStart,
           end: focusEnd
         } = timelineQuery
 
         if (focusStart && focusEnd) {
-          onToggleOverrideTemporalModal(true)
+          setOpenModal(MODAL_NAMES.OVERRIDE_TEMPORAL)
         }
       }
 
-      onChangeQuery({
+      changeQuery({
         collection: {
           temporal: {
             endDate: new Date(temporalEnd).toISOString(),
@@ -179,7 +234,7 @@ export const Timeline = ({
         }
       })
     } else {
-      onChangeQuery({
+      changeQuery({
         collection: {
           temporal: {}
         }
@@ -188,10 +243,10 @@ export const Timeline = ({
   }
 
   /**
-   * Handles a focused interval being set by the timeline, updates the query and timeline query in redux
+   * Handles a focused interval being set by the timeline, updates the query and timeline query in the store
    */
   const handleFocusedSet = ({ focusedEnd, focusedStart }) => {
-    const timelineQuery = {
+    const newTimelineQuery = {
       end: focusedEnd,
       start: focusedStart
     }
@@ -206,42 +261,41 @@ export const Timeline = ({
     }
 
     if (focusedStart && focusedEnd) {
-      timelineQuery.center = center
+      newTimelineQuery.center = center
 
       // If temporalSearch exists and we are on the project page, show the modal
       if (showOverrideModal) {
         if (Object.keys(temporalSearch).length > 0) {
-          onToggleOverrideTemporalModal(true)
+          setOpenModal(MODAL_NAMES.OVERRIDE_TEMPORAL)
         } else {
           // If we shouldn't show the modal, just update the query
-          onChangeQuery(newQuery)
+          changeQuery(newQuery)
         }
       }
     }
 
     if (!showOverrideModal || !focusedStart || !focusedEnd) {
-      const { query: existingQuery } = timeline
       const {
         end: oldEnd,
         start: oldStart
-      } = existingQuery
+      } = timelineQuery
 
       // If the timeline doesn't have focus, don't bother trying to remove focus
       let shouldUpdateQuery = true
       if (!focusedStart && !focusedEnd && !oldStart && !oldEnd) shouldUpdateQuery = false
 
       if (shouldUpdateQuery) {
-        onChangeQuery(newQuery)
+        changeQuery(newQuery)
       }
     }
 
-    onChangeTimelineQuery(timelineQuery)
+    onChangeTimelineQuery(newTimelineQuery)
   }
 
   /**
-   * Converts redux timeline data (from CMR) into data usable by the timeline
+   * Converts the store timeline data (from CMR) into data usable by the timeline
    */
-  const setupData = ({ intervals }) => {
+  const setupData = (intervals) => {
     const data = []
 
     // Render the Collection Timelines in the same order they were added
@@ -261,7 +315,6 @@ export const Timeline = ({
         dataValue.intervals = values.map((value) => {
           const [start, end] = value
 
-          // TODO: Change the format of the intervals to an object at some point
           return [start * 1000, end * 1000]
         })
 
@@ -299,9 +352,7 @@ export const Timeline = ({
   /**
    * Pulls the focused interval out of the timeline query
    */
-  const setupFocused = ({ query: timelineQuery }) => {
-    const { end, start } = timelineQuery
-
+  const setupFocused = ({ end, start }) => {
     if (!end && !start) return {}
 
     return {
@@ -328,15 +379,6 @@ export const Timeline = ({
     }
   }
 
-  /**
-   * Converts the zoom level in the timeline query into a format used by the timeline
-   */
-  const setupZoom = ({ query: timelineQuery }) => {
-    const { interval = 'month' } = timelineQuery
-
-    return parseInt(timelineIntervals[interval], 10)
-  }
-
   const hideTimeline = !(isOpen || isProjectPage)
 
   const timelineClasses = classNames([
@@ -347,7 +389,7 @@ export const Timeline = ({
   ])
 
   return (
-    <section ref={containerRef} className={timelineClasses}>
+    <section ref={containerRef} className={timelineClasses} aria-label="Timeline">
       {
         hideTimeline && (
           <Button
@@ -367,7 +409,7 @@ export const Timeline = ({
 
       <div className="timeline__container">
         {
-          !isProjectPage && (
+          !isProjectPage && isMetadataLoaded && !isInitialSetup && (
             <Button
               className="timeline__toggle-button timeline__toggle-button--close"
               type="button"
@@ -378,54 +420,41 @@ export const Timeline = ({
             />
           )
         }
-        <EDSCTimeline
-          center={center}
-          data={setupData(timeline)}
-          focusedInterval={setupFocused(timeline)}
-          maxZoom={5}
-          minZoom={1}
-          temporalRange={setupTemporal(temporalSearch)}
-          zoom={setupZoom(timeline)}
-          onArrowKeyPan={handleArrowKeyPan}
-          onButtonPan={handleButtonPan}
-          onButtonZoom={handleButtonZoom}
-          onDragPan={handleDragPan}
-          onFocusedIntervalClick={handleFocusedClick}
-          onFocusedSet={handleFocusedSet}
-          onScrollPan={handleScrollPan}
-          onScrollZoom={handleScrollZoom}
-          onTemporalSet={handleTemporalSet}
-          onTimelineMoveEnd={handleTimelineMoveEnd}
-        />
+        {
+          isMetadataLoaded && !isInitialSetup && (
+            <EDSCTimeline
+              center={center}
+              data={setupData(timelineIntervals)}
+              focusedInterval={setupFocused(timelineQuery)}
+              maxZoom={5}
+              minZoom={1}
+              temporalRange={setupTemporal(temporalSearch)}
+              zoom={zoomLevel}
+              onArrowKeyPan={handleArrowKeyPan}
+              onButtonPan={handleButtonPan}
+              onButtonZoom={handleButtonZoom}
+              onDragPan={handleDragPan}
+              onFocusedIntervalClick={handleFocusedClick}
+              onFocusedSet={handleFocusedSet}
+              onScrollPan={handleScrollPan}
+              onScrollZoom={handleScrollZoom}
+              onTemporalSet={handleTemporalSet}
+              onTimelineMoveEnd={handleTimelineMoveEnd}
+            />
+          )
+        }
       </div>
     </section>
   )
 }
 
 Timeline.propTypes = {
-  browser: PropTypes.shape({}).isRequired,
   collectionMetadata: PropTypes.shape({}).isRequired,
   isOpen: PropTypes.bool.isRequired,
-  onChangeQuery: PropTypes.func.isRequired,
-  onChangeTimelineQuery: PropTypes.func.isRequired,
-  onMetricsTimeline: PropTypes.func.isRequired,
-  onToggleOverrideTemporalModal: PropTypes.func.isRequired,
   onToggleTimeline: PropTypes.func.isRequired,
   pathname: PropTypes.string.isRequired,
   projectCollectionsIds: PropTypes.arrayOf(PropTypes.string).isRequired,
-  showOverrideModal: PropTypes.bool.isRequired,
-  temporalSearch: PropTypes.shape({
-    endDate: PropTypes.string,
-    startDate: PropTypes.string
-  }).isRequired,
-  timeline: PropTypes.shape({
-    query: PropTypes.shape({
-      center: PropTypes.number,
-      interval: PropTypes.string,
-      start: PropTypes.number,
-      end: PropTypes.number
-    })
-  }).isRequired
+  showOverrideModal: PropTypes.bool.isRequired
 }
 
 export default Timeline

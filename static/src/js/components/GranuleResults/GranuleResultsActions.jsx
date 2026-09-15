@@ -2,16 +2,19 @@ import React, { useRef } from 'react'
 import PropTypes from 'prop-types'
 import classNames from 'classnames'
 import {
-  FaBell,
   FaFolder,
   FaFolderPlus,
   FaFolderMinus
 } from 'react-icons/fa'
 import { IoShare } from 'react-icons/io5'
-import { Dropdown } from 'react-bootstrap'
+import { useLocation } from 'react-router-dom'
 
+import { Subscribe } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+
+import Dropdown from 'react-bootstrap/Dropdown'
+
+import { metricsAddCollectionToProject } from '../../util/metrics/metricsAddCollectionToProject'
 import { commafy } from '../../util/commafy'
-import { locationPropType } from '../../util/propTypes/location'
 
 import AuthRequiredContainer from '../../containers/AuthRequiredContainer/AuthRequiredContainer'
 import Button from '../Button/Button'
@@ -20,44 +23,61 @@ import PortalFeatureContainer from '../../containers/PortalFeatureContainer/Port
 
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
 import EDSCIcon from '../EDSCIcon/EDSCIcon'
+import ExternalLink from '../ExternalLink/ExternalLink'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getFocusedCollectionSubscriptions } from '../../zustand/selectors/collection'
+
+import { routes } from '../../constants/routes'
 
 import './GranuleResultsActions.scss'
 
 /**
  * Renders GranuleResultsActions.
- * @param {String} focusedCollectionId - The collection ID.
- * @param {Number} granuleCount - The granule count.
- * @param {Number} granuleLimit - The granule limit.
- * @param {Boolean} initialLoading - Flag designating the inital loading state.
- * @param {Boolean} isCollectionInProject - Flag designating if the collection is in the project.
- * @param {Object} location - The location from the store.
- * @param {Function} onAddProjectCollection - Callback to add the collection from the project.
- * @param {Function} onChangePath - Callback to change the path.
- * @param {Function} onRemoveCollectionFromProject - Callback to remove the collection from the project.
+ * @param {Object} props - The props passed into the component.
+ * @param {String} props.focusedCollectionId - The collection ID.
+ * @param {Number} props.granuleCount - The granule count.
+ * @param {Number} props.granuleLimit - The granule limit.
+ * @param {Boolean} props.initialLoading - Flag designating the initial loading state.
+ * @param {Boolean} props.isCollectionInProject - Flag designating if the collection is in the project.
  */
 const GranuleResultsActions = ({
   addedGranuleIds,
   focusedCollectionId,
   focusedProjectCollection,
-  granuleLimit,
-  handoffLinks,
+  granuleLimit = undefined,
+  handoffLinks = [],
   initialLoading,
   isCollectionInProject,
-  location,
-  onAddProjectCollection,
-  onChangePath,
-  onRemoveCollectionFromProject,
-  projectGranuleCount,
+  projectGranuleCount = 0,
   removedGranuleIds,
-  searchGranuleCount,
-  subscriptions
+  searchGranuleCount = 0
 }) => {
-  const granuleResultsActionsContainer = useRef(null)
+  const location = useLocation()
+  const {
+    addProjectCollection,
+    removeProjectCollection
+  } = useEdscStore((state) => ({
+    addProjectCollection: state.project.addProjectCollection,
+    removeProjectCollection: state.project.removeProjectCollection
+  }))
+  const subscriptions = useEdscStore(getFocusedCollectionSubscriptions)
 
+  const granuleResultsActionsContainer = useRef(null)
   const addToProjectButton = (
     <Button
       className="granule-results-actions__action granule-results-actions__action--add"
-      onClick={() => onAddProjectCollection(focusedCollectionId)}
+      onClick={
+        () => {
+          addProjectCollection(focusedCollectionId)
+
+          metricsAddCollectionToProject({
+            collectionConceptId: focusedCollectionId,
+            page: 'granules',
+            view: ''
+          })
+        }
+      }
       icon={FaFolderPlus}
       label="Add collection to the current project"
       title="Add collection to the current project"
@@ -70,7 +90,7 @@ const GranuleResultsActions = ({
     <Button
       className="granule-results-actions__action granule-results-actions__action--remove"
       dataTestId="granule-results-actions__proj-action--remove"
-      onClick={() => onRemoveCollectionFromProject(focusedCollectionId)}
+      onClick={() => removeProjectCollection(focusedCollectionId)}
       icon={FaFolderMinus}
       label="Remove collection from the current project"
       title="Remove collection from the current project"
@@ -123,9 +143,6 @@ const GranuleResultsActions = ({
       granuleLimit={granuleLimit}
       initialLoading={initialLoading}
       isCollectionInProject={isCollectionInProject}
-      location={location}
-      onAddProjectCollection={onAddProjectCollection}
-      onChangePath={onChangePath}
       projectCollection={focusedProjectCollection}
       tooManyGranules={tooManyGranules}
     />
@@ -147,16 +164,15 @@ const GranuleResultsActions = ({
             <AuthRequiredContainer noRedirect>
               <PortalLinkContainer
                 type="button"
-                icon={FaBell}
+                icon={Subscribe}
                 className={subscriptionButtonClassnames}
                 dataTestId="granule-results-actions__subscriptions-button"
                 label={subscriptions.length ? 'View or edit subscriptions' : 'Create subscription'}
                 title={subscriptions.length ? 'View or edit subscriptions' : 'Create subscription'}
                 badge={subscriptions.length ? `${subscriptions.length}` : false}
-                naked
                 to={
                   {
-                    pathname: '/search/granules/subscriptions',
+                    pathname: routes.GRANULE_SUBSCRIPTIONS,
                     search: location.search
                   }
                 }
@@ -189,14 +205,13 @@ const GranuleResultsActions = ({
                   <Dropdown.Header>Open search in:</Dropdown.Header>
                   {
                     handoffLinks.map((link) => (
-                      <Dropdown.Item
+                      <ExternalLink
                         key={link.title}
-                        className="link link--external more-actions-dropdown__item more-actions-dropdown__vis analytics__smart-handoff-link"
+                        className="more-actions-dropdown__item more-actions-dropdown__smart-handoff-link"
                         href={link.href}
-                        target="_blank"
                       >
                         {link.title}
-                      </Dropdown.Item>
+                      </ExternalLink>
                     ))
                   }
                 </Dropdown.Menu>
@@ -220,13 +235,6 @@ const GranuleResultsActions = ({
   )
 }
 
-GranuleResultsActions.defaultProps = {
-  granuleLimit: undefined,
-  handoffLinks: [],
-  projectGranuleCount: 0,
-  searchGranuleCount: 0
-}
-
 GranuleResultsActions.propTypes = {
   addedGranuleIds: PropTypes.arrayOf(PropTypes.string).isRequired,
   focusedCollectionId: PropTypes.string.isRequired,
@@ -235,14 +243,9 @@ GranuleResultsActions.propTypes = {
   handoffLinks: PropTypes.arrayOf(PropTypes.shape({})),
   initialLoading: PropTypes.bool.isRequired,
   isCollectionInProject: PropTypes.bool.isRequired,
-  location: locationPropType.isRequired,
-  onAddProjectCollection: PropTypes.func.isRequired,
-  onChangePath: PropTypes.func.isRequired,
-  onRemoveCollectionFromProject: PropTypes.func.isRequired,
   projectGranuleCount: PropTypes.number,
   removedGranuleIds: PropTypes.arrayOf(PropTypes.string).isRequired,
-  searchGranuleCount: PropTypes.number,
-  subscriptions: PropTypes.arrayOf(PropTypes.shape({})).isRequired
+  searchGranuleCount: PropTypes.number
 }
 
 export default GranuleResultsActions

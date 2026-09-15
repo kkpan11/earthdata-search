@@ -1,10 +1,7 @@
 import GranuleRequest from '../granuleRequest'
 import * as getEarthdataConfig from '../../../../../../sharedUtils/config'
 
-beforeEach(() => {
-  jest.restoreAllMocks()
-  jest.clearAllMocks()
-})
+vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
 
 describe('GranuleRequest#constructor', () => {
   test('sets the default values when authenticated', () => {
@@ -12,15 +9,13 @@ describe('GranuleRequest#constructor', () => {
     const request = new GranuleRequest(token)
 
     expect(request.authenticated).toBeTruthy()
-    expect(request.authToken).toEqual(token)
-    expect(request.baseUrl).toEqual('http://localhost:3000')
-    expect(request.searchPath).toEqual('granules')
+    expect(request.edlToken).toEqual(token)
+    expect(request.baseUrl).toEqual('https://cmr.earthdata.nasa.gov')
+    expect(request.searchPath).toEqual('search/granules.json')
   })
 
   test('sets the default values when unauthenticated', () => {
-    jest.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
-
-    const request = new GranuleRequest(undefined, 'prod')
+    const request = new GranuleRequest(null, 'prod')
 
     expect(request.authenticated).toBeFalsy()
     expect(request.baseUrl).toEqual('https://cmr.earthdata.nasa.gov')
@@ -30,7 +25,7 @@ describe('GranuleRequest#constructor', () => {
 
 describe('GranuleRequest#permittedCmrKeys', () => {
   test('returns an array of timeline CMR keys', () => {
-    const request = new GranuleRequest(undefined, 'prod')
+    const request = new GranuleRequest(null, 'prod')
 
     expect(request.permittedCmrKeys()).toEqual([
       'bounding_box',
@@ -61,7 +56,7 @@ describe('GranuleRequest#permittedCmrKeys', () => {
 
 describe('GranuleRequest#nonIndexedKeys', () => {
   test('returns an array of timeline CMR keys', () => {
-    const request = new GranuleRequest(undefined, 'prod')
+    const request = new GranuleRequest(null, 'prod')
 
     expect(request.nonIndexedKeys()).toEqual([
       'bounding_box',
@@ -79,13 +74,13 @@ describe('GranuleRequest#nonIndexedKeys', () => {
 
 describe('GranuleRequest#transformResponse', () => {
   beforeEach(() => {
-    jest.spyOn(GranuleRequest.prototype, 'handleUnauthorized').mockImplementation()
+    vi.spyOn(GranuleRequest.prototype, 'handleUnauthorized').mockImplementation()
   })
 
   test('returns transformed data', () => {
-    jest.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
+    vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
 
-    const request = new GranuleRequest(undefined, 'prod')
+    const request = new GranuleRequest(null, 'prod')
 
     const data = {
       feed: {
@@ -107,11 +102,11 @@ describe('GranuleRequest#transformResponse', () => {
         entry: [
           {
             id: 'granuleId',
-            time_end: '2000-01-31T00:00:00.000Z',
-            time_start: '2000-01-01T00:00:00.000Z',
-            thumbnail: 'http://localhost:3000/scale/granules/granuleId?h=85&w=85&ee=prod',
-            formatted_temporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
-            isOpenSearch: false
+            timeEnd: '2000-01-31T00:00:00.000Z',
+            timeStart: '2000-01-01T00:00:00.000Z',
+            formattedTemporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
+            isOpenSearch: false,
+            spatial: null
           }
         ]
       }
@@ -120,11 +115,60 @@ describe('GranuleRequest#transformResponse', () => {
     expect(result).toEqual(expectedResult)
   })
 
+  describe('when the granule has spatial data', () => {
+    test('returns the spatial data as geojson', () => {
+      vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
+
+      const request = new GranuleRequest(null, 'prod')
+
+      const data = {
+        feed: {
+          id: 'https://cmr.earthdata.nasa.gov:443/search/granules.json?echo_collection_id=C123456-MOCK&page_num=2&page_size=20&sort_key=-start_date',
+          title: 'ECHO granule metadata',
+          updated: '2019-05-21T01:08:02.143Z',
+          entry: [{
+            id: 'granuleId',
+            time_end: '2000-01-31T00:00:00.000Z',
+            time_start: '2000-01-01T00:00:00.000Z',
+            points: ['0 10']
+          }]
+        }
+      }
+
+      const result = request.transformResponse(data)
+
+      const expectedResult = {
+        feed: {
+          entry: [
+            {
+              id: 'granuleId',
+              timeEnd: '2000-01-31T00:00:00.000Z',
+              timeStart: '2000-01-01T00:00:00.000Z',
+              formattedTemporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
+              isOpenSearch: false,
+              points: ['0 10'],
+              spatial: {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'MultiPoint',
+                  coordinates: [[10, 0]]
+                }
+              }
+            }
+          ]
+        }
+      }
+
+      expect(result).toEqual(expectedResult)
+    })
+  })
+
   describe('format granule browse image url', () => {
     test('when the granule has no browse image link', () => {
-      jest.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
+      vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
 
-      const request = new GranuleRequest(undefined, 'prod')
+      const request = new GranuleRequest(null, 'prod')
 
       const data = {
         feed: {
@@ -146,12 +190,12 @@ describe('GranuleRequest#transformResponse', () => {
           entry: [
             {
               id: 'granuleId',
-              browse_url: undefined,
-              time_end: '2000-01-31T00:00:00.000Z',
-              time_start: '2000-01-01T00:00:00.000Z',
-              thumbnail: 'http://localhost:3000/scale/granules/granuleId?h=85&w=85&ee=prod',
-              formatted_temporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
-              isOpenSearch: false
+              browseUrl: undefined,
+              timeEnd: '2000-01-31T00:00:00.000Z',
+              timeStart: '2000-01-01T00:00:00.000Z',
+              formattedTemporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
+              isOpenSearch: false,
+              spatial: null
             }
           ]
         }
@@ -161,9 +205,9 @@ describe('GranuleRequest#transformResponse', () => {
     })
 
     test('when the granule has a browse image link', () => {
-      jest.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
+      vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
 
-      const request = new GranuleRequest(undefined, 'prod')
+      const request = new GranuleRequest(null, 'prod')
 
       const data = {
         feed: {
@@ -176,7 +220,7 @@ describe('GranuleRequest#transformResponse', () => {
             time_start: '2000-01-01T00:00:00.000Z',
             links: [
               {
-                rel: '#browse',
+                rel: 'browse#',
                 href: 'https://test.com/browse/image/url.jpg'
               }
             ]
@@ -191,18 +235,19 @@ describe('GranuleRequest#transformResponse', () => {
           entry: [
             {
               id: 'granuleId',
-              browse_url: 'https://test.com/browse/image/url.jpg',
-              time_end: '2000-01-31T00:00:00.000Z',
-              time_start: '2000-01-01T00:00:00.000Z',
-              thumbnail: 'http://localhost:3000/scale/granules/granuleId?h=85&w=85&ee=prod',
-              formatted_temporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
+              browseUrl: 'https://test.com/browse/image/url.jpg',
+              timeEnd: '2000-01-31T00:00:00.000Z',
+              timeStart: '2000-01-01T00:00:00.000Z',
+              thumbnail: 'http://localhost:3000/scale?h=85&w=85&imageSrc=https%3A%2F%2Ftest.com%2Fbrowse%2Fimage%2Furl.jpg',
+              formattedTemporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
               isOpenSearch: false,
               links: [
                 {
-                  rel: '#browse',
+                  rel: 'browse#',
                   href: 'https://test.com/browse/image/url.jpg'
                 }
-              ]
+              ],
+              spatial: null
             }
           ]
         }
@@ -212,9 +257,9 @@ describe('GranuleRequest#transformResponse', () => {
     })
 
     test('when the granule has multiple browse image links it uses the first URL', () => {
-      jest.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
+      vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
 
-      const request = new GranuleRequest(undefined, 'prod')
+      const request = new GranuleRequest(null, 'prod')
 
       const data = {
         feed: {
@@ -227,15 +272,15 @@ describe('GranuleRequest#transformResponse', () => {
             time_start: '2000-01-01T00:00:00.000Z',
             links: [
               {
-                rel: '#data',
+                rel: 'data#',
                 href: 'https://test.com/data.json'
               },
               {
-                rel: '#browse',
+                rel: 'browse#',
                 href: 'https://test.com/browse/image/first_url.jpg'
               },
               {
-                rel: '#browse',
+                rel: 'browse#',
                 href: 'https://test.com/browse/image/second_url.jpg'
               }
             ]
@@ -250,26 +295,27 @@ describe('GranuleRequest#transformResponse', () => {
           entry: [
             {
               id: 'granuleId',
-              browse_url: 'https://test.com/browse/image/first_url.jpg',
-              time_end: '2000-01-31T00:00:00.000Z',
-              time_start: '2000-01-01T00:00:00.000Z',
-              thumbnail: 'http://localhost:3000/scale/granules/granuleId?h=85&w=85&ee=prod',
-              formatted_temporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
+              browseUrl: 'https://test.com/browse/image/first_url.jpg',
+              timeEnd: '2000-01-31T00:00:00.000Z',
+              timeStart: '2000-01-01T00:00:00.000Z',
+              thumbnail: 'http://localhost:3000/scale?h=85&w=85&imageSrc=https%3A%2F%2Ftest.com%2Fbrowse%2Fimage%2Ffirst_url.jpg',
+              formattedTemporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
               isOpenSearch: false,
               links: [
                 {
-                  rel: '#data',
+                  rel: 'data#',
                   href: 'https://test.com/data.json'
                 },
                 {
-                  rel: '#browse',
+                  rel: 'browse#',
                   href: 'https://test.com/browse/image/first_url.jpg'
                 },
                 {
-                  rel: '#browse',
+                  rel: 'browse#',
                   href: 'https://test.com/browse/image/second_url.jpg'
                 }
-              ]
+              ],
+              spatial: null
             }
           ]
         }
@@ -279,9 +325,9 @@ describe('GranuleRequest#transformResponse', () => {
     })
 
     test('when the granule has multiple browse image link protocols it uses the first https URL', () => {
-      jest.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
+      vi.spyOn(getEarthdataConfig, 'getEarthdataConfig').mockImplementation(() => ({ cmrHost: 'https://cmr.earthdata.nasa.gov' }))
 
-      const request = new GranuleRequest(undefined, 'prod')
+      const request = new GranuleRequest(null, 'prod')
 
       const data = {
         feed: {
@@ -294,15 +340,15 @@ describe('GranuleRequest#transformResponse', () => {
             time_start: '2000-01-01T00:00:00.000Z',
             links: [
               {
-                rel: '#data',
+                rel: 'data#',
                 href: 'https://test.com/data.json'
               },
               {
-                rel: '#browse',
+                rel: 'browse#',
                 href: 's3://test.com/browse/image/first_url.jpg'
               },
               {
-                rel: '#browse',
+                rel: 'browse#',
                 href: 'https://test.com/browse/image/second_url.jpg'
               }
             ]
@@ -317,26 +363,27 @@ describe('GranuleRequest#transformResponse', () => {
           entry: [
             {
               id: 'granuleId',
-              browse_url: 'https://test.com/browse/image/second_url.jpg',
-              time_end: '2000-01-31T00:00:00.000Z',
-              time_start: '2000-01-01T00:00:00.000Z',
-              thumbnail: 'http://localhost:3000/scale/granules/granuleId?h=85&w=85&ee=prod',
-              formatted_temporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
+              browseUrl: 'https://test.com/browse/image/second_url.jpg',
+              timeEnd: '2000-01-31T00:00:00.000Z',
+              timeStart: '2000-01-01T00:00:00.000Z',
+              thumbnail: 'http://localhost:3000/scale?h=85&w=85&imageSrc=https%3A%2F%2Ftest.com%2Fbrowse%2Fimage%2Fsecond_url.jpg',
+              formattedTemporal: ['2000-01-01 00:00:00', '2000-01-31 00:00:00'],
               isOpenSearch: false,
               links: [
                 {
-                  rel: '#data',
+                  rel: 'data#',
                   href: 'https://test.com/data.json'
                 },
                 {
-                  rel: '#browse',
+                  rel: 'browse#',
                   href: 's3://test.com/browse/image/first_url.jpg'
                 },
                 {
-                  rel: '#browse',
+                  rel: 'browse#',
                   href: 'https://test.com/browse/image/second_url.jpg'
                 }
-              ]
+              ],
+              spatial: null
             }
           ]
         }
@@ -347,7 +394,7 @@ describe('GranuleRequest#transformResponse', () => {
   })
 
   test('returns data if response is not successful', () => {
-    const request = new GranuleRequest(undefined, 'prod')
+    const request = new GranuleRequest(null, 'prod')
 
     const data = {
       statusCode: 404

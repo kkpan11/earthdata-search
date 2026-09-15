@@ -1,6 +1,12 @@
+@use '../../../css/utils';
+
 .facets-group {
   display: block;
-  color: $color__white;
+  color: utils.$color__spacesuit-white;
+
+  &--is-open {
+    border-bottom: 1px solid utils.$color__carbon--20;
+  }
 
   &__heading {
     margin: 0;
@@ -32,8 +38,8 @@
     top: 0.01rem;
     margin-left: 0.5rem;
     padding: 0.0625rem 0.5rem;
-    background-color: $color__blue;
-    color: $color__white;
+    background-color: utils.$color__nasa-blue;
+    color: utils.$color__spacesuit-white;
     font-size: 0.725rem;
     font-weight: 400;
     border-radius: 1rem;
@@ -49,25 +55,36 @@
     font-size: 0.875rem;
     font-weight: 400;
     transition: all 0.2s ease-in-out;
+    border: none;
+    border-bottom: 1px solid utils.$color__carbon--20;
 
-    &:hover {
-      background: $color__black--100;
+    .facets-group--is-open & {
+      border-bottom-color: transparent;
+
+      &:hover {
+        border-bottom-color: transparent;
+      }
     }
 
-    &:focus {
-      outline: 0;
-      border-color: transparent;
+    &:hover {
+      background: utils.$color__carbon--10;
+      border-bottom: 1px solid utils.$color__carbon--20;
+    }
+
+    &:focus-visible {
+      z-index: 1;
     }
 
     &:disabled {
-      background-color: #fff;
+      background-color: utils.$color__spacesuit-white;
+      border-bottom: 1px solid utils.$color__carbon--40;
       cursor: not-allowed;
     }
   }
 
   &__action {
     align-self: flex-end;
-    color: $color__black--300;
+    color: utils.$color__carbon--30;
 
     .facets-group__button:disabled & {
       display: none;
@@ -77,13 +94,13 @@
   &__header {
     display: flex;
     padding: 0.2rem 0.5rem 0.325rem 0.7rem;
-    background-color: $color__black--100;
-    color:#fff;
+    background-color: utils.$color__carbon--5;
+    color: utils.$color__spacesuit-white;
   }
 
   &__meta {
     font-size: 0.8rem;
-    color: $color__black--600;
+    color: utils.$color__carbon--80;
     font-weight: 500;
   }
 
@@ -92,13 +109,13 @@
     padding: 0;
     font-size: 0.8rem;
     font-weight: 500;
-    color: $color__blue;
+    color: utils.$color__carbon-black;
     background: none;
     outline: none;
     border: 0;
 
     &:hover {
-      color: $color__blue--dark;
+      color: utils.$color__carbon-black;
     }
 
     &:focus {
@@ -111,7 +128,7 @@
     align-items: center;
     justify-content: center;
     margin-left: 0.5rem;
-    color: $color__black--400;
+    color: utils.$color__carbon--40;
 
     svg {
       transform: translateY(-0.125rem)

@@ -4,14 +4,18 @@ import { castArray } from 'lodash-es'
 
 import './ArrowTags.scss'
 
-export const ArrowTags = ({ className, tags }) => {
+const ArrowTags = ({
+  className = '',
+  tags
+}) => {
   if (!tags.length) return []
 
   const tagsList = (
     <ul className={`arrow-tags ${className}`}>
       {
-        castArray(tags).map((tag, i) => {
-          const key = `arrow-tags_${i}`
+        castArray(tags).map((tag, index) => {
+          const key = `arrow-tags_${index}`
+
           if (tag) {
             return (
               <li
@@ -32,13 +36,9 @@ export const ArrowTags = ({ className, tags }) => {
   return tagsList
 }
 
-export default ArrowTags
-
-ArrowTags.defaultProps = {
-  className: ''
-}
-
 ArrowTags.propTypes = {
   className: PropTypes.string,
   tags: PropTypes.arrayOf(PropTypes.string).isRequired
 }
+
+export default ArrowTags

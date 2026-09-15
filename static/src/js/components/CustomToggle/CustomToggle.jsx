@@ -53,8 +53,8 @@ export const CustomToggle = React.forwardRef(({
     && typeof handleClose === 'function'
   ) {
     buttonEventHandlers = {
-      onMouseIn: (event) => handleOpen(event),
-      onMouseOut: (event) => handleClose(event)
+      onMouseEnter: (event) => handleOpen(event),
+      onMouseLeave: (event) => handleClose(event)
     }
   }
 
@@ -72,7 +72,7 @@ export const CustomToggle = React.forwardRef(({
       {
         icon && (
           <EDSCIcon
-            size="0.875rem"
+            size="16"
             icon={icon}
             className="custom-toggle__icon"
           />
@@ -86,6 +86,7 @@ export const CustomToggle = React.forwardRef(({
 CustomToggle.displayName = 'CustomToggle'
 
 CustomToggle.defaultProps = {
+  title: null,
   children: null,
   className: null,
   icon: null,
@@ -103,7 +104,7 @@ CustomToggle.propTypes = {
   icon: PropTypes.func,
   onClick: PropTypes.func,
   openOnHover: PropTypes.bool,
-  title: PropTypes.string.isRequired
+  title: PropTypes.string
 }
 
 export default CustomToggle

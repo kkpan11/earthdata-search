@@ -6,6 +6,8 @@ import { eventEmitter } from '../../events/events'
 
 import LoggerRequest from '../../util/request/loggerRequest'
 
+import './ErrorBoundary.scss'
+
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -16,20 +18,8 @@ class ErrorBoundary extends Component {
     }
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     const guid = uuidv4()
-    const { message, stack } = error
-    const { location } = window
-
-    const requestObject = new LoggerRequest()
-    requestObject.log({
-      error: {
-        guid,
-        location,
-        message,
-        stack
-      }
-    })
 
     return {
       errorGuid: guid,
@@ -46,20 +36,30 @@ class ErrorBoundary extends Component {
     }
   }
 
+  componentDidCatch(error) {
+    const { errorGuid } = this.state
+    const { message, stack } = error
+    const { location } = window
+
+    const requestObject = new LoggerRequest()
+    requestObject.log({
+      error: {
+        guid: errorGuid,
+        location,
+        message,
+        stack
+      }
+    })
+  }
+
   render() {
     const { errorGuid, hasError } = this.state
     const { children } = this.props
 
     if (hasError) {
-      // If error present, modify the background color of root element for the not found page so we can load stars jpg
-      const element = document.getElementById('app')
-      if (element) {
-        element.style.backgroundColor = 'initial'
-      }
-
       return (
         <div className="wrap">
-          <h2 className="h1">
+          <h2 className="h1 error-boundary__heading">
             We&#39;re sorry, but something went wrong.
           </h2>
           <p>
@@ -71,11 +71,11 @@ class ErrorBoundary extends Component {
             {' '}
             when contacting
             {' '}
-            <a href="mailto:support@earthdata.nasa.gov">Earthdata Operations</a>
+            <a href="mailto:support@earthdata.nasa.gov" className="error-boundary__link">Earthdata Operations</a>
             .
           </p>
           <p>
-            <a href="/">Click here</a>
+            <a href="/" className="error-boundary__link">Click here</a>
             {' '}
             to return to the home page.
           </p>

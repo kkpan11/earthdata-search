@@ -4,10 +4,11 @@ import { emptyDecodedResult } from './url.mocks'
 
 import * as deployedEnvironment from '../../../../../../sharedUtils/deployedEnvironment'
 import * as getApplicationConfig from '../../../../../../sharedUtils/config'
+import { initialGranuleQuery } from '../collectionsEncoders'
 
 beforeEach(() => {
-  jest.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
-  jest.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
+  vi.spyOn(deployedEnvironment, 'deployedEnvironment').mockImplementation(() => 'prod')
+  vi.spyOn(getApplicationConfig, 'getApplicationConfig').mockImplementation(() => ({
     defaultPortal: 'default'
   }))
 })
@@ -19,13 +20,14 @@ describe('url#decodeUrlParams', () => {
         ...emptyDecodedResult,
         focusedCollection: 'collectionId',
         query: {
+          ...emptyDecodedResult.query,
           collection: {
             ...emptyDecodedResult.query.collection,
             byId: {
               collectionId: {
                 granules: {
-                  excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK'],
-                  pageNum: 1
+                  ...initialGranuleQuery,
+                  excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
                 }
               }
             }
@@ -41,13 +43,14 @@ describe('url#decodeUrlParams', () => {
         ...emptyDecodedResult,
         focusedCollection: 'collectionId',
         query: {
+          ...emptyDecodedResult.query,
           collection: {
             ...emptyDecodedResult.query.collection,
             byId: {
               collectionId: {
                 granules: {
-                  excludedGranuleIds: ['12345', '56789'],
-                  pageNum: 1
+                  ...initialGranuleQuery,
+                  excludedGranuleIds: ['12345', '56789']
                 }
               }
             }
@@ -63,24 +66,27 @@ describe('url#decodeUrlParams', () => {
     test('decodes excludeGranules correctly', () => {
       const expectedResult = {
         ...emptyDecodedResult,
-        focusedCollection: '',
+        focusedCollection: null,
         project: {
           collections: {
             allIds: ['collectionId'],
             byId: {
               collectionId: {
                 granules: {},
-                isVisible: true
+                isVisible: true,
+                selectedAccessMethod: undefined
               }
             }
           }
         },
         query: {
+          ...emptyDecodedResult.query,
           collection: {
             ...emptyDecodedResult.query.collection,
             byId: {
               collectionId: {
                 granules: {
+                  ...initialGranuleQuery,
                   excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
                 }
               }
@@ -104,19 +110,21 @@ describe('url#decodeUrlParams', () => {
             byId: {
               collectionId: {
                 granules: {},
-                isVisible: true
+                isVisible: true,
+                selectedAccessMethod: undefined
               }
             }
           }
         },
         query: {
+          ...emptyDecodedResult.query,
           collection: {
             ...emptyDecodedResult.query.collection,
             byId: {
               collectionId: {
                 granules: {
-                  excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK'],
-                  pageNum: 1
+                  ...initialGranuleQuery,
+                  excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
                 }
               }
             }
@@ -132,7 +140,9 @@ describe('url#decodeUrlParams', () => {
 describe('url#encodeUrlQuery', () => {
   test('does not encode collections if no collections exist', () => {
     const props = {
-      hasGranulesOrCwic: true,
+      collectionsQuery: {
+        hasGranulesOrCwic: true
+      },
       pathname: '/path/here',
       focusedCollection: 'collectionId'
     }
@@ -142,9 +152,11 @@ describe('url#encodeUrlQuery', () => {
 
   test('does not encode collections if no focusedCollection exist', () => {
     const props = {
-      hasGranulesOrCwic: true,
+      collectionsQuery: {
+        hasGranulesOrCwic: true
+      },
       pathname: '/path/here',
-      focusedCollection: ''
+      focusedCollection: null
     }
 
     expect(encodeUrlQuery(props)).toEqual('/path/here')
@@ -154,7 +166,9 @@ describe('url#encodeUrlQuery', () => {
     describe('CMR excludedGranules', () => {
       test('does not encode excludedGranules if no excludedGranules exist', () => {
         const props = {
-          hasGranulesOrCwic: true,
+          collectionsQuery: {
+            hasGranulesOrCwic: true
+          },
           pathname: '/path/here',
           focusedCollection: 'collectionId'
         }
@@ -169,16 +183,14 @@ describe('url#encodeUrlQuery', () => {
               isOpenSearch: false
             }
           },
-          hasGranulesOrCwic: true,
           pathname: '/path/here',
           focusedCollection: 'collectionId',
-          query: {
-            collection: {
-              byId: {
-                collectionId: {
-                  granules: {
-                    excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
-                  }
+          collectionsQuery: {
+            hasGranulesOrCwic: true,
+            byId: {
+              collectionId: {
+                granules: {
+                  excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
                 }
               }
             }
@@ -192,7 +204,9 @@ describe('url#encodeUrlQuery', () => {
     describe('CWIC excludedGranules', () => {
       test('does not encode excludedGranules if no excludedGranules exist', () => {
         const props = {
-          hasGranulesOrCwic: true,
+          collectionsQuery: {
+            hasGranulesOrCwic: true
+          },
           pathname: '/path/here',
           collections: {
             allIds: ['collectionId'],
@@ -205,10 +219,7 @@ describe('url#encodeUrlQuery', () => {
               }
             }
           },
-          focusedCollection: 'collectionId',
-          project: {
-            collectionIds: []
-          }
+          focusedCollection: 'collectionId'
         }
 
         expect(encodeUrlQuery(props)).toEqual('/path/here?p=collectionId')
@@ -221,16 +232,14 @@ describe('url#encodeUrlQuery', () => {
               isOpenSearch: true
             }
           },
-          hasGranulesOrCwic: true,
           pathname: '/path/here',
           focusedCollection: 'collectionId',
-          query: {
-            collection: {
-              byId: {
-                collectionId: {
-                  granules: {
-                    excludedGranuleIds: ['12345', '56789']
-                  }
+          collectionsQuery: {
+            hasGranulesOrCwic: true,
+            byId: {
+              collectionId: {
+                granules: {
+                  excludedGranuleIds: ['12345', '56789']
                 }
               }
             }
@@ -250,21 +259,17 @@ describe('url#encodeUrlQuery', () => {
             isOpenSearch: false
           }
         },
-        hasGranulesOrCwic: true,
         pathname: '/path/here',
-        focusedCollection: '',
-        project: {
-          collections: {
-            allIds: ['collectionId']
-          }
+        focusedCollection: null,
+        projectCollections: {
+          allIds: ['collectionId']
         },
-        query: {
-          collection: {
-            byId: {
-              collectionId: {
-                granules: {
-                  excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
-                }
+        collectionsQuery: {
+          hasGranulesOrCwic: true,
+          byId: {
+            collectionId: {
+              granules: {
+                excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
               }
             }
           }
@@ -283,21 +288,17 @@ describe('url#encodeUrlQuery', () => {
             isOpenSearch: false
           }
         },
-        hasGranulesOrCwic: true,
         pathname: '/path/here',
         focusedCollection: 'collectionId',
-        project: {
-          collections: {
-            allIds: ['collectionId']
-          }
+        projectCollections: {
+          allIds: ['collectionId']
         },
-        query: {
-          collection: {
-            byId: {
-              collectionId: {
-                granules: {
-                  excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
-                }
+        collectionsQuery: {
+          hasGranulesOrCwic: true,
+          byId: {
+            collectionId: {
+              granules: {
+                excludedGranuleIds: ['G12345-MOCK', 'G56789-MOCK']
               }
             }
           }

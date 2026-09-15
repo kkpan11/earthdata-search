@@ -2,38 +2,46 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { difference } from 'lodash-es'
 import classNames from 'classnames'
-import { FaInfoCircle, FaMinus } from 'react-icons/fa'
+import { AlertInformation } from '@edsc/earthdata-react-icons/horizon-design-system/earthdata/ui'
+import { useLocation } from 'react-router-dom'
+
+import { Minus } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 
 import { eventEmitter } from '../../events/events'
-import { locationPropType } from '../../util/propTypes/location'
 
 import PortalLinkContainer from '../../containers/PortalLinkContainer/PortalLinkContainer'
 import Button from '../Button/Button'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getGranuleId } from '../../zustand/selectors/granule'
+
+import { routes } from '../../constants/routes'
 
 import './CollectionDetails.scss'
 
 /**
  * Renders CollectionDetails.
  * @param {String} collectionId - The current collection ID.
- * @param {String} focusedGranuleId - The focused granule ID.
- * @param {Object} granulesMetadata - The metadata in the store for granules.
  * @param {Object} location - The location from the store.
- * @param {Function} onChangeProjectGranulePageNum - Callback to set the page number.
- * @param {Function} onFocusedGranuleChange - The callback to change the focused granule.
- * @param {Function} onRemoveGranuleFromProjectCollection - Callback to remove a granule from the project.
- * @param {Object} portal - The portal from the store.
  * @param {Object} projectCollection - The project collection.
  */
 export const CollectionDetails = ({
   collectionId,
-  focusedGranuleId,
-  granulesMetadata,
-  location,
-  onChangeProjectGranulePageNum,
-  onFocusedGranuleChange,
-  onRemoveGranuleFromProjectCollection,
   projectCollection
 }) => {
+  const location = useLocation()
+
+  const focusedGranuleId = useEdscStore(getGranuleId)
+  const {
+    setGranuleId,
+    removeGranuleFromProjectCollection,
+    updateProjectGranuleParams
+  } = useEdscStore((state) => ({
+    setGranuleId: state.granule.setGranuleId,
+    removeGranuleFromProjectCollection: state.project.removeGranuleFromProjectCollection,
+    updateProjectGranuleParams: state.project.updateProjectGranuleParams
+  }))
+
   const {
     granules: projectCollectionGranules = {}
   } = projectCollection
@@ -41,11 +49,12 @@ export const CollectionDetails = ({
   const {
     addedGranuleIds = [],
     allIds: granulesAllIds = [],
-    hits: granuleCount,
+    byId: granulesById = {},
+    count: granuleCount,
     removedGranuleIds = []
   } = projectCollectionGranules
 
-  const { params: projectCollectionGranulesParams } = projectCollectionGranules
+  const { params: projectCollectionGranulesParams = {} } = projectCollectionGranules
 
   // TODO: Should be able to remove the checks here and just show allIds
   let granulesToDisplay = granulesAllIds
@@ -64,7 +73,7 @@ export const CollectionDetails = ({
         <ul className="collection-details__list">
           {
             granulesToDisplay.map((id) => {
-              const { [id]: granuleMetadata = {} } = granulesMetadata
+              const { [id]: granuleMetadata = {} } = granulesById
 
               const { title } = granuleMetadata
 
@@ -83,12 +92,12 @@ export const CollectionDetails = ({
                     tabIndex="0"
                     onMouseEnter={
                       () => {
-                        eventEmitter.emit(`map.layer.${collectionId}.focusgranule`, { granule: granuleMetadata })
+                        eventEmitter.emit(`map.layer.${collectionId}.hoverGranule`, { granule: granuleMetadata })
                       }
                     }
                     onMouseLeave={
                       () => {
-                        eventEmitter.emit(`map.layer.${collectionId}.focusgranule`, { granule: null })
+                        eventEmitter.emit(`map.layer.${collectionId}.hoverGranule`, { granule: null })
                       }
                     }
                     onClick={
@@ -96,12 +105,14 @@ export const CollectionDetails = ({
                         const newGranule = id === focusedGranuleId
                           ? { granule: null }
                           : { granule: granuleMetadata }
-                        eventEmitter.emit(`map.layer.${collectionId}.stickygranule`, newGranule)
+                        eventEmitter.emit(`map.layer.${collectionId}.focusGranule`, newGranule)
+                        setGranuleId(id)
                       }
                     }
-                    onKeyPress={
+                    onKeyDown={
                       () => {
-                        eventEmitter.emit(`map.layer.${collectionId}.stickygranule`, { granule: granuleMetadata })
+                        eventEmitter.emit(`map.layer.${collectionId}.focusGranule`, { granule: granuleMetadata })
+                        setGranuleId(granuleMetadata.id)
                       }
                     }
                   >
@@ -115,16 +126,16 @@ export const CollectionDetails = ({
                         bootstrapSize="sm"
                         onClick={
                           (event) => {
-                            onFocusedGranuleChange(id)
+                            setGranuleId(id)
                             event.stopPropagation()
                           }
                         }
                         label="View granule details"
-                        icon={FaInfoCircle}
-                        iconSize="0.875rem"
+                        icon={AlertInformation}
+                        iconSize="14"
                         to={
                           {
-                            pathname: '/search/granules/granule-details',
+                            pathname: routes.GRANULE_DETAILS,
                             search: location.search
                           }
                         }
@@ -134,11 +145,11 @@ export const CollectionDetails = ({
                         bootstrapSize="sm"
                         type="button"
                         label="Remove granule"
-                        icon={FaMinus}
-                        iconSize="0.875rem"
+                        icon={Minus}
+                        iconSize="14"
                         onClick={
                           (event) => {
-                            onRemoveGranuleFromProjectCollection({
+                            removeGranuleFromProjectCollection({
                               collectionId,
                               granuleId: id
                             })
@@ -155,7 +166,7 @@ export const CollectionDetails = ({
           }
         </ul>
         {
-          granulesToDisplay.length < granuleCount && (
+          granulesToDisplay.length > 0 && granulesToDisplay.length < granuleCount && (
             <div className="collection-details__more-granules">
               <Button
                 className="collection-details__more-granules-button"
@@ -163,9 +174,9 @@ export const CollectionDetails = ({
                 bootstrapVariant="link"
                 onClick={
                   () => {
-                    const { pageNum } = projectCollectionGranulesParams
+                    const { pageNum = 1 } = projectCollectionGranulesParams
 
-                    onChangeProjectGranulePageNum({
+                    updateProjectGranuleParams({
                       collectionId,
                       pageNum: pageNum + 1
                     })
@@ -184,12 +195,6 @@ export const CollectionDetails = ({
 
 CollectionDetails.propTypes = {
   collectionId: PropTypes.string.isRequired,
-  focusedGranuleId: PropTypes.string.isRequired,
-  granulesMetadata: PropTypes.shape({}).isRequired,
-  location: locationPropType.isRequired,
-  onChangeProjectGranulePageNum: PropTypes.func.isRequired,
-  onFocusedGranuleChange: PropTypes.func.isRequired,
-  onRemoveGranuleFromProjectCollection: PropTypes.func.isRequired,
   projectCollection: PropTypes.shape({
     granules: PropTypes.shape({})
   }).isRequired

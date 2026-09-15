@@ -12,8 +12,8 @@ export const validAccessMethod = {
 
 /**
  * Determine if the selected access method for a given project collection is valid
- * @param {Object} projectCollection Project collection config object, as saved in the redux store
- * @param {Object} collection Collection object, as saved in the redux store
+ * @param {Object} projectCollection Project collection config object, as saved in the store
+ * @param {Object} collectionMetadata Collection object, as saved in the store
  */
 export const isAccessMethodValid = (projectCollection, collectionMetadata) => {
   if (!projectCollection || !collectionMetadata) {
@@ -27,7 +27,7 @@ export const isAccessMethodValid = (projectCollection, collectionMetadata) => {
   const granuleLimit = getGranuleLimit(collectionMetadata)
 
   const { granules: projectCollectionGranules } = projectCollection
-  const { hits: granuleCount } = projectCollectionGranules
+  const { count: granuleCount } = projectCollectionGranules
 
   if (granuleCount <= 0) {
     return {
@@ -66,13 +66,19 @@ export const isAccessMethodValid = (projectCollection, collectionMetadata) => {
   } = selectedMethod
 
   let esiNeedsCustomization = false
+  let swoldrTooManyGranules = false
+
   if (selectedAccessMethod.startsWith('esi') && !hasChanged) {
     esiNeedsCustomization = true
   }
 
+  if (selectedAccessMethod.startsWith('swodlr') && granuleCount > 10) {
+    swoldrTooManyGranules = true
+  }
+
   return {
     ...validAccessMethod,
-    valid: isValid && !esiNeedsCustomization,
+    valid: isValid && !esiNeedsCustomization && !swoldrTooManyGranules,
     needsCustomization: esiNeedsCustomization
   }
 }

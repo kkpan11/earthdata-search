@@ -1,10 +1,12 @@
 import React from 'react'
-import { withRouter } from 'react-router-dom'
 import { Helmet } from 'react-helmet'
 import { getEnvironmentConfig } from '../../../../../sharedUtils/config'
 
-import SubscriptionsListContainer from '../../containers/SubscriptionsListContainer/SubscriptionsListContainer'
+import SubscriptionsList from '../../components/SubscriptionsList/SubscriptionsList'
 
+/**
+ * The Subscriptions route component
+*/
 export const Subscriptions = () => {
   const { edscHost } = getEnvironmentConfig()
 
@@ -19,7 +21,7 @@ export const Subscriptions = () => {
       <div className="route-wrapper route-wrapper--light route-wrapper--content-page">
         <div className="route-wrapper__content">
           <div className="route-wrapper__content-inner">
-            <SubscriptionsListContainer />
+            <SubscriptionsList />
           </div>
         </div>
       </div>
@@ -29,4 +31,4 @@ export const Subscriptions = () => {
 
 Subscriptions.propTypes = {}
 
-export default withRouter(Subscriptions)
+export default Subscriptions

@@ -2,8 +2,11 @@ import { convertSize } from './project'
 import { encodeGridCoords } from './url/gridEncoders'
 import { encodeTemporal } from './url/temporalEncoders'
 import { getApplicationConfig, getEarthdataConfig } from '../../../../sharedUtils/config'
-import { withAdvancedSearch } from './withAdvancedSearch'
+import { withSelectedRegion } from './withSelectedRegion'
 import { getOpenSearchOsddLink } from '../../../../sharedUtils/getOpenSearchOsddLink'
+
+import useEdscStore from '../zustand/useEdscStore'
+import { getCollectionsQuery, getSelectedRegionQuery } from '../zustand/selectors/query'
 
 /**
  * Populate granule payload used to update the store
@@ -24,22 +27,22 @@ export const populateGranuleResults = ({
   payload.isOpenSearch = isOpenSearch
 
   if (isOpenSearch) {
-    payload.hits = response.data.feed.hits
+    payload.count = response.data.feed.count
   } else {
-    payload.hits = parseInt(response.headers['cmr-hits'], 10)
+    payload.count = parseInt(response.headers['cmr-hits'], 10)
   }
 
   let size = 0
   payload.results.forEach((granule) => {
-    size += parseFloat(granule.granule_size || 0)
+    size += parseFloat(granule.granuleSize || 0)
   })
 
   let singleGranuleSize = 0
 
-  if (payload.hits > 0) {
+  if (payload.count > 0) {
     singleGranuleSize = size / payload.results.length
 
-    const totalSize = singleGranuleSize * payload.hits
+    const totalSize = singleGranuleSize * payload.count
     payload.totalSize = convertSize(totalSize)
     payload.singleGranuleSize = singleGranuleSize
   } else {
@@ -52,18 +55,12 @@ export const populateGranuleResults = ({
 
 /**
  * Extract granule parameters specific to the users search session
- * @param {Object} state Current Redux State
  * @param {String} collectionId The collection id the user has requested to view granules for
  */
-export const extractGranuleSearchParams = (state, collectionId) => {
-  const {
-    advancedSearch = {},
-    query = {}
-  } = state
-
-  const {
-    collection: collectionsQuery
-  } = query
+export const extractGranuleSearchParams = (collectionId) => {
+  const zustandState = useEdscStore.getState()
+  const collectionsQuery = getCollectionsQuery(zustandState)
+  const selectedRegion = getSelectedRegionQuery(zustandState)
 
   const {
     byId: collectionQueryById = {},
@@ -126,20 +123,17 @@ export const extractGranuleSearchParams = (state, collectionId) => {
   }
 
   // Apply any overrides for advanced search
-  const paramsWithAdvancedSearch = withAdvancedSearch(granuleParams, advancedSearch)
+  const paramsWithSelectedRegion = withSelectedRegion(granuleParams, selectedRegion)
 
-  return paramsWithAdvancedSearch
+  return paramsWithSelectedRegion
 }
 
 /**
  * Extract granule parameters specific to the users current project
- * @param {Object} state Current Redux State
  * @param {String} collectionId The collection id the user has requested to view granules for
  */
-export const extractProjectCollectionGranuleParams = (state, collectionId) => {
-  const {
-    project
-  } = state
+export const extractProjectCollectionGranuleParams = (collectionId) => {
+  const { project } = useEdscStore.getState()
 
   const { collections } = project
   const { byId } = collections
@@ -150,7 +144,7 @@ export const extractProjectCollectionGranuleParams = (state, collectionId) => {
 
   return {
     // Ensure that the `generic` search params are also included
-    ...extractGranuleSearchParams(state, collectionId),
+    ...extractGranuleSearchParams(collectionId),
     addedGranuleIds,
     pageNum,
     removedGranuleIds
@@ -158,10 +152,10 @@ export const extractProjectCollectionGranuleParams = (state, collectionId) => {
 }
 
 /**
- * Prepare parameters used in retrieving granules based on current Redux State,
+ * Prepare parameters used in retrieving granules based on current store state,
  * or provided project collection
- * @param {Object} state Current Redux State
- * @param {String} projectCollectionId Optional: CollectionId of a Project collection
+ * @param {Object} collectionMetadata The collection metadata object
+ * @param {Object} granuleParams The granule params to use instead of extracting from store
  * @returns {Object} Parameters used in Granules request
  */
 export const prepareGranuleParams = (collectionMetadata, granuleParams) => {

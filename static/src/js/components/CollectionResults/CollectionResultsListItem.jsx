@@ -20,7 +20,7 @@ import './CollectionResultsListItem.scss'
  * @param {Number} props.index - The index of the item.
  * @param {Object} props.style - The style settings for the item from react-window.
  */
-export const CollectionResultsListItem = memo(({
+const CollectionResultsListItem = memo(({
   data,
   index,
   style
@@ -30,10 +30,6 @@ export const CollectionResultsListItem = memo(({
   const {
     collectionsMetadata,
     isItemLoaded,
-    onAddProjectCollection,
-    onRemoveCollectionFromProject,
-    onViewCollectionDetails,
-    onViewCollectionGranules,
     setSize,
     windowWidth
   } = data
@@ -75,10 +71,6 @@ export const CollectionResultsListItem = memo(({
     <li className="collection-results-list-item" style={style}>
       <CollectionResultsItem
         collectionMetadata={collectionsMetadata[index]}
-        onAddProjectCollection={onAddProjectCollection}
-        onRemoveCollectionFromProject={onRemoveCollectionFromProject}
-        onViewCollectionDetails={onViewCollectionDetails}
-        onViewCollectionGranules={onViewCollectionGranules}
         ref={element}
       />
     </li>
@@ -93,10 +85,6 @@ CollectionResultsListItem.propTypes = {
       collectionMetadataPropType
     ),
     isItemLoaded: PropTypes.func,
-    onAddProjectCollection: PropTypes.func,
-    onRemoveCollectionFromProject: PropTypes.func,
-    onViewCollectionDetails: PropTypes.func,
-    onViewCollectionGranules: PropTypes.func,
     setSize: PropTypes.func,
     windowWidth: PropTypes.number
   }).isRequired,

@@ -2,35 +2,37 @@ import { test, expect } from 'playwright-test-coverage'
 
 import { login } from '../../support/login'
 import { getAuthHeaders } from '../../support/getAuthHeaders'
+import { setupTests } from '../../support/setupTests'
 
-import collectionsGraphJson from './__mocks__/collections_graph.json'
-import timeline from './__mocks__/timeline.json'
-import granules from './__mocks__/granules.json'
-import providers from './__mocks__/providers.json'
 import accessMethods from './__mocks__/access_methods.json'
 import collectionFixture from './__mocks__/authenticated_collections.json'
+import collectionsGraphJson from './__mocks__/collections_graph.json'
+import granules from './__mocks__/granules.json'
+import harmonyCapabilitiesDocument from './__mocks__/harmonyCapabilitiesDocument.json'
+import providers from './__mocks__/providers.json'
+import timeline from './__mocks__/timeline.json'
 
 test.describe('Timeline spec', () => {
-  test.beforeEach(async ({ page }, testInfo) => {
-    await page.route('**/*.{png,jpg,jpeg}', (route) => route.abort())
-
-    // eslint-disable-next-line no-param-reassign
-    testInfo.snapshotPath = (name) => `${testInfo.file}-snapshots/${name}`
+  test.beforeEach(async ({ page, context }) => {
+    await setupTests({
+      page,
+      context
+    })
   })
 
-  test('should resize the leaflet controls', async ({ page, context }) => {
-    login(context)
+  test('should move the map controls @screenshot', async ({ page, context }) => {
+    await login(page, context)
 
     const authHeaders = getAuthHeaders()
 
-    await page.route(/collections$/, async (route) => {
+    await page.route(/collections\.json/, async (route) => {
       await route.fulfill({
         json: collectionFixture.body,
         headers: collectionFixture.headers
       })
     })
 
-    await page.route(/graphql/, async (route) => {
+    await page.route(/graphql.*\/api/, async (route) => {
       await route.fulfill({
         json: collectionsGraphJson.body,
         headers: authHeaders
@@ -62,43 +64,64 @@ test.describe('Timeline spec', () => {
       })
     })
 
-    await page.route(/granules$/, async (route) => {
+    await page.route(/saved_access_configs/, async (route) => {
+      await route.fulfill({
+        json: {}
+      })
+    })
+
+    await page.route('**/capabilities**', async (route) => {
+      await route.fulfill({
+        json: harmonyCapabilitiesDocument
+      })
+    })
+
+    await page.route(/granules\.json/, async (route) => {
       await route.fulfill({
         json: granules.body,
         headers: {
           ...authHeaders,
+          'access-control-expose-headers': 'cmr-hits',
           'cmr-hits': '42'
         }
       })
     })
 
-    await page.goto('/projects?p=!C1443528505-LAADS&sb=-77.15071%2C38.78817%2C-76.89801%2C38.99784&lat=37.64643&long=-77.40747&zoom=7qt=2020-01-06T04%3A15%3A27.310Z%2C2020-01-13T07%3A32%3A50.962Z&ff=Map%20Imagery&tl=1563377338!4!!')
+    await page.goto('/projects?p=!C1443528505-LAADS&sb=-77.15071%2C38.78817%2C-76.89801%2C38.99784&lat=37.64643&long=-77.40747&zoom=7&qt=2020-01-06T04%3A15%3A27.310Z%2C2020-01-13T07%3A32%3A50.962Z&ff=Map%20Imagery&tl=1563377338!4!!')
+
+    // Wait for the Download Data button to be enabled
+    await expect(page.getByRole('button', { name: 'Download project data' })).toBeEnabled()
 
     // Click the back to search button
-    await page.getByTestId('back-to-search-button').click()
+    const tilesPromise = page.waitForResponse(/World_Imagery\/MapServer\/tile\/6/)
+    await page.getByRole('button', { name: 'Back to Search' }).click()
+    await tilesPromise
 
     await page.waitForSelector('[data-testid="collection-result-item_C1443528505-LAADS"]')
 
-    // Confirm the leaflet tools are in the correct location
+    // Confirm the map controls are in the correct location
     await expect(page).toHaveScreenshot('search-screenshot.png', {
       clip: {
-        x: 1200,
-        y: 700,
-        width: 200,
-        height: 200
+        x: 1314,
+        y: 800,
+        width: 72,
+        height: 40
       }
     })
 
     // Click a collection that exists in the project
     await page.getByTestId('collection-result-item_C1443528505-LAADS').click()
 
-    // Confirm the leaflet tools are in the correct location
+    // Wait for the timeline to be visible
+    await expect(page.getByTestId('timeline')).toBeInViewport()
+
+    // Confirm the map controls are in the correct location
     await expect(page).toHaveScreenshot('granules-screenshot.png', {
       clip: {
-        x: 1200,
-        y: 700,
-        width: 200,
-        height: 200
+        x: 1314,
+        y: 733,
+        width: 72,
+        height: 40
       }
     })
   })

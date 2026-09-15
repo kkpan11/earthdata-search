@@ -1,5 +1,10 @@
+import { mbr } from '@edsc/geo-utils'
+import { getApplicationConfig } from '../../../../sharedUtils/config'
+
+const { defaultSpatialDecimalSize } = getApplicationConfig()
+
 /**
-   * Turns '1,2' into '2,1' for leaflet
+   * Turns '1,2' into '2,1'
    * @param {String} coordinateString A single coordinate representing a point on a map
    */
 export const transformSingleCoordinate = (coordinateString) => {
@@ -9,7 +14,7 @@ export const transformSingleCoordinate = (coordinateString) => {
 }
 
 /**
-   * Turns '1,2,3,4' into ['2,1', '4,3'] for leaflet
+   * Turns '1,2,3,4' into ['2,1', '4,3']
    * @param {String} boundingBoxCoordinates A set of two points representing a bounding box
    */
 // Returns empty strings by default as input fields cannot be set to undefined
@@ -21,7 +26,7 @@ export const transformBoundingBoxCoordinates = (boundingBoxCoordinates) => (
     : ['', ''])
 
 /**
-   * Turns '1,2,3' into ['2,1', '3'] for leaflet
+   * Turns '1,2,3' into ['2,1', '3']
    * @param {String} circleCoordinates A center point and radius
    */
 export const transformCircleCoordinates = (circleCoordinates) => {
@@ -49,7 +54,7 @@ export const transformCircleCoordinates = (circleCoordinates) => {
  * @param {Object} spatial Object that holds the different spatial areas.
  * @returns {String} Returns a string formatting the spatial areas into human readable values.
  */
-export const createSpatialDisplay = (spatial) => {
+export const createSpatialDisplay = (spatial, usingMbr = false) => {
   const {
     boundingBox,
     circle,
@@ -58,38 +63,53 @@ export const createSpatialDisplay = (spatial) => {
     polygon
   } = spatial
 
-  const selectedShape = boundingBox || circle || line || point || polygon
+  if (boundingBox) {
+    const splitStr = transformBoundingBoxCoordinates(boundingBox[0])
 
-  if (selectedShape) {
-    if (boundingBox) {
-      const splitStr = transformBoundingBoxCoordinates(selectedShape[0])
+    return `SW: (${splitStr[0]}) NE: (${splitStr[1]})`
+  }
 
-      return `SW: (${splitStr[0]}) NE: (${splitStr[1]})`
-    }
+  if (usingMbr) {
+    const {
+      swLat,
+      swLng,
+      neLat,
+      neLng
+    } = mbr({
+      boundingBox: boundingBox && boundingBox[0],
+      circle: circle && circle[0],
+      line: line && line[0],
+      point: point && point[0],
+      polygon: polygon && polygon[0]
+    }, {
+      precision: defaultSpatialDecimalSize
+    })
 
-    if (circle) {
-      const splitStr = transformCircleCoordinates(selectedShape[0])
+    return `SW: (${swLat}, ${swLng}) NE: (${neLat}, ${neLng})`
+  }
 
-      return `Center: (${splitStr[0]}) Radius (m): ${splitStr[1]})`
-    }
+  if (circle) {
+    const splitStr = transformCircleCoordinates(circle[0])
 
-    if (point) {
-      return `Point: (${transformSingleCoordinate(selectedShape[0])})`
-    }
+    return `Center: (${splitStr[0]}) Radius (m): ${splitStr[1]})`
+  }
 
-    if (line) {
-      const splitStr = transformBoundingBoxCoordinates(selectedShape[0])
+  if (point) {
+    return `Point: (${transformSingleCoordinate(point[0])})`
+  }
 
-      return `Start: (${splitStr[0]}) End: (${splitStr[1]})`
-    }
+  if (line) {
+    const splitStr = transformBoundingBoxCoordinates(line[0])
 
-    if (polygon) {
-      const splitStr = selectedShape[0].split(',')
-      const pointArray = splitStr.length
-      const pointCount = (pointArray / 2) - 1
+    return `Start: (${splitStr[0]}) End: (${splitStr[1]})`
+  }
 
-      return `${pointCount} Points`
-    }
+  if (polygon) {
+    const splitStr = polygon[0].split(',')
+    const pointArray = splitStr.length
+    const pointCount = (pointArray / 2) - 1
+
+    return `${pointCount} Points`
   }
 
   return ''

@@ -3,10 +3,8 @@ import decodeId from '../handler'
 const OLD_ENV = process.env
 
 beforeEach(() => {
-  jest.clearAllMocks()
-
   // Manage resetting ENV variables
-  jest.resetModules()
+  vi.resetModules()
   process.env = { ...OLD_ENV }
   delete process.env.NODE_ENV
 })
@@ -18,7 +16,7 @@ afterEach(() => {
 
 describe('decodeId', () => {
   test('correctly returns a json response', () => {
-    process.env.obfuscationSpin = 1000
+    process.env.OBFUSCATION_SPIN = 1000
 
     const response = decodeId({
       queryStringParameters: {

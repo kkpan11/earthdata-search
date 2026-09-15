@@ -1,42 +1,44 @@
-import React, {
-  memo,
-  useEffect,
-  useState
-} from 'react'
+import React, { useEffect, useState } from 'react'
 import moment from 'moment'
-import PropTypes from 'prop-types'
-import { FaCalendarAlt } from 'react-icons/fa'
+import { Calendar } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
 
 import TemporalDisplayEntry from './TemporalDisplayEntry'
 import FilterStackItem from '../FilterStack/FilterStackItem'
 import FilterStackContents from '../FilterStack/FilterStackContents'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getCollectionsQueryTemporal } from '../../zustand/selectors/query'
 
 import './TemporalDisplay.scss'
 
 /**
  * Renders TemporalDisplay.
  * @param {function} onRemoveTimelineFilter - Function to remove temporal display component
- * @param {String} temporalSearch.endDate - Stopping date for collection search query
- * @param {Boolean} temporalSearch.isRecurring - Whether the data is collected periodically
- * @param {String} temporalSearch.startDate - Starting date for collection search query
  */
-export const TemporalDisplay = memo(({
-  onRemoveTimelineFilter,
-  temporalSearch
-}) => {
+export const TemporalDisplay = () => {
+  const temporalSearch = useEdscStore(getCollectionsQueryTemporal)
+  const changeQuery = useEdscStore((state) => state.query.changeQuery)
   const [endDate, setEndDate] = useState('')
   const [startDate, setStartDate] = useState('')
   const [isRecurring, setIsRecurring] = useState(false)
 
-  const onTimelineRemove = (() => {
-    onRemoveTimelineFilter()
+  const handleRemove = (() => {
+    changeQuery({
+      collection: {
+        temporal: {
+          startDate: '',
+          endDate: '',
+          isRecurring: false
+        }
+      }
+    })
   })
 
   useEffect(() => {
     const {
-      endDate: newEndDate,
-      startDate: newStartDate,
-      isRecurring: newIsRecurring
+      endDate: newEndDate = '',
+      startDate: newStartDate = '',
+      isRecurring: newIsRecurring = false
     } = temporalSearch
 
     setEndDate(newEndDate)
@@ -48,7 +50,7 @@ export const TemporalDisplay = memo(({
     return null
   }
 
-  const format = moment.ISO_8601
+  const format = 'YYYY-MM-DDTHH:mm:ss.SSSZ'
   const startDateObject = moment.utc(startDate, format, true)
   const endDateObject = moment.utc(endDate, format, true)
   const temporalStartDisplay = startDate
@@ -63,9 +65,9 @@ export const TemporalDisplay = memo(({
 
   return (
     <FilterStackItem
-      icon={FaCalendarAlt}
+      icon={Calendar}
       title="Temporal"
-      onRemove={onTimelineRemove}
+      onRemove={handleRemove}
     >
       <FilterStackContents
         body={temporalStartDisplay}
@@ -84,21 +86,6 @@ export const TemporalDisplay = memo(({
       />
     </FilterStackItem>
   )
-})
-
-TemporalDisplay.displayName = 'TemporalDisplay'
-
-TemporalDisplay.defaultProps = {
-  temporalSearch: {}
-}
-
-TemporalDisplay.propTypes = {
-  onRemoveTimelineFilter: PropTypes.func.isRequired,
-  temporalSearch: PropTypes.shape({
-    endDate: PropTypes.string,
-    isRecurring: PropTypes.bool,
-    startDate: PropTypes.string
-  })
 }
 
 export default TemporalDisplay

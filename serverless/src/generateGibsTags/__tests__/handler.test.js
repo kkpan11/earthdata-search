@@ -1,3 +1,6 @@
+// Two classes are mocked in this test
+/* eslint-disable max-classes-per-file */
+
 import nock from 'nock'
 
 import MockDate from 'mockdate'
@@ -12,24 +15,27 @@ import generateGibsTags from '../handler'
 
 const OLD_ENV = process.env
 
-const mocksqsSendMessage = jest.fn().mockResolvedValue()
+const mocksqsSendMessage = vi.fn().mockResolvedValue()
 
-jest.mock('@aws-sdk/client-sqs', () => ({
-  SQSClient: jest.fn().mockImplementation(() => ({
-    send: mocksqsSendMessage
-  })),
-  SendMessageCommand: jest.fn().mockImplementation((params) => params)
+vi.mock('@aws-sdk/client-sqs', () => ({
+  SQSClient: vi.fn(class {
+    send = mocksqsSendMessage
+  }),
+  SendMessageCommand: vi.fn(class {
+    constructor(params) {
+      this.MessageBody = params.MessageBody
+      this.QueueUrl = params.QueueUrl
+    }
+  })
 }))
 
 beforeEach(() => {
-  jest.clearAllMocks()
-
-  jest.spyOn(getSystemToken, 'getSystemToken').mockImplementation(() => 'mocked-system-token')
-  jest.spyOn(deleteSystemToken, 'deleteSystemToken').mockImplementation(() => 'mocked-system-token')
+  vi.spyOn(getSystemToken, 'getSystemToken').mockImplementation(() => 'mocked-system-token')
+  vi.spyOn(deleteSystemToken, 'deleteSystemToken').mockImplementation(() => 'mocked-system-token')
 
   // Manage resetting ENV variables
   // TODO: This is causing problems with mocking knex but is noted as important for managing process.env
-  // jest.resetModules()
+  vi.resetModules()
   process.env = { ...OLD_ENV }
   delete process.env.NODE_ENV
 
@@ -47,7 +53,7 @@ afterEach(() => {
 
 describe('generateGibsTags', () => {
   test('correctly generates and queues tag data including custom products', async () => {
-    process.env.tagQueueUrl = 'http://example.com/tagQueue'
+    process.env.TAG_QUEUE_URL = 'http://example.com/tagQueue'
 
     nock(/worldview/)
       .get(/wv\.json/)
@@ -55,7 +61,7 @@ describe('generateGibsTags', () => {
 
     await generateGibsTags({}, {})
 
-    expect(mocksqsSendMessage.mock.calls.length).toEqual(4)
+    expect(mocksqsSendMessage.mock.calls.length).toEqual(5)
 
     expect(mocksqsSendMessage.mock.calls[0]).toEqual([{
       QueueUrl: 'http://example.com/tagQueue',
@@ -67,16 +73,17 @@ describe('generateGibsTags', () => {
           'concept-id': 'C1000000001-EDSC',
           data: [
             {
+              format: 'png',
+              group: 'overlays',
+              layerPeriod: 'Daily',
               match: {
                 time_start: '>=2002-06-01T00:00:00Z',
                 time_end: '<=2011-10-04T00:00:00Z',
                 day_night_flag: 'night'
               },
               product: 'AMSRE_Surface_Rain_Rate_Night',
-              group: 'overlays',
-              title: 'Surface Rain Rate (Night)',
               source: 'Aqua / AMSR-E',
-              format: 'png',
+              title: 'Surface Rain Rate (Night)',
               updated_at: '1988-09-03T10:00:00.000Z',
               antarctic: false,
               antarctic_resolution: null,
@@ -100,15 +107,16 @@ describe('generateGibsTags', () => {
           'concept-id': 'C1000000002-EDSC',
           data: [
             {
+              format: 'png',
+              group: 'overlays',
+              layerPeriod: 'Daily',
               match: {
                 time_start: '>=2002-08-30T00:00:00Z',
                 day_night_flag: 'day'
               },
               product: 'AIRS_L2_Methane_400hPa_Volume_Mixing_Ratio_Day',
-              group: 'overlays',
-              title: 'Methane (L2, 400 hPa, Day)',
               source: 'Aqua / AIRS',
-              format: 'png',
+              title: 'Methane (L2, 400 hPa, Day)',
               updated_at: '1988-09-03T10:00:00.000Z',
               antarctic: false,
               antarctic_resolution: null,
@@ -132,15 +140,16 @@ describe('generateGibsTags', () => {
           'concept-id': 'C1000000003-EDSC',
           data: [
             {
+              format: 'png',
+              group: 'overlays',
+              layerPeriod: 'Daily',
               match: {
                 time_start: '>=2002-08-30T00:00:00Z',
                 day_night_flag: 'day'
               },
               product: 'AIRS_L2_Methane_400hPa_Volume_Mixing_Ratio_Day',
-              group: 'overlays',
-              title: 'Methane (L2, 400 hPa, Day)',
               source: 'Aqua / AIRS',
-              format: 'png',
+              title: 'Methane (L2, 400 hPa, Day)',
               updated_at: '1988-09-03T10:00:00.000Z',
               antarctic: false,
               antarctic_resolution: null,
@@ -155,6 +164,37 @@ describe('generateGibsTags', () => {
     }])
 
     expect(mocksqsSendMessage.mock.calls[3]).toEqual([{
+      QueueUrl: 'http://example.com/tagQueue',
+      MessageBody: JSON.stringify({
+        tagName: 'edsc.extra.serverless.gibs',
+        action: 'ADD',
+        requireGranules: false,
+        tagData: {
+          'concept-id': 'C1000000004-EDSC',
+          data: [{
+            format: 'png',
+            group: 'overlays',
+            layerPeriod: 'Subdaily',
+            match: {
+              time_start: '>=2024-05-13T10:41:03Z',
+              day_night_flag: 'unspecified'
+            },
+            product: 'TEMPO_L2_Ozone_Cloud_Fraction_Granule',
+            source: 'TEMPO',
+            title: 'Ozone (L2, Cloud Fraction, Subdaily) (BETA)',
+            updated_at: '1988-09-03T10:00:00.000Z',
+            antarctic: false,
+            antarctic_resolution: null,
+            arctic: false,
+            arctic_resolution: null,
+            geographic: true,
+            geographic_resolution: '1km'
+          }]
+        }
+      })
+    }])
+
+    expect(mocksqsSendMessage.mock.calls[4]).toEqual([{
       QueueUrl: 'http://example.com/tagQueue',
       MessageBody: JSON.stringify({
         tagName: 'edsc.extra.serverless.gibs',
@@ -173,6 +213,8 @@ describe('generateGibsTags', () => {
                   concept_id: 'C1000000002-EDSC'
                 }, {
                   concept_id: 'C1000000003-EDSC'
+                }, {
+                  concept_id: 'C1000000004-EDSC'
                 }]
               }
             }]
@@ -183,9 +225,9 @@ describe('generateGibsTags', () => {
   })
 
   test('correctly generates and queues tag data when no collections are to be tagged', async () => {
-    process.env.tagQueueUrl = 'http://example.com/tagQueue'
+    process.env.TAG_QUEUE_URL = 'http://example.com/tagQueue'
 
-    jest.spyOn(getSupportedGibsLayers, 'getSupportedGibsLayers').mockReturnValue({})
+    vi.spyOn(getSupportedGibsLayers, 'getSupportedGibsLayers').mockReturnValue({})
 
     nock(/worldview/)
       .get(/wv\.json/)

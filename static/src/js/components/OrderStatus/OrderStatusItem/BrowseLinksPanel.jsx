@@ -1,11 +1,13 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { ProgressBar } from 'react-bootstrap'
+import ProgressBar from 'react-bootstrap/ProgressBar'
 
 import { pluralize } from '../../../util/pluralize'
 import { commafy } from '../../../util/commafy'
 
 import TextWindowActions from '../../TextWindowActions/TextWindowActions'
+
+import './BrowseLinksPanel.scss'
 
 /**
  * Renders BrowseLinksPanel.
@@ -18,14 +20,14 @@ import TextWindowActions from '../../TextWindowActions/TextWindowActions'
  * @param {String} arg0.retrievalId - The retrieval id.
  * @param {Boolean} arg0.showTextWindowActions - A flag set when the text window actions should be set.
 */
-export const BrowseLinksPanel = ({
+const BrowseLinksPanel = ({
   accessMethodType,
   browseUrls,
   granuleCount,
   granuleLinksIsLoading,
-  percentDoneDownloadLinks,
+  percentDoneDownloadLinks = null,
   retrievalId,
-  showTextWindowActions
+  showTextWindowActions = true
 }) => {
   const downloadFileName = `${retrievalId}-${accessMethodType}-browse-imagery.txt`
 
@@ -78,11 +80,6 @@ export const BrowseLinksPanel = ({
         The browse imagery links will become available once the order has finished processing.
       </div>
     )
-}
-
-BrowseLinksPanel.defaultProps = {
-  percentDoneDownloadLinks: null,
-  showTextWindowActions: true
 }
 
 BrowseLinksPanel.propTypes = {

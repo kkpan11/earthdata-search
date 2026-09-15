@@ -1,13 +1,15 @@
 import React, { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { v4 as uuidv4 } from 'uuid'
 
 import { eventEmitter } from '../../events/events'
 import LoggerRequest from '../../util/request/loggerRequest'
-import { locationPropType } from '../../util/propTypes/location'
 
-export const NotFound = ({
-  location
-}) => {
+import './NotFound.scss'
+
+export const NotFound = () => {
+  const location = useLocation()
+
   useEffect(() => {
     eventEmitter.emit('error.global', true)
 
@@ -20,7 +22,7 @@ export const NotFound = ({
 
   // Modify the background color of root element for the not found page so we can load stars jpg
   const selectElementById = () => {
-    const element = document.getElementById('app')
+    const element = document.getElementById('wrapping-container')
     if (element) {
       element.style.backgroundColor = 'initial'
     }
@@ -39,7 +41,7 @@ export const NotFound = ({
 
   return (
     <div className="wrap">
-      <h2 className="h1">Sorry! The page you were looking for does not exist.</h2>
+      <h2 className="h1 not-found__heading">Sorry! The page you were looking for does not exist.</h2>
       <p>
         Please refer to the ID
         {' '}
@@ -49,11 +51,11 @@ export const NotFound = ({
         {' '}
         when contacting
         {' '}
-        <a href="mailto:support@earthdata.nasa.gov">Earthdata Operations</a>
+        <a href="mailto:support@earthdata.nasa.gov" className="not-found__link">Earthdata Operations</a>
         .
       </p>
       <p>
-        <a href="/">Click here</a>
+        <a href="/" className="not-found__link">Click here</a>
         {' '}
         to return to the home page.
       </p>
@@ -62,10 +64,6 @@ export const NotFound = ({
       </div>
     </div>
   )
-}
-
-NotFound.propTypes = {
-  location: locationPropType.isRequired
 }
 
 export default NotFound

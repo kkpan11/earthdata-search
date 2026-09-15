@@ -1,9 +1,11 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { PropTypes } from 'prop-types'
-import { Dropdown } from 'react-bootstrap'
+import Dropdown from 'react-bootstrap/Dropdown'
 import classNames from 'classnames'
 import MoreActionsToggle from '../CustomToggle/MoreActionsToggle'
+
+import ExternalLink from '../ExternalLink/ExternalLink'
 
 import './MoreActionsDropdown.scss'
 
@@ -17,11 +19,12 @@ import './MoreActionsDropdown.scss'
  * @param {Array} props.handoffLinks - An array of objects to create the handoff links
  */
 export const MoreActionsDropdown = ({
-  alignRight,
-  className,
-  children,
-  dark,
-  handoffLinks
+  // TODO: Should default this to false, but need to update styles with respect to the carrot
+  alignRight = true,
+  className = null,
+  children = null,
+  dark = false,
+  handoffLinks = []
 }) => {
   // Don't render the dropdown if there are no elements to render
   if (children == null && handoffLinks.length === 0) return null
@@ -41,6 +44,8 @@ export const MoreActionsDropdown = ({
     }
   )
 
+  const rootElement = document.getElementById('root') || document.body
+
   return (
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
     <div
@@ -57,7 +62,7 @@ export const MoreActionsDropdown = ({
           ReactDOM.createPortal(
             <Dropdown.Menu
               className={dropdownMenuClasses}
-              alignRight={alignRight}
+              align={alignRight ? 'end' : null}
             >
               {children}
               {
@@ -66,35 +71,25 @@ export const MoreActionsDropdown = ({
                     <Dropdown.Header>Open collection in:</Dropdown.Header>
                     {
                       handoffLinks.map((link) => (
-                        <Dropdown.Item
+                        <ExternalLink
                           key={link.title}
-                          className="link link--external more-actions-dropdown__item more-actions-dropdown__vis analytics__smart-handoff-link"
+                          className="more-actions-dropdown__item more-actions-dropdown__smart-handoff-link"
                           href={link.href}
-                          target="_blank"
                         >
                           {link.title}
-                        </Dropdown.Item>
+                        </ExternalLink>
                       ))
                     }
                   </>
                 )
               }
             </Dropdown.Menu>,
-            document.getElementById('root')
+            rootElement
           )
         }
       </Dropdown>
     </div>
   )
-}
-
-MoreActionsDropdown.defaultProps = {
-  // TODO: Should default this to false, but need to update styles with respect to the carrot
-  alignRight: true,
-  children: null,
-  className: null,
-  dark: false,
-  handoffLinks: []
 }
 
 MoreActionsDropdown.propTypes = {

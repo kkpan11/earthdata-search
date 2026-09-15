@@ -1,194 +1,178 @@
-import React, { Component } from 'react'
-import PropTypes from 'prop-types'
-import { Form } from 'react-bootstrap'
+import React, {
+  useCallback,
+  useEffect,
+  useState
+} from 'react'
+import Form from 'react-bootstrap/Form'
+import { useMutation } from '@apollo/client'
 
 import EDSCModalContainer from '../../containers/EDSCModalContainer/EDSCModalContainer'
 
-export class EditSubscriptionModal extends Component {
-  constructor(props) {
-    super(props)
+import useEdscStore from '../../zustand/useEdscStore'
+import {
+  isModalOpen,
+  openModalData,
+  setOpenModalFunction
+} from '../../zustand/selectors/ui'
 
-    this.state = {
-      subscription: {
-        name: '',
-        nativeId: '',
-        conceptId: ''
-      },
-      shouldUpdateQuery: false,
-      isSubmitting: false
-    }
+import { MODAL_NAMES } from '../../constants/modalNames'
+import { apolloClientNames } from '../../constants/apolloClientNames'
 
-    this.onModalClose = this.onModalClose.bind(this)
-    this.onSubscriptionNameChange = this.onSubscriptionNameChange.bind(this)
-    this.onUpdateQueryToggleChange = this.onUpdateQueryToggleChange.bind(this)
-    this.onSubscriptionEditSubmit = this.onSubscriptionEditSubmit.bind(this)
-  }
+import SUBSCRIPTIONS from '../../operations/queries/subscriptions'
+import UPDATE_SUBSCRIPTION from '../../operations/mutations/updateSubscription'
 
-  static getDerivedStateFromProps(props, state) {
-    const {
-      granuleSubscriptions,
-      subscriptions,
-      subscriptionConceptId: subscriptionConceptIdFromProps,
-      subscriptionType
-    } = props
+import addToast from '../../util/addToast'
 
-    const { subscription: subscriptionFromState = {} } = state
-    const { conceptId: subscriptionConceptIdFromState } = subscriptionFromState
+const EditSubscriptionModal = () => {
+  const [name, setName] = useState('')
+  const [shouldUpdateQuery, setShouldUpdateQuery] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Check to see if a new subscription has been loaded
-    if (subscriptionConceptIdFromState === subscriptionConceptIdFromProps) return null
+  const isOpen = useEdscStore((state) => isModalOpen(state, MODAL_NAMES.EDIT_SUBSCRIPTION))
+  const setOpenModal = useEdscStore(setOpenModalFunction)
+  const modalData = useEdscStore(openModalData)
+  const handleError = useEdscStore((state) => state.errors.handleError)
 
-    let subscription = {}
+  const [updateSubscription] = useMutation(UPDATE_SUBSCRIPTION, {
+    context: {
+      clientName: apolloClientNames.CMR_GRAPHQL
+    },
+    onCompleted: () => {
+      setIsSubmitting(false)
 
-    if (subscriptionType === 'granule') {
-      subscription = granuleSubscriptions.find(
-        (subscriptionObject) => subscriptionObject.conceptId === subscriptionConceptIdFromProps
-      )
-    } else {
-      const { byId: subscriptionsById } = subscriptions
-      subscription = subscriptionsById[subscriptionConceptIdFromProps] || {}
-    }
+      addToast('Subscription updated', {
+        appearance: 'success',
+        autoDismiss: true
+      })
+    },
+    onError: (error) => {
+      setIsSubmitting(false)
 
-    return {
-      ...state,
-      subscription
-    }
-  }
+      handleError({
+        error,
+        action: 'updateSubscription',
+        resource: 'subscription',
+        verb: 'updating',
+        showAlertButton: true,
+        title: 'Something went wrong updating your subscription'
+      })
+    },
+    refetchQueries: [SUBSCRIPTIONS]
+  })
 
-  async onSubscriptionEditSubmit() {
-    const { onUpdateSubscription } = this.props
-    const { subscription, shouldUpdateQuery } = this.state
+  const {
+    subscription,
+    newQuery
+  } = modalData
+  const { name: previousName } = subscription || {}
 
-    this.setState({
-      isSubmitting: true
-    })
+  useEffect(() => {
+    setName(previousName || '')
+  }, [previousName])
 
-    await onUpdateSubscription({
-      subscription,
-      shouldUpdateQuery
-    })
+  const onModalClose = useCallback(() => {
+    setOpenModal(null)
+  }, [])
 
-    this.setState({
-      isSubmitting: false
-    })
+  const handleSubscriptionNameChange = useCallback((event) => {
+    const { value } = event.target
 
-    this.onModalClose()
-  }
+    setName(value)
+  }, [])
 
-  onSubscriptionNameChange(event) {
-    const { target } = event
-    const { value } = target
+  const handleUpdateQueryToggleChange = useCallback((event) => {
+    const { checked } = event.target
 
-    this.setState((state) => (
-      {
-        ...state,
-        subscription: {
-          ...state.subscription,
-          name: value
-        }
-      }
-    ))
-  }
+    setShouldUpdateQuery(checked)
+  }, [])
 
-  onUpdateQueryToggleChange(event) {
-    const { target } = event
-    const { checked } = target
-    this.setState({
-      shouldUpdateQuery: checked
-    })
-  }
-
-  onModalClose() {
-    const { onToggleEditSubscriptionModal } = this.props
-    onToggleEditSubscriptionModal({
-      isOpen: false,
-      subscriptionConceptId: '',
-      type: ''
-    })
-  }
-
-  render() {
-    const {
-      isOpen
-    } = this.props
+  const onSubscriptionEditSubmit = useCallback(async () => {
+    setIsSubmitting(true)
 
     const {
-      isSubmitting,
-      subscription = {},
-      shouldUpdateQuery
-    } = this.state
-
-    const {
-      name
+      collectionConceptId,
+      nativeId,
+      query: existingQuery,
+      subscriberId,
+      type
     } = subscription
 
-    const body = (
-      <>
-        <Form.Group>
-          <Form.Label>Name</Form.Label>
-          <Form.Control
-            id="update-subscription-name"
-            type="text"
-            value={name}
-            onChange={
-              (event) => {
-                this.onSubscriptionNameChange(event)
-              }
-            }
-            onBlur={this.onSubscriptionNameChange}
-            onKeyUp={this.onSubscriptionNameChange}
-          />
-        </Form.Group>
-        <Form.Group>
-          <label
-            className="d-flex"
-            htmlFor="update-subscription-query-checkbox"
-          >
-            <Form.Check
-              id="update-subscription-query-checkbox"
-              type="checkbox"
-              checked={shouldUpdateQuery}
-              onChange={this.onUpdateQueryToggleChange}
-            />
-            Update this subscription to match my current search query
-          </label>
-        </Form.Group>
-      </>
-    )
+    const query = shouldUpdateQuery ? newQuery : existingQuery
 
-    return (
-      <EDSCModalContainer
-        className="edit-subscription"
-        id="edit-subscription"
-        isOpen={isOpen}
-        onClose={this.onModalClose}
-        size="lg"
-        title="Edit Subscription"
-        body={body}
-        primaryAction="Save"
-        onPrimaryAction={this.onSubscriptionEditSubmit}
-        primaryActionLoading={isSubmitting}
-        secondaryAction="Cancel"
-        onSecondaryAction={() => this.onModalClose()}
-      />
-    )
-  }
-}
+    const variables = {
+      params: {
+        name,
+        nativeId,
+        query,
+        subscriberId,
+        type
+      }
+    }
 
-EditSubscriptionModal.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  onToggleEditSubscriptionModal: PropTypes.func.isRequired,
-  onUpdateSubscription: PropTypes.func.isRequired,
-  granuleSubscriptions: PropTypes.arrayOf(
-    PropTypes.shape({
-      byId: PropTypes.shape({})
+    if (type === 'granule') {
+      variables.params.collectionConceptId = collectionConceptId
+    }
+
+    updateSubscription({
+      variables
     })
-  ).isRequired,
-  subscriptions: PropTypes.shape({
-    byId: PropTypes.shape({})
-  }).isRequired,
-  subscriptionConceptId: PropTypes.string.isRequired,
-  subscriptionType: PropTypes.string.isRequired
+
+    onModalClose()
+  }, [
+    shouldUpdateQuery,
+    subscription,
+    name,
+    newQuery
+  ])
+
+  if (!isOpen) return null
+
+  const body = (
+    <>
+      <Form.Group>
+        <Form.Label>Name</Form.Label>
+        <Form.Control
+          id="update-subscription-name"
+          type="text"
+          value={name}
+          onChange={handleSubscriptionNameChange}
+          onBlur={handleSubscriptionNameChange}
+          onKeyUp={handleSubscriptionNameChange}
+        />
+      </Form.Group>
+      <Form.Group>
+        <label
+          className="d-flex"
+          htmlFor="update-subscription-query-checkbox"
+        >
+          <Form.Check
+            id="update-subscription-query-checkbox"
+            type="checkbox"
+            checked={shouldUpdateQuery}
+            onChange={handleUpdateQueryToggleChange}
+          />
+          Update this subscription to match my current search query
+        </label>
+      </Form.Group>
+    </>
+  )
+
+  return (
+    <EDSCModalContainer
+      className="edit-subscription"
+      id="edit-subscription"
+      isOpen={isOpen}
+      onClose={onModalClose}
+      size="lg"
+      title="Edit Subscription"
+      body={body}
+      primaryAction="Save"
+      onPrimaryAction={onSubscriptionEditSubmit}
+      primaryActionLoading={isSubmitting}
+      secondaryAction="Cancel"
+      onSecondaryAction={onModalClose}
+    />
+  )
 }
 
 export default EditSubscriptionModal

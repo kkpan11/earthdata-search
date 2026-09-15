@@ -1,10 +1,16 @@
 import { test, expect } from 'playwright-test-coverage'
 
+import { setupTests } from '../../support/setupTests'
+
 import singleCollection from './__mocks__/single_collection.json'
 
 test.describe('Collection List Behavior', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.route('**/*.{png,jpg,jpeg}', (route) => route.abort())
+  test.beforeEach(async ({ page, context }) => {
+    await setupTests({
+      page,
+      context
+    })
+
     await page.route(/collections.json/, async (route) => {
       await route.fulfill({
         json: singleCollection.body,
@@ -12,7 +18,7 @@ test.describe('Collection List Behavior', () => {
       })
     })
 
-    await page.goto('/')
+    await page.goto('/search')
   })
 
   test('defaults to the list view and displays results', async ({ page }) => {

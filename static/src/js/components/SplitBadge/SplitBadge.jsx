@@ -1,15 +1,15 @@
 import React from 'react'
 import { PropTypes } from 'prop-types'
 import classNames from 'classnames'
-import { Badge } from 'react-bootstrap'
+import Badge from 'react-bootstrap/Badge'
 
 import './SplitBadge.scss'
 
 const SplitBadge = ({
-  className,
+  className = null,
   primary,
-  secondary,
-  variant
+  secondary = null,
+  variant = 'primary'
 }) => {
   const classes = classNames(
     'split-badge',
@@ -20,7 +20,10 @@ const SplitBadge = ({
   )
 
   return (
-    <Badge className={classes} variant={variant}>
+    <Badge
+      className={classes}
+      bg={variant}
+    >
       <span className="split-badge__primary">
         {primary}
       </span>
@@ -33,12 +36,6 @@ const SplitBadge = ({
       }
     </Badge>
   )
-}
-
-SplitBadge.defaultProps = {
-  className: null,
-  secondary: null,
-  variant: 'primary'
 }
 
 SplitBadge.propTypes = {

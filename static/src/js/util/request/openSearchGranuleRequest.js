@@ -1,13 +1,15 @@
 import { XMLParser } from 'fast-xml-parser'
 import { isEmpty, isString } from 'lodash-es'
+import camelcaseKeys from 'camelcase-keys'
 
 import Request from './request'
 
 import { getTemporal } from '../../../../../sharedUtils/edscDate'
 import { getEnvironmentConfig } from '../../../../../sharedUtils/config'
+import normalizeSpatial from '../map/normalizeSpatial'
 
 export default class OpenSearchGranuleRequest extends Request {
-  constructor(authToken, earthdataEnvironment) {
+  constructor(edlToken, earthdataEnvironment, collectionId) {
     super(getEnvironmentConfig().apiHost, earthdataEnvironment)
 
     this.lambda = true
@@ -18,14 +20,16 @@ export default class OpenSearchGranuleRequest extends Request {
       removeNSPrefix: true
     })
 
-    if (authToken && authToken !== '') {
+    if (edlToken && edlToken !== '') {
       this.authenticated = true
-      this.authToken = authToken
+      this.edlToken = edlToken
     } else {
       this.optionallyAuthenticated = true
     }
 
     this.searchPath = 'opensearch/granules'
+
+    this.collectionConceptId = collectionId
   }
 
   /**
@@ -215,13 +219,18 @@ export default class OpenSearchGranuleRequest extends Request {
           updatedGranule.browse_url = browseUrl
         })
 
+        // Create a GeoJSON representation of the granule spatial
+        updatedGranule.spatial = normalizeSpatial(granule)
+
+        updatedGranule.collectionConceptId = this.collectionConceptId
+
         return updatedGranule
       })
 
       return {
         feed: {
-          entry: granuleResults.filter(Boolean),
-          hits: totalResults
+          entry: camelcaseKeys(granuleResults.filter(Boolean), { deep: true }),
+          count: totalResults
         }
       }
     } catch (error) {

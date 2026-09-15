@@ -1,13 +1,12 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 import { uniq } from 'lodash-es'
 
-import {
-  Badge,
-  OverlayTrigger,
-  Tooltip
-} from 'react-bootstrap'
-import { FaQuestionCircle, FaArrowRight } from 'react-icons/fa'
+import Badge from 'react-bootstrap/Badge'
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger'
+
+import { ArrowLineRight } from '@edsc/earthdata-react-icons/horizon-design-system/hds/ui'
+import { FaQuestionCircle } from 'react-icons/fa'
+
 import SimpleBar from 'simplebar-react'
 
 import ArrowTags from '../ArrowTags/ArrowTags'
@@ -22,8 +21,16 @@ import Skeleton from '../Skeleton/Skeleton'
 import SplitBadge from '../SplitBadge/SplitBadge'
 
 import { collectionDetailsSkeleton } from './skeleton'
-import { collectionMetadataPropType } from '../../util/propTypes/collectionMetadata'
+import ExternalLink from '../ExternalLink/ExternalLink'
+
 import { pluralize } from '../../util/pluralize'
+import renderTooltip from '../../util/renderTooltip'
+
+import useEdscStore from '../../zustand/useEdscStore'
+import { getFocusedCollectionMetadata } from '../../zustand/selectors/collection'
+
+import { setOpenModalFunction } from '../../zustand/selectors/ui'
+import { MODAL_NAMES } from '../../constants/modalNames'
 
 import './CollectionDetailsBody.scss'
 
@@ -37,7 +44,7 @@ const buildRelatedUrlsList = (relatedUrls) => {
       relatedUrlsList.push(
         <a
           key={key}
-          className="link link--separated collection-details-body__link"
+          className="link--separated collection-details-body__link"
           href={url.url}
           target="_blank"
           rel="noopener noreferrer"
@@ -95,6 +102,7 @@ const buildDoiLink = (doiLink, doiText) => {
     <SplitBadge
       primary="DOI"
       secondary={doiText}
+      variant="info"
     />
   )
 
@@ -122,18 +130,10 @@ const buildForDeveloperLink = (linkData, token) => {
 
 /**
  * Renders CollectionDetailsBody.
- * @param {Object} props - The props passed into the component.
- * @param {Object} props  collectionMetadata - Focused collection passed from redux store.
- * @param {Function} props.onToggleRelatedUrlsModal - Toggles the state of the Related URLs modal
  */
-export const CollectionDetailsBody = ({
-  collectionMetadata,
-  isActive,
-  location,
-  onFocusedCollectionChange,
-  onMetricsRelatedCollection,
-  onToggleRelatedUrlsModal
-}) => {
+const CollectionDetailsBody = () => {
+  const setOpenModal = useEdscStore(setOpenModalFunction)
+  const collectionMetadata = useEdscStore(getFocusedCollectionMetadata)
   const {
     abstract,
     associatedDois,
@@ -159,16 +159,17 @@ export const CollectionDetailsBody = ({
     return (
       <div className="collection-details-body">
         <div className="collection-details-body__content">
-          <Skeleton
-            shapes={collectionDetailsSkeleton}
-            containerStyle={
-              {
-                height: '400px',
-                width: '100%',
-                dataTestId: 'collection-details-body__skeleton'
+          <div>
+            <Skeleton
+              shapes={collectionDetailsSkeleton}
+              containerStyle={
+                {
+                  height: '400px',
+                  width: '100%'
+                }
               }
-            }
-          />
+            />
+          </div>
         </div>
       </div>
     )
@@ -180,7 +181,7 @@ export const CollectionDetailsBody = ({
     const { items } = services
 
     if (items) {
-      const supportedServiceTypes = ['esi', 'opendap', 'echo orders', 'harmony']
+      const supportedServiceTypes = ['esi', 'opendap', 'echo orders', 'harmony', 'swodlr']
       items.forEach((service) => {
         const {
           supportedReformattings: supportedReformattingsList,
@@ -256,8 +257,21 @@ export const CollectionDetailsBody = ({
           <div className="row collection-details-body__row">
             <div className="col col-12">
               <div className="collection-details-body__tags">
-                <Badge className="collection-details-header__short-name mr-2" variant="light" data-testid="collection-details-header__short-name">{shortName}</Badge>
-                <Badge className="collection-details-header__version-id mr-2" variant="info" data-testid="collection-details-header__version-id">{`Version ${versionId}`}</Badge>
+                <Badge
+                  className="collection-details-header__short-name me-2"
+                  bg="light"
+                  text="bg-light"
+                  data-testid="collection-details-header__short-name"
+                >
+                  {shortName}
+                </Badge>
+                <Badge
+                  className="collection-details-header__version-id me-2"
+                  bg="info"
+                  data-testid="collection-details-header__version-id"
+                >
+                  {`Version ${versionId}`}
+                </Badge>
                 {doiText && buildDoiLink(doiLink, doiText)}
               </div>
               {
@@ -281,7 +295,7 @@ export const CollectionDetailsBody = ({
                               key={doiValue}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="link collection-details-body__link"
+                              className="collection-details-body__link"
                               title={`View ${title}`}
                               aria-label={`View ${title}`}
                               href={`${authority}${doiValue}`}
@@ -306,26 +320,24 @@ export const CollectionDetailsBody = ({
                       <>
                         {formattedRelatedUrls}
                         <Button
-                          className="link link--separated collection-details-body__link"
+                          className="link--separated collection-details-body__link"
                           type="button"
                           variant="link"
                           bootstrapVariant="link"
                           label="View All Related URLs"
-                          onClick={() => onToggleRelatedUrlsModal(true)}
+                          onClick={() => setOpenModal(MODAL_NAMES.RELATED_URLS)}
                         >
                           View All Related URLs
                         </Button>
                       </>
                     )
                   }
-                  <a
-                    className="link link--separated link--external collection-details-body__link"
+                  <ExternalLink
+                    className="link--separated collection-details-body__link"
                     href={urls.html.href}
-                    rel="noopener noreferrer"
-                    target="_blank"
                   >
                     View More Info
-                  </a>
+                  </ExternalLink>
                 </dd>
               </dl>
               {
@@ -340,7 +352,7 @@ export const CollectionDetailsBody = ({
                         temporal.map((entry, i) => {
                           const key = `temporal_entry_${i}`
 
-                          return <span key={key}>{entry}</span>
+                          return <div key={key}>{entry}</div>
                         })
                       }
                     </dd>
@@ -372,16 +384,12 @@ export const CollectionDetailsBody = ({
                         <OverlayTrigger
                           placement="right"
                           overlay={
-                            (
-                              <Tooltip
-                                id="tooltip_supported-reformatting"
-                                className="collection-details-body__tooltip tooltip--large tooltip--ta-left"
-                              >
-                                In addition to their native format, some data products can be
-                                reformatted to additional formats. If reformatting is desired,
-                                reformatting options can be set prior to downloading the data.
-                              </Tooltip>
-                            )
+                            (tooltipProps) => renderTooltip({
+                              id: 'tooltip_supported-reformatting',
+                              className: 'collection-details-body__tooltip tooltip--large tooltip--ta-left',
+                              children: 'In addition to their native format, some data products can be reformatted to additional formats. If reformatting is desired, reformatting options can be set prior to downloading the data.',
+                              ...tooltipProps
+                            })
                           }
                         >
                           <EDSCIcon icon={FaQuestionCircle} size="0.625rem" />
@@ -406,7 +414,7 @@ export const CollectionDetailsBody = ({
                             >
                               <dt className="collection-details-body__reformatting-item-heading">
                                 {supportedInputFormat}
-                                <EDSCIcon icon={FaArrowRight} className="collection-details-body__reformatting-item-icon" />
+                                <EDSCIcon icon={ArrowLineRight} className="collection-details-body__reformatting-item-icon" />
                               </dt>
                               <dd className="collection-details-body__reformatting-item-body">
                                 {supportedOutputFormats.join(', ')}
@@ -444,11 +452,7 @@ export const CollectionDetailsBody = ({
           </div>
           <div className="row collection-details-body__row">
             <div className="col col-12 collection-details-body__minimap">
-              {
-                isActive && (
-                  <CollectionDetailsMinimap metadata={collectionMetadata} />
-                )
-              }
+              <CollectionDetailsMinimap metadata={collectionMetadata} />
               {
                 spatial && (
                   <div className="collection-details-body__spatial-bounding">
@@ -541,10 +545,7 @@ export const CollectionDetailsBody = ({
                             >
                               <RelatedCollection
                                 key={`related-collection-${id}`}
-                                className="collection-body__related-collection-link"
-                                location={location}
-                                onFocusedCollectionChange={onFocusedCollectionChange}
-                                onMetricsRelatedCollection={onMetricsRelatedCollection}
+                                className="collection-details-body__related-collection-link"
                                 relatedCollection={relatedCollection}
                               />
                             </li>
@@ -586,17 +587,6 @@ export const CollectionDetailsBody = ({
       </CollapsePanel>
     </div>
   )
-}
-
-CollectionDetailsBody.propTypes = {
-  collectionMetadata: collectionMetadataPropType.isRequired,
-  isActive: PropTypes.bool.isRequired,
-  location: PropTypes.shape({
-    search: PropTypes.string
-  }).isRequired,
-  onFocusedCollectionChange: PropTypes.func.isRequired,
-  onMetricsRelatedCollection: PropTypes.func.isRequired,
-  onToggleRelatedUrlsModal: PropTypes.func.isRequired
 }
 
 export default CollectionDetailsBody
